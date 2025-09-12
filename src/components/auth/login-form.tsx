@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { LoadingButton, FullScreenLoader } from "@/components/ui/loader";
+import { useAuth } from '@/lib/hooks/useAuth';
 
 interface LoginFormData {
   email: string;
@@ -18,25 +19,20 @@ interface ValidationErrors {
   otp?: string;
 }
 
-// Test data for development
-const TEST_CREDENTIALS = {
-  email: 'admin@soldoutafrica.com',
-  otp: '123456'
-};
-
 export const LoginForm = () => {
   const router = useRouter();
+  const { requestOtp, validateOtp, isRequestingOtp, isValidatingOtp } = useAuth();
+
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     otp: ''
   });
   const [step, setStep] = useState<'email' | 'otp' | 'login'>('email');
-  const [isValidatingEmail, setIsValidatingEmail] = useState(false);
-  const [isValidatingOtp, setIsValidatingOtp] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [otpSent, setOtpSent] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
 
   const validateEmail = (email: string): string | undefined => {
     if (!email) return 'Email is required';
@@ -44,10 +40,10 @@ export const LoginForm = () => {
     return undefined;
   };
 
-  const validateOtp = (otp: string): string | undefined => {
+  const validateOtpInput = (otp: string): string | undefined => {
     if (!otp) return 'Verification code is required';
-    if (otp.length !== 6) return 'Verification code must be 6 digits';
-    if (!/^\d{6}$/.test(otp)) return 'Verification code must contain only numbers';
+    if (otp.length !== 4) return 'Verification code must be 4 digits';
+    if (!/^\d{4}$/.test(otp)) return 'Verification code must contain only numbers';
     return undefined;
   };
 
@@ -77,82 +73,71 @@ export const LoginForm = () => {
       return;
     }
 
-    setIsValidatingEmail(true);
     setError('');
     setValidationErrors({});
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call the API to request OTP
+      const response = await requestOtp(formData.email, 'email');
 
-      if (formData.email === TEST_CREDENTIALS.email) {
+      if (response.status) {
         setOtpSent(true);
         setStep('otp');
+        setUserData(response.user);
       } else {
-        throw new Error('Email not found. Contact admin support');
+        throw new Error(response.message || 'Failed to send verification code');
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to send OTP');
-    } finally {
-      setIsValidatingEmail(false);
+      setError(error instanceof Error ? error.message : 'Failed to send verification code');
     }
   };
 
   const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const otpError = validateOtp(formData.otp);
+    const otpError = validateOtpInput(formData.otp);
     if (otpError) {
       setValidationErrors({ otp: otpError });
       return;
     }
 
-    setIsValidatingOtp(true);
     setError('');
     setValidationErrors({});
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call the API to validate OTP
+      const response = await validateOtp(formData.otp, userData?.phoneNumber || '');
 
-      if (formData.otp === TEST_CREDENTIALS.otp) {
-        setStep('login');
-        handleLogin();
+      if (response.status && response.user) {
+        // Verify if user is a SUPER_ADMIN
+        if (response.user.role === 'SUPER_ADMIN') {
+          setStep('login');
+          // The useAuth hook handles the redirection
+        } else {
+          throw new Error('Access denied. Only administrators can access this portal.');
+        }
       } else {
-        throw new Error('Invalid verification code. Please try again.');
+        throw new Error(response.message || 'Invalid verification code');
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Invalid OTP');
-    } finally {
-      setIsValidatingOtp(false);
-    }
-  };
-
-  const handleLogin = async () => {
-    setIsLoggingIn(true);
-
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      const mockToken = 'mock_token_' + Date.now();
-      localStorage.setItem('authToken', mockToken);
-      router.push('/dashboard');
-    } catch (error) {
-      setError('Login failed. Please try again.');
-      setStep('email');
-    } finally {
-      setIsLoggingIn(false);
+      setError(error instanceof Error ? error.message : 'Verification failed');
     }
   };
 
   const handleResendOtp = async () => {
-    setIsValidatingEmail(true);
     setError('');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setOtpSent(true);
+      // Re-request the OTP
+      const response = await requestOtp(formData.email, 'email');
+
+      if (response.status) {
+        setOtpSent(true);
+      } else {
+        throw new Error(response.message || 'Failed to resend verification code');
+      }
     } catch (error) {
-      setError('Failed to resend OTP');
-    } finally {
-      setIsValidatingEmail(false);
+      setError(error instanceof Error ? error.message : 'Failed to resend verification code');
     }
   };
 
@@ -176,29 +161,6 @@ export const LoginForm = () => {
           </p>
         </div>
 
-        {/* Progress Steps */}
-        {/*<div className="flex items-center justify-center mb-6">*/}
-        {/*  <div className="flex items-center space-x-3">*/}
-        {/*    <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold shadow-sm transition-all duration-300 ${*/}
-        {/*      step === 'email'*/}
-        {/*        ? 'bg-blue-600 text-white ring-4 ring-blue-100 scale-110'*/}
-        {/*        : 'bg-emerald-500 text-white shadow-md'*/}
-        {/*    }`}>*/}
-        {/*      {step === 'email' ? '1' : '✓'}*/}
-        {/*    </div>*/}
-        {/*    <div className={`h-1 w-12 rounded-full transition-all duration-500 ${*/}
-        {/*      step === 'otp' ? 'bg-gradient-to-r from-slate-900 to-indigo-500' : 'bg-gray-200'*/}
-        {/*    }`}></div>*/}
-        {/*    <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold shadow-sm transition-all duration-300 ${*/}
-        {/*      step === 'otp'*/}
-        {/*        ? 'bg-blue-600 text-white ring-4 ring-blue-100 scale-110'*/}
-        {/*        : 'bg-gray-200 text-gray-500'*/}
-        {/*    }`}>*/}
-        {/*      2*/}
-        {/*    </div>*/}
-        {/*  </div>*/}
-        {/*</div>*/}
-
         {/* Error Message */}
         {error && (
           <Alert variant="destructive" className="mb-4 border-red-200 bg-red-50">
@@ -212,16 +174,13 @@ export const LoginForm = () => {
         {step === 'email' && (
           <form onSubmit={handleEmailSubmit} className="space-y-4">
             <div className="space-y-2">
-              {/*<Label htmlFor="email" className="text-sm font-medium text-gray-700 ">*/}
-              {/*  Email Address*/}
-              {/*</Label>*/}
               <Input
                 id="email"
                 type="email"
                 required
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                disabled={isValidatingEmail}
+                disabled={isRequestingOtp}
                 placeholder="Enter your email address"
                 className={`h-11 text-base transition-all duration-200 ${
                   validationErrors.email
@@ -236,7 +195,7 @@ export const LoginForm = () => {
 
             <LoadingButton
               type="submit"
-              isLoading={isValidatingEmail}
+              isLoading={isRequestingOtp}
               loadingText="Sending..."
               variant="primary"
               className="w-full h-11 bg-gradient-to-r from-slate-600 to-indigo-600 hover:from-slate-700 hover:to-indigo-700 active:from-blue-800 active:to-indigo-800 focus:from-blue-700 focus:to-indigo-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl active:shadow-md focus:ring-4 focus:ring-blue-100 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
@@ -258,10 +217,10 @@ export const LoginForm = () => {
                 type="password"
                 required
                 value={formData.otp}
-                onChange={(e) => handleInputChange('otp', e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onChange={(e) => handleInputChange('otp', e.target.value.replace(/\D/g, '').slice(0, 4))}
                 disabled={isValidatingOtp}
-                placeholder="••••••"
-                maxLength={6}
+                placeholder="••••"
+                maxLength={4}
                 className={`h-11 text-center text-lg tracking-widest font-mono transition-all duration-200 ${
                   validationErrors.otp
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-500 bg-red-50'
@@ -280,10 +239,10 @@ export const LoginForm = () => {
                   variant="link"
                   size="sm"
                   onClick={handleResendOtp}
-                  disabled={isValidatingEmail || isValidatingOtp}
+                  disabled={isRequestingOtp || isValidatingOtp}
                   className="text-xs font-medium text-blue-600 hover:text-slate-900 active:text-blue-700 focus:text-blue-700 p-0 h-auto transition-colors duration-150 hover:underline"
                 >
-                  {isValidatingEmail ? 'Resending...' : 'Resend'}
+                  {isRequestingOtp ? 'Resending...' : 'Resend'}
                 </Button>
               </div>
             </div>
@@ -304,7 +263,7 @@ export const LoginForm = () => {
                 loadingText="Verifying..."
                 variant="primary"
                 className="flex-1 h-11 bg-gradient-to-r from-slate-600 to-indigo-600 hover:from-slate-700 hover:to-indigo-700 active:from-blue-800 active:to-indigo-800 focus:from-blue-700 focus:to-indigo-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl active:shadow-md focus:ring-4 focus:ring-blue-100 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
-                disabled={formData.otp.length !== 6}
+                disabled={formData.otp.length !== 4}
               >
                 Verify & Sign In
               </LoadingButton>
