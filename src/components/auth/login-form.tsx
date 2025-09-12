@@ -161,12 +161,12 @@ export const LoginForm = () => {
   }
 
   return (
-    <div className=" bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className=" bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-2 rounded-2xl">
       <div className="w-full max-w-md bg-white/90 backdrop-blur-sm rounded-xl shadow-xl border border-white/20 p-6">
         {/* Header */}
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900">
-            {step === 'email' ? 'Welcome Back' : 'Verify Your Identity'}
+            {step === 'email' ? 'Welcome' : 'Verify Your Identity'}
           </h2>
           <p className="text-gray-600 mt-1 text-sm">
             {step === 'email'
