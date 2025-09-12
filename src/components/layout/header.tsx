@@ -1,3 +1,5 @@
+'use client';
+
 import { ReactNode } from 'react';
 
 interface HeaderProps {
@@ -14,11 +16,6 @@ export const Header = ({ children, title, showUserMenu = true }: HeaderProps) =>
       </div>
       <div className="flex items-center space-x-4">
         {children}
-        {showUserMenu && (
-          <div className="flex items-center space-x-2 my-1">
-
-          </div>
-        )}
       </div>
     </header>
   );

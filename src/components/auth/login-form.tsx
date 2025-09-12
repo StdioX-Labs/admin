@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { LoadingButton, FullScreenLoader } from "@/components/ui/loader";
 import { useAuth } from '@/lib/hooks/useAuth';
+import { OtpInput } from "@/components/ui/otp-input";
 
 interface LoginFormData {
   email: string;
@@ -212,15 +213,13 @@ export const LoginForm = () => {
               <Label htmlFor="otp" className="text-sm font-medium text-gray-700">
                 Verification Code
               </Label>
-              <Input
+              <OtpInput
                 id="otp"
-                type="password"
-                required
                 value={formData.otp}
-                onChange={(e) => handleInputChange('otp', e.target.value.replace(/\D/g, '').slice(0, 4))}
+                onChange={(value) => handleInputChange('otp', value)}
+                length={4}
                 disabled={isValidatingOtp}
                 placeholder="••••"
-                maxLength={4}
                 className={`h-11 text-center text-lg tracking-widest font-mono transition-all duration-200 ${
                   validationErrors.otp
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-500 bg-red-50'

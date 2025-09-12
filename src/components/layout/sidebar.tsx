@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useState } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,14 +25,21 @@ import { Loader, LoadingButton } from "@/components/ui/loader";
 interface SidebarProps {
   children?: ReactNode;
   className?: string;
-  userName?: string;
 }
 
-export const Sidebar = ({ children, className = '', userName = 'John Doe' }: SidebarProps) => {
+export const Sidebar = ({ children, className = '' }: SidebarProps) => {
   const pathname = usePathname();
   const router = useRouter();
+  const { logout, isLoggingOut } = useAuth();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // Get user info from localStorage (set during login)
+  const userEmail = typeof window !== 'undefined' ? localStorage.getItem('userEmail') || 'user@example.com' : 'user@example.com';
+
+  // Create a truncated version of the email
+  const truncatedEmail = userEmail.length > 15
+    ? `${userEmail.substring(0, 12)}...`
+    : userEmail;
 
   const sidebarLinks = [
     { href: '/dashboard', label: 'Dashboard' },
@@ -42,24 +50,8 @@ export const Sidebar = ({ children, className = '', userName = 'John Doe' }: Sid
   ];
 
   const handleLogout = async () => {
-    setIsLoggingOut(true);
-
-    try {
-      // Keep your existing logout logic here
-      // Simulate API call or actual logout logic
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Add your logout logic here (clear tokens, etc.)
-      // localStorage.removeItem('authToken');
-      // await fetch('/api/auth/logout', { method: 'POST' });
-
-      router.push('/login');
-      setShowLogoutModal(false);
-    } catch (error) {
-      console.error('Logout failed:', error);
-    } finally {
-      setIsLoggingOut(false);
-    }
+    await logout();
+    setShowLogoutModal(false);
   };
 
   return (
@@ -112,7 +104,7 @@ export const Sidebar = ({ children, className = '', userName = 'John Doe' }: Sid
                   disabled={isLoggingOut}
                   className="w-full flex items-center justify-between p-3 rounded-xl text-gray-300 hover:text-white hover:bg-red-600/20 transition-all duration-300 group disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span className="font-medium">{userName}</span>
+                  <span className="font-medium truncate">{truncatedEmail}</span>
                   {isLoggingOut ? (
                     <Loader size="sm" variant="spinner" color="white" />
                   ) : (
@@ -128,7 +120,7 @@ export const Sidebar = ({ children, className = '', userName = 'John Doe' }: Sid
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{isLoggingOut ? 'Logging out...' : 'Click to logout'}</p>
+                <p>{isLoggingOut ? 'Logging out...' : userEmail}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
