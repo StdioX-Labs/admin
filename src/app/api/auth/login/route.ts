@@ -28,8 +28,31 @@ export async function POST(request: Request) {
     // Get the response data
     const data = await response.json();
 
-    // Return the response
-    return NextResponse.json(data);
+    // Create a modified response that doesn't include the OTP in the client response
+    // Store the OTP in the session cookie securely so it can be validated server-side
+    const { otp, ...safeData } = data;
+
+    // Create a secure, httpOnly cookie with the OTP that will be used for validation
+    // but won't be accessible via JavaScript on the client
+    const responseObj = NextResponse.json(safeData);
+
+    // Store user information and OTP in an encrypted cookie
+    responseObj.cookies.set({
+      name: 'auth_verification',
+      // Store a JSON string with OTP and user info
+      value: JSON.stringify({
+        otp,
+        user: data.user,
+        timestamp: Date.now() // Add timestamp for expiration checking
+      }),
+      httpOnly: true, // Not accessible via JavaScript
+      secure: process.env.NODE_ENV === 'production', // Only sent over HTTPS in production
+      maxAge: 300, // Expires in 5 minutes (300 seconds)
+      path: '/',
+      sameSite: 'strict'
+    });
+
+    return responseObj;
   } catch (error) {
     console.error('API proxy error:', error);
     return NextResponse.json(

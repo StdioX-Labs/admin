@@ -38,6 +38,7 @@ async function fetchApi<T>(
         'Content-Type': 'application/json',
         ...options.headers,
       },
+      credentials: 'include', // Important for cookies
     });
 
     // Try to parse JSON
@@ -75,7 +76,6 @@ async function fetchApi<T>(
 
 // Types for login responses
 export interface LoginResponse {
-  otp: string;
   message: string;
   user: {
     phoneNumber: string;
@@ -92,13 +92,18 @@ export interface LoginResponse {
 }
 
 export interface OtpValidationResponse {
-  token?: string;
-  user?: {
-    id: number;
-    role: string;
-    [key: string]: any;
-  };
   message: string;
+  user?: {
+    phoneNumber: string;
+    role: string;
+    is_active: boolean;
+    kycStatus: string;
+    profile_type: string;
+    company_id: number;
+    user_id: number;
+    company_name: string;
+    email: string;
+  };
   status: boolean;
 }
 
@@ -116,24 +121,24 @@ export const authApi = {
   },
 
   // Validate OTP
-  validateOtp: async (otp: string, mobileNumber: string) => {
+  validateOtp: async (otp: string) => {
     return fetchApi<OtpValidationResponse>('/auth/validate-otp', {
       method: 'POST',
-      body: JSON.stringify({
-        otp,
-        mobileNumber
-      }),
+      body: JSON.stringify({ otp }),
     });
   },
 
-  // Direct login with credentials
-  login: async (mobile_number: string, password: string) => {
-    return fetchApi<any>('/auth/direct-login', {
+  // Check authentication status
+  checkAuth: async () => {
+    return fetchApi<{ isAuthenticated: boolean, user?: any }>('/auth/status', {
+      method: 'GET',
+    });
+  },
+
+  // Logout
+  logout: async () => {
+    return fetchApi<{ success: boolean }>('/auth/logout', {
       method: 'POST',
-      body: JSON.stringify({
-        mobile_number,
-        password
-      }),
     });
   }
 };
