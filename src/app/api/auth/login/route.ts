@@ -1,104 +1,43 @@
 import { NextResponse } from 'next/server';
 import { withErrorHandler } from '@/lib/utils';
+import { checkRateLimit, identifierRateLimitMap as otpRequestLog, resetRateLimitForIdentifier } from '@/lib/rate-limit';
 
 // Get environment variables
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME;
 const API_PASSWORD = process.env.NEXT_PUBLIC_API_PASSWORD;
 
-// Store OTP request timestamps to implement rate limiting - export it to be accessible in logout route
-export const otpRequestLog = new Map<string, {
-  timestamp: number,
-  count: number,
-  blockedUntil: number | null,
-  backoffTime: number // Time in ms to wait before next request
-}>();
-
-// Rate limit configuration
-const INITIAL_BACKOFF = 60 * 1000; // Start with 1 minute (60 seconds)
-const MAX_REQUESTS = 5; // Block after 5 requests
-const BLOCK_DURATION = 60 * 60 * 1000; // 1 hour block
+// Export the rate limiting map for access in other routes
+export { resetRateLimitForIdentifier };
 
 async function handlePost(request: Request) {
+  // Get the client's IP address from headers
+  // In production with a proxy, you may need to use X-Forwarded-For
+  const ip = request.headers.get('x-forwarded-for') ||
+             request.headers.get('x-real-ip') ||
+             'unknown-ip';
+
   // Get the request body
   const body = await request.json();
   const { id: identifier } = body;
 
-  // Implement rate limiting for OTP requests
+  // Check both IP and identifier-based rate limiting
   if (identifier) {
-    const now = Date.now();
-    const requestLog = otpRequestLog.get(identifier);
+    const rateLimitResult = checkRateLimit(ip.toString(), identifier);
 
-    if (requestLog) {
-      // Check if the user is blocked
-      if (requestLog.blockedUntil && now < requestLog.blockedUntil) {
-        const remainingBlockTime = Math.ceil((requestLog.blockedUntil - now) / 60000); // in minutes
-        return NextResponse.json(
-          {
-            message: `Too many OTP requests. Please try again in ${remainingBlockTime} minute${remainingBlockTime > 1 ? 's' : ''}.`,
-            status: false
-          },
-          {
-            status: 429,
-            headers: {
-              'Content-Type': 'application/json'
-            }
+    if (rateLimitResult) {
+      return NextResponse.json(
+        {
+          message: rateLimitResult.message,
+          status: false
+        },
+        {
+          status: rateLimitResult.status,
+          headers: {
+            'Content-Type': 'application/json'
           }
-        );
-      }
-
-      // Not blocked, but check timing
-      if (now - requestLog.timestamp < requestLog.backoffTime) {
-        // They're trying too quickly, tell them to wait
-        const waitTime = Math.ceil((requestLog.timestamp + requestLog.backoffTime - now) / 60000); // in minutes
-        return NextResponse.json(
-          {
-            message: `Please wait ${waitTime} minute${waitTime > 1 ? 's' : ''} before requesting another OTP.`,
-            status: false
-          },
-          {
-            status: 429,
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-      }
-
-      // User waited long enough, process the request
-      requestLog.timestamp = now;
-      requestLog.count += 1;
-
-      // Increase backoff time exponentially for each subsequent request (doubles each time)
-      requestLog.backoffTime = INITIAL_BACKOFF * Math.pow(2, requestLog.count - 1);
-
-      // If they've made too many requests, block them
-      if (requestLog.count >= MAX_REQUESTS) {
-        requestLog.blockedUntil = now + BLOCK_DURATION;
-
-        return NextResponse.json(
-          {
-            message: 'Too many OTP requests. Your account has been temporarily blocked for 1 hour.',
-            status: false
-          },
-          {
-            status: 429,
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-      }
-
-      otpRequestLog.set(identifier, requestLog);
-    } else {
-      // First request for this identifier
-      otpRequestLog.set(identifier, {
-        timestamp: now,
-        count: 1,
-        blockedUntil: null,
-        backoffTime: INITIAL_BACKOFF
-      });
+        }
+      );
     }
   }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { otpRequestLog } from '../login/route';
+import { resetRateLimitForIdentifier } from '../login/route';
 import { withErrorHandler } from '@/lib/utils';
 
 async function handlePost(request: Request) {
@@ -16,7 +16,7 @@ async function handlePost(request: Request) {
 
       // Reset the OTP request timer for this user
       if (userEmail) {
-        otpRequestLog.delete(userEmail);
+        resetRateLimitForIdentifier(userEmail);
       }
     } catch (e) {
       console.error('Error parsing auth token during logout:', e);
