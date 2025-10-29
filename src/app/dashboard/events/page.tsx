@@ -7,22 +7,50 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { eventsApi } from "@/lib/api";
+
+interface Ticket {
+  id: number;
+  ticketName: string;
+  ticketPrice: number;
+  quantityAvailable: number;
+  soldQuantity: number;
+  isActive: boolean;
+  ticketsToIssue: number;
+  isSoldOut: boolean;
+  ticketLimitPerPerson: number;
+  numberOfComplementary: number;
+  ticketSaleStartDate: string;
+  ticketSaleEndDate: string;
+  isFree: boolean;
+  ticketStatus: string;
+  createAt: string;
+}
 
 interface Event {
-  id: string;
-  title: string;
-  description: string;
+  id: number;
+  eventName: string;
+  eventDescription: string;
+  eventPosterUrl: string;
+  eventCategoryId: number;
+  ticketSaleStartDate: string;
+  ticketSaleEndDate: string;
+  eventLocation: string;
+  eventStartDate: string;
+  eventEndDate: string;
+  isActive: boolean;
+  tickets: Ticket[];
+  createdById: number;
+  companyId: number;
+  companyName: string;
+  comission: number;
+  category: string;
   date: string;
   time: string;
-  location: string;
-  category: 'conference' | 'workshop' | 'seminar' | 'networking' | 'concert' | 'sports';
-  status: 'draft' | 'published' | 'live' | 'completed' | 'cancelled';
-  ticketsSold: number;
-  totalTickets: number;
-  revenue: number;
-  organizer: string;
-  createdAt: string;
-  updatedAt: string;
+  isFeatured: boolean;
+  price: number;
+  slug: string;
+  currency: string;
 }
 
 interface EventStats {
@@ -39,130 +67,59 @@ export default function EventsDashboard() {
   const [events, setEvents] = useState<Event[]>([]);
   const [stats, setStats] = useState<EventStats | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'draft' | 'published' | 'live' | 'completed' | 'cancelled'>('all');
-  const [filterCategory, setFilterCategory] = useState<'all' | Event['category']>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Mock data - replace with actual API calls
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
+      setError('');
       try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const response = await eventsApi.getAllEvents();
 
-        const mockStats: EventStats = {
-          totalEvents: 245,
-          liveEvents: 12,
-          totalRevenue: 3200000,
-          totalTicketsSold: 8642,
-          upcomingEvents: 34,
-          completedEvents: 187
-        };
+        if (response.events && Array.isArray(response.events)) {
+          setEvents(response.events);
 
-        const mockEvents: Event[] = [
-          {
-            id: '1',
-            title: 'Tech Innovation Summit 2024',
-            description: 'Leading technology conference featuring AI and blockchain innovations',
-            date: '2024-12-25',
-            time: '09:00',
-            location: 'KICC, Nairobi',
-            category: 'conference',
-            status: 'published',
-            ticketsSold: 450,
-            totalTickets: 500,
-            revenue: 225000,
-            organizer: 'TechCorp Solutions',
-            createdAt: '2024-11-15',
-            updatedAt: '2024-12-10'
-          },
-          {
-            id: '2',
-            title: 'Digital Marketing Workshop',
-            description: 'Hands-on workshop for social media marketing strategies',
-            date: '2024-12-20',
-            time: '14:00',
-            location: 'Strathmore University',
-            category: 'workshop',
-            status: 'live',
-            ticketsSold: 120,
-            totalTickets: 150,
-            revenue: 48000,
-            organizer: 'StartupHub Kenya',
-            createdAt: '2024-11-20',
-            updatedAt: '2024-12-12'
-          },
-          {
-            id: '3',
-            title: 'Startup Pitch Night',
-            description: 'Monthly networking event for entrepreneurs and investors',
-            date: '2024-12-18',
-            time: '18:00',
-            location: 'iHub Nairobi',
-            category: 'networking',
-            status: 'completed',
-            ticketsSold: 200,
-            totalTickets: 200,
-            revenue: 60000,
-            organizer: 'EventMasters Ltd',
-            createdAt: '2024-10-15',
-            updatedAt: '2024-12-18'
-          },
-          {
-            id: '4',
-            title: 'Jazz Music Festival',
-            description: 'Annual jazz festival featuring local and international artists',
-            date: '2024-12-30',
-            time: '19:00',
-            location: 'Uhuru Gardens',
-            category: 'concert',
-            status: 'draft',
-            ticketsSold: 0,
-            totalTickets: 1000,
-            revenue: 0,
-            organizer: 'Digital Innovators',
-            createdAt: '2024-12-05',
-            updatedAt: '2024-12-10'
-          },
-          {
-            id: '5',
-            title: 'Entrepreneurship Seminar',
-            description: 'Expert insights on building successful startups in Africa',
-            date: '2024-12-28',
-            time: '10:00',
-            location: 'University of Nairobi',
-            category: 'seminar',
-            status: 'published',
-            ticketsSold: 85,
-            totalTickets: 100,
-            revenue: 25500,
-            organizer: 'Business Hub',
-            createdAt: '2024-11-25',
-            updatedAt: '2024-12-05'
-          },
-          {
-            id: '6',
-            title: 'Basketball Championship',
-            description: 'Annual inter-university basketball tournament',
-            date: '2024-12-22',
-            time: '15:00',
-            location: 'Nyayo Stadium',
-            category: 'sports',
-            status: 'cancelled',
-            ticketsSold: 0,
-            totalTickets: 800,
-            revenue: 0,
-            organizer: 'Sports Kenya',
-            createdAt: '2024-10-20',
-            updatedAt: '2024-12-01'
-          }
-        ];
+          // Cache events in localStorage for detail page
+          localStorage.setItem('eventsCache', JSON.stringify(response.events));
 
-        setStats(mockStats);
-        setEvents(mockEvents);
-      } catch (err) {
-        setError('Failed to load events data');
+          // Calculate stats from the events
+          const totalEvents = response.events.length;
+          const liveEvents = response.events.filter((e: Event) => e.isActive).length;
+          const totalTicketsSold = response.events.reduce((sum: number, e: Event) => {
+            return sum + e.tickets.reduce((ticketSum, t) => ticketSum + t.soldQuantity, 0);
+          }, 0);
+          const totalRevenue = response.events.reduce((sum: number, e: Event) => {
+            return sum + e.tickets.reduce((ticketSum, t) => ticketSum + (t.soldQuantity * t.ticketPrice), 0);
+          }, 0);
+
+          // Count upcoming events (events with future start dates)
+          const now = new Date();
+          const upcomingEvents = response.events.filter((e: Event) => {
+            const startDate = new Date(e.eventStartDate);
+            return startDate > now;
+          }).length;
+
+          // Count completed events (events with past end dates)
+          const completedEvents = response.events.filter((e: Event) => {
+            const endDate = new Date(e.eventEndDate);
+            return endDate < now;
+          }).length;
+
+          setStats({
+            totalEvents,
+            liveEvents,
+            totalRevenue,
+            totalTicketsSold,
+            upcomingEvents,
+            completedEvents
+          });
+        }
+      } catch (err: any) {
+        console.error('Error fetching events:', err);
+        setError(err?.message || 'Failed to load events data');
       } finally {
         setIsLoading(false);
       }
@@ -172,41 +129,39 @@ export default function EventsDashboard() {
   }, []);
 
   const filteredEvents = events.filter(event => {
-    const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.organizer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.location.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || event.status === filterStatus;
+    const matchesSearch = event.eventName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         event.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         event.eventLocation.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === 'all' ||
+                         (filterStatus === 'active' && event.isActive) ||
+                         (filterStatus === 'inactive' && !event.isActive);
     const matchesCategory = filterCategory === 'all' || event.category === filterCategory;
     return matchesSearch && matchesStatus && matchesCategory;
   });
 
-  const getStatusBadge = (status: string) => {
-    const styles = {
-      draft: 'bg-gray-100 text-gray-800 border-gray-200',
-      published: 'bg-blue-100 text-blue-800 border-blue-200',
-      live: 'bg-green-100 text-green-800 border-green-200',
-      completed: 'bg-slate-100 text-slate-800 border-slate-200',
-      cancelled: 'bg-red-100 text-red-800 border-red-200'
-    };
-    return styles[status as keyof typeof styles] || styles.draft;
+  // Get unique categories from events
+  const categories = Array.from(new Set(events.map(e => e.category))).filter(Boolean);
+
+  const getStatusBadge = (isActive: boolean) => {
+    return isActive
+      ? 'bg-green-100 text-green-800 border-green-200'
+      : 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
   const getCategoryBadge = (category: string) => {
-    const styles = {
-      conference: 'bg-purple-100 text-purple-800 border-purple-200',
-      workshop: 'bg-orange-100 text-orange-800 border-orange-200',
-      seminar: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-      networking: 'bg-pink-100 text-pink-800 border-pink-200',
-      concert: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      sports: 'bg-emerald-100 text-emerald-800 border-emerald-200'
+    const styles: Record<string, string> = {
+      'Music Events': 'bg-purple-100 text-purple-800 border-purple-200',
+      'Conference': 'bg-blue-100 text-blue-800 border-blue-200',
+      'Workshop': 'bg-orange-100 text-orange-800 border-orange-200',
+      'Sports': 'bg-emerald-100 text-emerald-800 border-emerald-200',
     };
-    return styles[category as keyof typeof styles] || styles.conference;
+    return styles[category] || 'bg-indigo-100 text-indigo-800 border-indigo-200';
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number, currency: string = 'KES') => {
     return new Intl.NumberFormat('en-KE', {
       style: 'currency',
-      currency: 'KES'
+      currency: currency
     }).format(amount);
   };
 
@@ -218,8 +173,20 @@ export default function EventsDashboard() {
     });
   };
 
-  const getTicketProgress = (sold: number, total: number) => {
-    return total > 0 ? Math.round((sold / total) * 100) : 0;
+  const getTicketProgress = (event: Event) => {
+    const totalAvailable = event.tickets.reduce((sum, t) => sum + t.quantityAvailable, 0);
+    const totalSold = event.tickets.reduce((sum, t) => sum + t.soldQuantity, 0);
+    return totalAvailable > 0 ? Math.round((totalSold / totalAvailable) * 100) : 0;
+  };
+
+  const getTotalTickets = (event: Event) => {
+    const totalAvailable = event.tickets.reduce((sum, t) => sum + t.quantityAvailable, 0);
+    const totalSold = event.tickets.reduce((sum, t) => sum + t.soldQuantity, 0);
+    return { sold: totalSold, total: totalAvailable };
+  };
+
+  const getEventRevenue = (event: Event) => {
+    return event.tickets.reduce((sum, t) => sum + (t.soldQuantity * t.ticketPrice), 0);
   };
 
   if (isLoading) {
@@ -268,7 +235,7 @@ export default function EventsDashboard() {
           </Alert>
         )}
 
-        {/* Stats Cards - 2 Rows Layout */}
+        {/* Stats Cards */}
         {stats && (
           <div className="space-y-3">
             {/* First Row */}
@@ -290,7 +257,7 @@ export default function EventsDashboard() {
               <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Live Events</p>
+                    <p className="text-sm font-medium text-slate-600 mb-1">Active Events</p>
                     <p className="text-2xl font-bold text-green-600">{stats.liveEvents}</p>
                   </div>
                   <div className="p-2 bg-green-100 rounded-lg">
@@ -374,9 +341,7 @@ export default function EventsDashboard() {
               className="h-9 border-slate-200 focus:border-slate-500 focus:ring-slate-500 text-sm"
             />
 
-            {/* Filter Dropdowns Row */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-start gap-4">
-              {/* Status Filter Dropdown */}
               <div className="space-y-2">
                 <span className="text-xs font-medium text-slate-600">Status:</span>
                 <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as typeof filterStatus)}>
@@ -385,30 +350,23 @@ export default function EventsDashboard() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="published">Published</SelectItem>
-                    <SelectItem value="live">Live</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Category Filter Dropdown */}
               <div className="space-y-2">
                 <span className="text-xs font-medium text-slate-600">Category:</span>
-                <Select value={filterCategory} onValueChange={(value) => setFilterCategory(value as typeof filterCategory)}>
+                <Select value={filterCategory} onValueChange={setFilterCategory}>
                   <SelectTrigger className="h-9 border-slate-200 focus:border-slate-500 focus:ring-slate-500 text-sm">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="conference">Conference</SelectItem>
-                    <SelectItem value="workshop">Workshop</SelectItem>
-                    <SelectItem value="seminar">Seminar</SelectItem>
-                    <SelectItem value="networking">Networking</SelectItem>
-                    <SelectItem value="concert">Concert</SelectItem>
-                    <SelectItem value="sports">Sports</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -439,66 +397,72 @@ export default function EventsDashboard() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
-                {filteredEvents.map((event) => (
-                  <tr key={event.id} className="hover:bg-slate-50 transition-colors duration-150">
-                    <td className="px-4 py-3">
-                      <div className="max-w-48">
-                        <p className="font-medium text-slate-900 truncate" title={event.title}>{event.title}</p>
-                        <p className="text-xs text-slate-500 truncate" title={event.location}>{event.location}</p>
-                        <p className="text-xs text-slate-400 truncate" title={event.organizer}>by {event.organizer}</p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm">
-                        <p className="text-slate-900">{formatDate(event.date)}</p>
-                        <p className="text-xs text-slate-500">{event.time}</p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getStatusBadge(event.status)}`}>
-                        {event.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getCategoryBadge(event.category)}`}>
-                        {event.category}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm">
-                        <p className="text-slate-900">{event.ticketsSold}/{event.totalTickets}</p>
-                        <div className="w-16 bg-gray-200 rounded-full h-1.5 mt-1">
-                          <div
-                            className="bg-blue-600 h-1.5 rounded-full"
-                            style={{ width: `${getTicketProgress(event.ticketsSold, event.totalTickets)}%` }}
-                          ></div>
+                {filteredEvents.map((event) => {
+                  const ticketStats = getTotalTickets(event);
+                  const progress = getTicketProgress(event);
+                  const revenue = getEventRevenue(event);
+
+                  return (
+                    <tr key={event.id} className="hover:bg-slate-50 transition-colors duration-150">
+                      <td className="px-4 py-3">
+                        <div className="max-w-48">
+                          <p className="font-medium text-slate-900 truncate" title={event.eventName}>{event.eventName}</p>
+                          <p className="text-xs text-slate-500 truncate" title={event.eventLocation}>{event.eventLocation}</p>
+                          <p className="text-xs text-slate-400 truncate" title={event.companyName}>by {event.companyName}</p>
                         </div>
-                        <p className="text-xs text-slate-500">{getTicketProgress(event.ticketsSold, event.totalTickets)}%</p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-900">{formatCurrency(event.revenue)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1">
-                        <Button
-                          onClick={() => router.push(`/dashboard/events/${event.id}`)}
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2 text-xs border-slate-200 text-slate-600 hover:bg-slate-50"
-                        >
-                          View
-                        </Button>
-                        <Button
-                          onClick={() => router.push(`/dashboard/events/${event.id}/edit`)}
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2 text-xs border-slate-200 text-slate-600 hover:bg-slate-50"
-                        >
-                          Edit
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm">
+                          <p className="text-slate-900">{event.date}</p>
+                          <p className="text-xs text-slate-500">{event.time}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getStatusBadge(event.isActive)}`}>
+                          {event.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getCategoryBadge(event.category)}`}>
+                          {event.category}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm">
+                          <p className="text-slate-900">{ticketStats.sold}/{ticketStats.total}</p>
+                          <div className="w-16 bg-gray-200 rounded-full h-1.5 mt-1">
+                            <div
+                              className="bg-blue-600 h-1.5 rounded-full"
+                              style={{ width: `${progress}%` }}
+                            ></div>
+                          </div>
+                          <p className="text-xs text-slate-500">{progress}%</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-900">{formatCurrency(revenue, event.currency)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-1">
+                          <Button
+                            onClick={() => router.push(`/dashboard/events/${event.id}`)}
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs border-slate-200 text-slate-600 hover:bg-slate-50"
+                          >
+                            View
+                          </Button>
+                          <Button
+                            onClick={() => router.push(`/dashboard/events/${event.id}/edit`)}
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs border-slate-200 text-slate-600 hover:bg-slate-50"
+                          >
+                            Edit
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

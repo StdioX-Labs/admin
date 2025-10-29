@@ -119,4 +119,24 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Custom cursor for all buttons */
+  button,
+  [role="button"],
+  .cursor-pointer {
+    cursor: pointer !important;
+  }
+
+  button:hover,
+  [role="button"]:hover,
+  .cursor-pointer:hover {
+    cursor: pointer !important;
+  }
+
+  button:disabled,
+  [role="button"]:disabled,
+  button[disabled],
+  [role="button"][disabled] {
+    cursor: not-allowed !important;
+  }
 }

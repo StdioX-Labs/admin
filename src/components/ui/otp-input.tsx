@@ -12,9 +12,9 @@ interface OtpInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const OtpInput = React.forwardRef<HTMLInputElement, OtpInputProps>(
-  ({ length = 4, onComplete, onChange, value, className, disabled = false, placeholder, ...props }, ref) => {
-    // Ensure value is a string and initialize empty array
-    const stringValue = value?.toString() || '';
+  ({ length = 4, onComplete, onChange, value = '', className, disabled = false, placeholder, ...props }, ref) => {
+    // Ensure value is always a string
+    const stringValue = String(value || '');
 
     // Convert string value to array of characters
     const valueArray = stringValue.split('').slice(0, length);
@@ -25,8 +25,7 @@ export const OtpInput = React.forwardRef<HTMLInputElement, OtpInputProps>(
 
     // Update internal state when external value changes
     React.useEffect(() => {
-      // Ensure value is a string
-      const stringValue = value?.toString() || '';
+      const stringValue = String(value || '');
       const valueArray = stringValue.split('').slice(0, length);
       while (valueArray.length < length) valueArray.push('');
       setOtp(valueArray);
@@ -55,7 +54,6 @@ export const OtpInput = React.forwardRef<HTMLInputElement, OtpInputProps>(
 
       // Handle paste
       if (value.length > 1) {
-        // If pasting, distribute the pasted value across inputs
         const pastedOtp = value.slice(0, length).split('');
         const newOtp = [...otp];
 
@@ -114,12 +112,6 @@ export const OtpInput = React.forwardRef<HTMLInputElement, OtpInputProps>(
       e.target.select();
     };
 
-    // Generate placeholder for each input field
-    const getPlaceholder = (index: number) => {
-      if (!placeholder) return undefined;
-      return typeof placeholder === 'string' && placeholder.length > index ? placeholder.charAt(index) : '•';
-    };
-
     return (
       <div className="flex gap-2 justify-center">
         {Array.from({ length }).map((_, index) => (
@@ -128,7 +120,11 @@ export const OtpInput = React.forwardRef<HTMLInputElement, OtpInputProps>(
             ref={(el) => (inputRefs.current[index] = el)}
             type="text"
             inputMode="numeric"
-            autoComplete="one-time-code"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
+            data-form-type="other"
             pattern="[0-9]*"
             maxLength={1}
             value={otp[index]}
@@ -136,7 +132,6 @@ export const OtpInput = React.forwardRef<HTMLInputElement, OtpInputProps>(
             onKeyDown={(e) => handleKeyDown(e, index)}
             onFocus={handleFocus}
             disabled={disabled}
-            placeholder={getPlaceholder(index)}
             className={cn(
               "h-12 w-12 text-center text-lg font-medium rounded-md border border-input",
               "focus:outline-none focus:ring-2 focus:ring-ring focus:border-input",

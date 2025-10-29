@@ -1,18 +1,17 @@
 import { NextResponse } from 'next/server';
-import { withErrorHandler } from '@/lib/utils';
-import { checkRateLimit, identifierRateLimitMap as otpRequestLog, resetRateLimitForIdentifier } from '@/lib/rate-limit';
+import { checkRateLimit, resetRateLimitForIdentifier } from '@/lib/rate-limit';
+import { withErrorHandler } from '@/lib/auth';
 
 // Get environment variables
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME;
 const API_PASSWORD = process.env.NEXT_PUBLIC_API_PASSWORD;
 
-// Export the rate limiting map for access in other routes
+// Export the rate limiting function for access in other routes
 export { resetRateLimitForIdentifier };
 
 async function handlePost(request: Request) {
   // Get the client's IP address from headers
-  // In production with a proxy, you may need to use X-Forwarded-For
   const ip = request.headers.get('x-forwarded-for') ||
              request.headers.get('x-real-ip') ||
              'unknown-ip';
@@ -80,11 +79,9 @@ async function handlePost(request: Request) {
   const data = await response.json();
 
   // Create a modified response that doesn't include the OTP in the client response
-  // Store the OTP in the session cookie securely so it can be validated server-side
   const { otp, user } = data;
 
   // Create a secure, httpOnly cookie with the OTP that will be used for validation
-  // but won't be accessible via JavaScript on the client
   const responseObj = NextResponse.json(
     {
       message: 'A verification code has been sent to your email address',
@@ -100,15 +97,14 @@ async function handlePost(request: Request) {
   // Store user information and OTP in an encrypted cookie
   responseObj.cookies.set({
     name: 'auth_verification',
-    // Store a JSON string with OTP and user info
     value: JSON.stringify({
       otp,
       user,
-      timestamp: Date.now() // Add timestamp for expiration checking
+      timestamp: Date.now()
     }),
-    httpOnly: true, // Not accessible via JavaScript
-    secure: process.env.NODE_ENV === 'production', // Only sent over HTTPS in production
-    maxAge: 300, // Expires in 5 minutes (300 seconds)
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 300, // Expires in 5 minutes
     path: '/',
     sameSite: 'strict'
   });

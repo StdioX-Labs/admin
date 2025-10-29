@@ -187,3 +187,28 @@ export const authApi = {
     });
   }
 };
+
+// Events API
+export const eventsApi = {
+  // Fetch all events
+  getAllEvents: async () => {
+    return fetchApi<{
+      message: string;
+      events: any[];
+      status?: boolean;
+    }>('/events', {
+      method: 'GET',
+    });
+  },
+
+  // Fetch single event by ID
+  getEventById: async (id: string | number) => {
+    return fetchApi<{
+      message: string;
+      event: any;
+      status?: boolean;
+    }>(`/events/${id}`, {
+      method: 'GET',
+    });
+  },
+};

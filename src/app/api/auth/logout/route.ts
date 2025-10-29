@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { resetRateLimitForIdentifier } from '../login/route';
-import { withErrorHandler } from '@/lib/utils';
+import { withErrorHandler } from '@/lib/auth';
+import { resetRateLimitForIdentifier } from '@/lib/rate-limit';
 
 async function handlePost(request: Request) {
   // Get the cookie store
@@ -14,7 +14,7 @@ async function handlePost(request: Request) {
       const authData = JSON.parse(authTokenCookie.value);
       const userEmail = authData.email;
 
-      // Reset the OTP request timer for this user
+      // Reset the OTP request rate limit for this user
       if (userEmail) {
         resetRateLimitForIdentifier(userEmail);
       }

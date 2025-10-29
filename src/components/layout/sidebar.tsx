@@ -33,12 +33,12 @@ export const Sidebar = ({ children, className = '' }: SidebarProps) => {
   const { logout, isLoggingOut } = useAuth();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  // Get user info from localStorage (set during login)
+  // Get user email from localStorage (set during login)
   const userEmail = typeof window !== 'undefined' ? localStorage.getItem('userEmail') || 'user@example.com' : 'user@example.com';
 
-  // Create a truncated version of the email
-  const truncatedEmail = userEmail.length > 15
-    ? `${userEmail.substring(0, 12)}...`
+  // Truncate email to max 20 characters
+  const truncatedEmail = userEmail.length > 20
+    ? `${userEmail.substring(0, 17)}...`
     : userEmail;
 
   const sidebarLinks = [
@@ -59,7 +59,7 @@ export const Sidebar = ({ children, className = '' }: SidebarProps) => {
       <aside className={`bg-gradient-to-b from-gray-900 to-gray-800 text-white w-64 min-h-screen flex flex-col ${className}`}>
         <div className="p-6 flex-1">
           <h2 className="text-2xl font-bold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-            SoldoutAfrica
+            SoldOutAfrica
           </h2>
           <nav>
             <ul className="space-y-3">
@@ -104,12 +104,12 @@ export const Sidebar = ({ children, className = '' }: SidebarProps) => {
                   disabled={isLoggingOut}
                   className="w-full flex items-center justify-between p-3 rounded-xl text-gray-300 hover:text-white hover:bg-red-600/20 transition-all duration-300 group disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span className="font-medium truncate">{truncatedEmail}</span>
+                  <span className="font-medium truncate text-sm">{truncatedEmail}</span>
                   {isLoggingOut ? (
                     <Loader size="sm" variant="spinner" color="white" />
                   ) : (
                     <svg
-                      className="w-5 h-5 transition-transform duration-300 group-hover:scale-110 group-hover:text-red-400"
+                      className="w-5 h-5 transition-transform duration-300 group-hover:scale-110 group-hover:text-red-400 flex-shrink-0 ml-2"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -119,8 +119,8 @@ export const Sidebar = ({ children, className = '' }: SidebarProps) => {
                   )}
                 </button>
               </TooltipTrigger>
-              <TooltipContent>
-                <p>{isLoggingOut ? 'Logging out...' : userEmail}</p>
+              <TooltipContent side="right">
+                <p className="text-sm">{userEmail}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

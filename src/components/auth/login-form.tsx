@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,11 +29,20 @@ export const LoginForm = () => {
     otp: ''
   });
   const [step, setStep] = useState<'email' | 'otp' | 'login'>('email');
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
-  const [otpSent, setOtpSent] = useState(false);
-  const [userData, setUserData] = useState<any>(null);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [resendCount, setResendCount] = useState(0);
+
+  // Timer countdown effect
+  useEffect(() => {
+    if (resendTimer > 0) {
+      const interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [resendTimer]);
 
   const validateEmail = (email: string): string | undefined => {
     if (!email) return 'Email is required';
@@ -78,18 +87,23 @@ export const LoginForm = () => {
     setValidationErrors({});
 
     try {
-      // Call the API to request OTP
       const response = await requestOtp(formData.email, 'email');
 
       if (response.status) {
-        setOtpSent(true);
         setStep('otp');
-        setUserData(response.user);
+        setResendCount(1);
+        // Set initial timer to 1 minute (60 seconds)
+        setResendTimer(60);
       } else {
         throw new Error(response.message || 'Failed to send verification code');
       }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to send verification code');
+    } catch (error: any) {
+      // Check if it's a rate limit error
+      if (error.status === 429) {
+        setError(error.message || 'Too many requests. Please try again later.');
+      } else {
+        setError(error.message || 'Failed to send verification code');
+      }
     }
   };
 
@@ -106,8 +120,7 @@ export const LoginForm = () => {
     setValidationErrors({});
 
     try {
-      // Call the API to validate OTP
-      const response = await validateOtp(formData.otp, userData?.phoneNumber || '');
+      const response = await validateOtp(formData.otp);
 
       if (response.status && response.user) {
         // Verify if user is a SUPER_ADMIN
@@ -120,26 +133,41 @@ export const LoginForm = () => {
       } else {
         throw new Error(response.message || 'Invalid verification code');
       }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Verification failed');
+    } catch (error: any) {
+      setError(error.message || 'Verification failed');
     }
   };
 
   const handleResendOtp = async () => {
+    if (resendTimer > 0) return;
+
     setError('');
 
     try {
-      // Re-request the OTP
       const response = await requestOtp(formData.email, 'email');
 
       if (response.status) {
-        setOtpSent(true);
+        setResendCount((prev) => prev + 1);
+        // Double the timer for each resend: 1min, 2min, 4min, 8min, then block at 5th request
+        const nextTimer = Math.pow(2, resendCount - 1) * 60;
+        setResendTimer(nextTimer);
       } else {
         throw new Error(response.message || 'Failed to resend verification code');
       }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to resend verification code');
+    } catch (error: any) {
+      // Check if it's a rate limit error
+      if (error.status === 429) {
+        setError(error.message || 'Too many requests. Please try again later.');
+      } else {
+        setError(error.message || 'Failed to resend verification code');
+      }
     }
+  };
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (step === 'login') {
@@ -219,7 +247,6 @@ export const LoginForm = () => {
                 onChange={(value) => handleInputChange('otp', value)}
                 length={4}
                 disabled={isValidatingOtp}
-                placeholder="••••"
                 className={`h-11 text-center text-lg tracking-widest font-mono transition-all duration-200 ${
                   validationErrors.otp
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-500 bg-red-50'
@@ -238,10 +265,14 @@ export const LoginForm = () => {
                   variant="link"
                   size="sm"
                   onClick={handleResendOtp}
-                  disabled={isRequestingOtp || isValidatingOtp}
-                  className="text-xs font-medium text-blue-600 hover:text-slate-900 active:text-blue-700 focus:text-blue-700 p-0 h-auto transition-colors duration-150 hover:underline"
+                  disabled={isRequestingOtp || isValidatingOtp || resendTimer > 0}
+                  className="text-xs font-medium text-blue-600 hover:text-slate-900 active:text-blue-700 focus:text-blue-700 p-0 h-auto transition-colors duration-150 hover:underline disabled:opacity-50 disabled:no-underline"
                 >
-                  {isRequestingOtp ? 'Resending...' : 'Resend'}
+                  {resendTimer > 0
+                    ? `Resend in ${formatTime(resendTimer)}`
+                    : isRequestingOtp
+                      ? 'Resending...'
+                      : 'Resend Code'}
                 </Button>
               </div>
             </div>
@@ -250,7 +281,11 @@ export const LoginForm = () => {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setStep('email')}
+                onClick={() => {
+                  setStep('email');
+                  setResendTimer(0);
+                  setResendCount(0);
+                }}
                 disabled={isValidatingOtp}
                 className="flex-1 h-11 border-gray-200 text-gray-700 hover:bg-gray-50 active:bg-gray-100 focus:bg-gray-50 hover:border-gray-300 active:border-gray-400 focus:border-gray-300 font-medium rounded-lg transition-all duration-200 hover:shadow-md focus:ring-2 focus:ring-gray-100"
               >

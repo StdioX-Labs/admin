@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { resetRateLimitForIdentifier } from '../login/route';
-import { withErrorHandler } from '@/lib/utils';
+import { withErrorHandler } from '@/lib/auth';
+import { resetRateLimitForIdentifier } from '@/lib/rate-limit';
 
 async function handlePost(request: Request) {
   // Get the request body containing the user-entered OTP
@@ -92,7 +92,7 @@ async function handlePost(request: Request) {
     issuedAt: now,
   };
 
-  // Reset the OTP request timer for this user
+  // Reset the OTP request rate limit for this user on successful login
   if (user.email) {
     resetRateLimitForIdentifier(user.email);
   }
@@ -123,13 +123,13 @@ async function handlePost(request: Request) {
     }
   );
 
-  // Set the authentication token in a cookie
+  // Set the authentication token in a cookie with 2-hour expiry
   response.cookies.set({
     name: 'auth_token',
     value: JSON.stringify(authToken),
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 2, // 2 hours (changed from 24 hours)
+    maxAge: 60 * 60 * 2, // 2 hours (7200 seconds)
     path: '/',
     sameSite: 'strict'
   });
