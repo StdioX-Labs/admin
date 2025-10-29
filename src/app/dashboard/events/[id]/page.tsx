@@ -6,8 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Loader } from "@/components/ui/loader"
 import { 
-  Calendar, 
-  MapPin, 
+  MapPin,
   Clock, 
   Users, 
   DollarSign, 
@@ -19,8 +18,6 @@ import {
   XCircle,
   AlertCircle,
   Image as ImageIcon,
-  Mail,
-  Phone,
   Globe,
   Building2,
   Star,
