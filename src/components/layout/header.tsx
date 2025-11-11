@@ -7,7 +7,7 @@ interface HeaderProps {
   title?: string;
 }
 
-export const Header = ({ children, title }: HeaderProps) => {
+export const Header = ({ children, title = 'SoldOutAfrica' }: HeaderProps) => {
   return (
     <header className="bg-white shadow-sm border-b px-6 py-4 flex items-center justify-between">
       <div className="flex items-center">

@@ -55,10 +55,13 @@ export default function DashboardPage() {
       console.error('[Dashboard] Fetch error:', err);
 
       // Check if it's an auth error
-      if (err.status === 401) {
+      if (err && typeof err === 'object' && 'status' in err && err.status === 401) {
         setError('You are not authorized. Please log in again.');
       } else {
-        setError(err.message || 'Failed to load dashboard data. Please try again.');
+        const errorMessage = err && typeof err === 'object' && 'message' in err && typeof err.message === 'string'
+          ? err.message
+          : 'Failed to load dashboard data. Please try again.';
+        setError(errorMessage);
       }
     } finally {
       setIsLoading(false);

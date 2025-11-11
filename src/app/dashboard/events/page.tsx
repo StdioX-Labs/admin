@@ -91,7 +91,7 @@ export default function EventsDashboard() {
       console.log('[Events] API response:', response);
 
       if (response.status && response.data && response.data.data) {
-        const eventsData = response.data.data;
+        const eventsData = response.data.data as Event[];
         setEvents(eventsData);
         setCurrentPage(response.data.page);
         setTotalPages(response.data.totalPages);

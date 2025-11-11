@@ -80,12 +80,18 @@ export default function EventDetailPage() {
 
   useEffect(() => {
     const fetchEvent = async () => {
+      const eventId = params?.id;
+      if (!eventId) {
+        setLoading(false);
+        return;
+      }
+
       try {
         // First, try to get from localStorage cache
         const cachedEvents = localStorage.getItem('eventsCache');
         if (cachedEvents) {
           const events: Event[] = JSON.parse(cachedEvents);
-          const foundEvent = events.find(e => e.id.toString() === params.id);
+          const foundEvent = events.find(e => e.id.toString() === eventId);
           if (foundEvent) {
             setEvent(foundEvent);
             setLoading(false);
@@ -95,12 +101,13 @@ export default function EventDetailPage() {
 
         // If not in cache, fetch from API
         const response = await eventsApi.getAllEvents();
-        if (response.events && Array.isArray(response.events)) {
-          const foundEvent = response.events.find((e: Event) => e.id.toString() === params.id);
+        if (response.data?.data && Array.isArray(response.data.data)) {
+          const events = response.data.data as Event[];
+          const foundEvent = events.find(e => e.id.toString() === eventId);
           if (foundEvent) {
             setEvent(foundEvent);
             // Update cache
-            localStorage.setItem('eventsCache', JSON.stringify(response.events));
+            localStorage.setItem('eventsCache', JSON.stringify(events));
           }
         }
       } catch (error) {
@@ -111,7 +118,7 @@ export default function EventDetailPage() {
     }
 
     fetchEvent()
-  }, [params.id])
+  }, [params?.id])
 
   if (loading) {
     return (

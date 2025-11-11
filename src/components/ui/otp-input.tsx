@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-interface OtpInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface OtpInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
   length?: number;
   onComplete?: (otp: string) => void;
   onChange?: (value: string) => void;
@@ -118,7 +118,7 @@ export const OtpInput = React.forwardRef<HTMLInputElement, OtpInputProps>(
         {Array.from({ length }).map((_, index) => (
           <input
             key={index}
-            ref={(el) => (inputRefs.current[index] = el)}
+            ref={(el) => { inputRefs.current[index] = el; }}
             type="text"
             inputMode="numeric"
             autoComplete="off"
