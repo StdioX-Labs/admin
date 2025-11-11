@@ -1,3 +1,5 @@
+'use client';
+
 export default function B2BAnalyticsPage() {
   return (
     <div className="p-6">

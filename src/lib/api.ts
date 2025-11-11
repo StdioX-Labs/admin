@@ -190,25 +190,79 @@ export const authApi = {
 
 // Events API
 export const eventsApi = {
-  // Fetch all events
-  getAllEvents: async () => {
+  // Fetch all events with pagination
+  getAllEvents: async (page: number = 0, size: number = 100) => {
     return fetchApi<{
+      data: {
+        data: any[];
+        page: number;
+        size: number;
+        totalElements: number;
+        totalPages: number;
+        hasNext: boolean;
+        hasPrevious: boolean;
+      };
       message: string;
-      events: any[];
-      status?: boolean;
-    }>('/events', {
+      status: boolean;
+    }>(`/events?page=${page}&size=${size}`, {
       method: 'GET',
     });
   },
 
-  // Fetch single event by ID
-  getEventById: async (id: string | number) => {
+  // Fetch single event by ID with full details including tickets
+  getEventById: async (eventId: string | number) => {
     return fetchApi<{
+      data: any;
       message: string;
-      event: any;
-      status?: boolean;
-    }>(`/events/${id}`, {
+      status: boolean;
+    }>(`/events/${eventId}`, {
+      method: 'GET',
+    });
+  },
+
+  // Update event
+  updateEvent: async (eventId: string | number, data: any) => {
+    return fetchApi<{
+      data: any;
+      message: string;
+      status: boolean;
+    }>(`/events/${eventId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Update ticket
+  updateTicket: async (ticketId: string | number, data: any) => {
+    return fetchApi<{
+      data: any;
+      message: string;
+      status: boolean;
+    }>(`/tickets/${ticketId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+// Dashboard API
+export const dashboardApi = {
+  // Fetch dashboard stats
+  getStats: async () => {
+    return fetchApi<{
+      data: {
+        totalCompanies: number;
+        activeEvents: number;
+        totalRevenue: number;
+        totalUsers: number;
+        pendingApprovals: number;
+        activeB2BSubscriptions: number;
+      };
+      message: string;
+      status: boolean;
+    }>('/dashboard/stats', {
       method: 'GET',
     });
   },
 };
+

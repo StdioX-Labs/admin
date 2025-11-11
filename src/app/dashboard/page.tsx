@@ -5,21 +5,17 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { dashboardApi } from "@/lib/api";
 import {
-  BarChart,
   Building2,
   Calendar,
   DollarSign,
   Users,
-  TrendingUp,
   ArrowUpRight,
-  AlertTriangle,
   CheckCircle,
   Clock,
-  Activity,
   Plus,
-  FileText,
-  Settings
+  FileText
 } from "lucide-react";
 
 interface DashboardStats {
@@ -27,24 +23,8 @@ interface DashboardStats {
   activeEvents: number;
   totalRevenue: number;
   totalUsers: number;
-  monthlyGrowth: {
-    companies: number;
-    events: number;
-    revenue: number;
-    users: number;
-  };
   pendingApprovals: number;
-  activeSubscriptions: number;
-  recentActivity: ActivityItem[];
-}
-
-interface ActivityItem {
-  id: string;
-  type: 'event_created' | 'company_registered' | 'user_joined' | 'payment_received' | 'license_expired';
-  title: string;
-  description: string;
-  timestamp: string;
-  status: 'success' | 'warning' | 'error' | 'info';
+  activeB2BSubscriptions: number;
 }
 
 export default function DashboardPage() {
@@ -53,78 +33,39 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Mock data - replace with actual API calls
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      setIsLoading(true);
-      try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+  // Fetch dashboard data from API
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    setError(''); // Clear previous errors
+    try {
+      console.log('[Dashboard] Fetching stats...');
+      const response = await dashboardApi.getStats();
 
-        const mockStats: DashboardStats = {
-          totalCompanies: 125,
-          activeEvents: 48,
-          totalRevenue: 4750000,
-          totalUsers: 2847,
-          monthlyGrowth: {
-            companies: 12,
-            events: 8,
-            revenue: 15,
-            users: 5
-          },
-          pendingApprovals: 7,
-          activeSubscriptions: 118,
-          recentActivity: [
-            {
-              id: '1',
-              type: 'event_created',
-              title: 'New Event Created',
-              description: 'Tech Innovation Summit 2024 by TechCorp Solutions',
-              timestamp: '2024-12-13T10:30:00Z',
-              status: 'success'
-            },
-            {
-              id: '2',
-              type: 'company_registered',
-              title: 'Company Registration',
-              description: 'StartupHub Kenya completed registration',
-              timestamp: '2024-12-13T09:15:00Z',
-              status: 'info'
-            },
-            {
-              id: '3',
-              type: 'license_expired',
-              title: 'License Expiring Soon',
-              description: 'EventMasters Ltd license expires in 3 days',
-              timestamp: '2024-12-13T08:45:00Z',
-              status: 'warning'
-            },
-            {
-              id: '4',
-              type: 'payment_received',
-              title: 'Payment Received',
-              description: 'KES 125,000 from ticket sales',
-              timestamp: '2024-12-12T16:20:00Z',
-              status: 'success'
-            },
-            {
-              id: '5',
-              type: 'user_joined',
-              title: 'New User Registered',
-              description: 'Sarah Mutua joined the platform',
-              timestamp: '2024-12-12T14:10:00Z',
-              status: 'info'
-            }
-          ]
-        };
+      console.log('[Dashboard] API response:', response);
 
-        setStats(mockStats);
-      } catch (err) {
-        setError('Failed to load dashboard data');
-      } finally {
-        setIsLoading(false);
+      if (response.status && response.data) {
+        setStats(response.data);
+        setError('');
+      } else {
+        const errorMsg = response.message || 'Failed to load dashboard data';
+        console.error('[Dashboard] API returned error:', errorMsg);
+        setError(errorMsg);
       }
-    };
+    } catch (err: any) {
+      console.error('[Dashboard] Fetch error:', err);
 
+      // Check if it's an auth error
+      if (err.status === 401) {
+        setError('You are not authorized. Please log in again.');
+      } else {
+        setError(err.message || 'Failed to load dashboard data. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchDashboardData();
   }, []);
 
@@ -133,42 +74,6 @@ export default function DashboardPage() {
       style: 'currency',
       currency: 'KES'
     }).format(amount);
-  };
-
-  const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString('en-KE', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'event_created':
-        return <Calendar className="h-4 w-4 text-blue-600" />;
-      case 'company_registered':
-        return <Building2 className="h-4 w-4 text-green-600" />;
-      case 'user_joined':
-        return <Users className="h-4 w-4 text-purple-600" />;
-      case 'payment_received':
-        return <DollarSign className="h-4 w-4 text-green-600" />;
-      case 'license_expired':
-        return <AlertTriangle className="h-4 w-4 text-orange-600" />;
-      default:
-        return <Activity className="h-4 w-4 text-slate-600" />;
-    }
-  };
-
-  const getActivityBadge = (status: string) => {
-    const styles = {
-      success: 'bg-green-100 text-green-800',
-      warning: 'bg-orange-100 text-orange-800',
-      error: 'bg-red-100 text-red-800',
-      info: 'bg-blue-100 text-blue-800'
-    };
-    return styles[status as keyof typeof styles] || styles.info;
   };
 
   if (isLoading) {
@@ -214,7 +119,17 @@ export default function DashboardPage() {
       {/* Error Alert */}
       {error && (
         <Alert variant="destructive" className="border-red-200 bg-red-50">
-          <AlertDescription className="text-red-700 text-sm">{error}</AlertDescription>
+          <AlertDescription className="flex items-center justify-between">
+            <span className="text-red-700 text-sm">{error}</span>
+            <Button
+              onClick={fetchDashboardData}
+              variant="outline"
+              size="sm"
+              className="ml-4 border-red-300 text-red-700 hover:bg-red-100"
+            >
+              Retry
+            </Button>
+          </AlertDescription>
         </Alert>
       )}
 
@@ -228,9 +143,8 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-slate-900">{stats.totalCompanies}</div>
-              <p className="text-xs text-green-600 flex items-center">
-                <TrendingUp className="h-3 w-3 mr-1" />
-                +{stats.monthlyGrowth.companies}% from last month
+              <p className="text-xs text-slate-500 mt-1">
+                B2B registered companies
               </p>
             </CardContent>
           </Card>
@@ -242,23 +156,21 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-slate-900">{stats.activeEvents}</div>
-              <p className="text-xs text-green-600 flex items-center">
-                <TrendingUp className="h-3 w-3 mr-1" />
-                +{stats.monthlyGrowth.events}% from last month
+              <p className="text-xs text-slate-500 mt-1">
+                Currently running events
               </p>
             </CardContent>
           </Card>
 
           <Card className="hover:shadow-md transition-shadow duration-200 cursor-pointer" onClick={() => router.push('/dashboard/finance')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600">Revenue</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-600">Total Revenue</CardTitle>
               <DollarSign className="h-4 w-4 text-slate-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-slate-900">{formatCurrency(stats.totalRevenue)}</div>
-              <p className="text-xs text-green-600 flex items-center">
-                <TrendingUp className="h-3 w-3 mr-1" />
-                +{stats.monthlyGrowth.revenue}% from last month
+              <p className="text-xs text-slate-500 mt-1">
+                All-time revenue
               </p>
             </CardContent>
           </Card>
@@ -270,9 +182,8 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-slate-900">{stats.totalUsers}</div>
-              <p className="text-xs text-green-600 flex items-center">
-                <TrendingUp className="h-3 w-3 mr-1" />
-                +{stats.monthlyGrowth.users}% from last month
+              <p className="text-xs text-slate-500 mt-1">
+                Registered platform users
               </p>
             </CardContent>
           </Card>
@@ -308,12 +219,12 @@ export default function DashboardPage() {
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-slate-900 flex items-center">
                 <CheckCircle className="h-5 w-5 mr-2 text-green-600" />
-                Active Subscriptions
+                Active B2B Subscriptions
               </CardTitle>
               <CardDescription>Companies with valid licenses</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600">{stats.activeSubscriptions}</div>
+              <div className="text-3xl font-bold text-green-600">{stats.activeB2BSubscriptions}</div>
               <Button
                 onClick={() => router.push('/dashboard/b2b/licenses')}
                 variant="outline"
@@ -328,88 +239,47 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Quick Actions & Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-slate-900">Quick Actions</CardTitle>
-            <CardDescription>Frequently used administrative tasks</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button
-              onClick={() => router.push('/dashboard/b2b/companies')}
-              variant="outline"
-              className="w-full justify-start border-slate-200 hover:bg-slate-50"
-            >
-              <Building2 className="h-4 w-4 mr-3" />
-              Manage Companies
-            </Button>
-            <Button
-              onClick={() => router.push('/dashboard/events/create')}
-              variant="outline"
-              className="w-full justify-start border-slate-200 hover:bg-slate-50"
-            >
-              <Plus className="h-4 w-4 mr-3" />
-              Create Event
-            </Button>
-            <Button
-              onClick={() => router.push('/dashboard/finance/transactions')}
-              variant="outline"
-              className="w-full justify-start border-slate-200 hover:bg-slate-50"
-            >
-              <DollarSign className="h-4 w-4 mr-3" />
-              View Transactions
-            </Button>
-            <Button
-              onClick={() => router.push('/dashboard/users')}
-              variant="outline"
-              className="w-full justify-start border-slate-200 hover:bg-slate-50"
-            >
-              <Users className="h-4 w-4 mr-3" />
-              User Management
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-slate-900">Recent Activity</CardTitle>
-            <CardDescription>Latest platform activities and events</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {stats?.recentActivity.map((activity) => (
-                <div key={activity.id} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-slate-50 transition-colors">
-                  <div className="flex-shrink-0 mt-1">
-                    {getActivityIcon(activity.type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-slate-900">{activity.title}</p>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getActivityBadge(activity.status)}`}>
-                        {activity.status}
-                      </span>
-                    </div>
-                    <p className="text-sm text-slate-600 mt-1">{activity.description}</p>
-                    <p className="text-xs text-slate-400 mt-1">{formatTimestamp(activity.timestamp)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <Button
-              onClick={() => router.push('/dashboard/activity')}
-              variant="outline"
-              size="sm"
-              className="w-full mt-4 border-slate-200 text-slate-700 hover:bg-slate-50"
-            >
-              View All Activity
-              <ArrowUpRight className="h-4 w-4 ml-1" />
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold text-slate-900">Quick Actions</CardTitle>
+          <CardDescription>Frequently used administrative tasks</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          <Button
+            onClick={() => router.push('/dashboard/b2b/companies')}
+            variant="outline"
+            className="justify-start border-slate-200 hover:bg-slate-50"
+          >
+            <Building2 className="h-4 w-4 mr-3" />
+            Manage Companies
+          </Button>
+          <Button
+            onClick={() => router.push('/dashboard/events/create')}
+            variant="outline"
+            className="justify-start border-slate-200 hover:bg-slate-50"
+          >
+            <Plus className="h-4 w-4 mr-3" />
+            Create Event
+          </Button>
+          <Button
+            onClick={() => router.push('/dashboard/finance/transactions')}
+            variant="outline"
+            className="justify-start border-slate-200 hover:bg-slate-50"
+          >
+            <DollarSign className="h-4 w-4 mr-3" />
+            View Transactions
+          </Button>
+          <Button
+            onClick={() => router.push('/dashboard/users')}
+            variant="outline"
+            className="justify-start border-slate-200 hover:bg-slate-50"
+          >
+            <Users className="h-4 w-4 mr-3" />
+            User Management
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

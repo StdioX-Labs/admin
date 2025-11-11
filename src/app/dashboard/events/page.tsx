@@ -6,51 +6,56 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { eventsApi } from "@/lib/api";
 
-interface Ticket {
-  id: number;
+interface TicketSummary {
+  ticketId: number;
   ticketName: string;
   ticketPrice: number;
-  quantityAvailable: number;
-  soldQuantity: number;
-  isActive: boolean;
-  ticketsToIssue: number;
-  isSoldOut: boolean;
-  ticketLimitPerPerson: number;
-  numberOfComplementary: number;
-  ticketSaleStartDate: string;
-  ticketSaleEndDate: string;
-  isFree: boolean;
-  ticketStatus: string;
-  createAt: string;
+  ticketsSold: number;
+  revenue: number;
+}
+
+interface EventAnalytics {
+  dailySalesGraph: string;
+  currentWeekSales: number;
+  totalAttendees: number;
+  totalTicketTypes: number;
+}
+
+interface EventCreator {
+  id: number;
+  fullName: string;
+  mobileNumber: string;
+  emailAddress: string;
+  role: string;
+  active: boolean;
 }
 
 interface Event {
-  id: number;
+  eventId: number;
   eventName: string;
+  slug: string;
   eventDescription: string;
   eventPosterUrl: string;
-  eventCategoryId: number;
+  eventCategory: string;
+  eventLocation: string;
   ticketSaleStartDate: string;
   ticketSaleEndDate: string;
-  eventLocation: string;
   eventStartDate: string;
   eventEndDate: string;
-  isActive: boolean;
-  tickets: Ticket[];
-  createdById: number;
+  active: boolean;
+  status: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+  createdBy: EventCreator;
   companyId: number;
   companyName: string;
-  comission: number;
-  category: string;
-  date: string;
-  time: string;
-  isFeatured: boolean;
-  price: number;
-  slug: string;
-  currency: string;
+  totalTicketsSold: number;
+  totalRevenue: number;
+  totalPlatformFee: number;
+  analytics: EventAnalytics;
+  ticketSummaries: TicketSummary[];
 }
 
 interface EventStats {
@@ -67,101 +72,103 @@ export default function EventsDashboard() {
   const [events, setEvents] = useState<Event[]>([]);
   const [stats, setStats] = useState<EventStats | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
-  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize] = useState(100);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrevious, setHasPrevious] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      setError('');
-      try {
-        const response = await eventsApi.getAllEvents();
+  const fetchData = async (page: number = currentPage) => {
+    setIsLoading(true);
+    setError('');
+    try {
+      console.log('[Events] Fetching page:', page);
+      const response = await eventsApi.getAllEvents(page, pageSize);
 
-        if (response.events && Array.isArray(response.events)) {
-          setEvents(response.events);
+      console.log('[Events] API response:', response);
 
-          // Cache events in localStorage for detail page
-          localStorage.setItem('eventsCache', JSON.stringify(response.events));
+      if (response.status && response.data && response.data.data) {
+        const eventsData = response.data.data;
+        setEvents(eventsData);
+        setCurrentPage(response.data.page);
+        setTotalPages(response.data.totalPages);
+        setTotalElements(response.data.totalElements);
+        setHasNext(response.data.hasNext);
+        setHasPrevious(response.data.hasPrevious);
 
-          // Calculate stats from the events
-          const totalEvents = response.events.length;
-          const liveEvents = response.events.filter((e: Event) => e.isActive).length;
-          const totalTicketsSold = response.events.reduce((sum: number, e: Event) => {
-            return sum + e.tickets.reduce((ticketSum, t) => ticketSum + t.soldQuantity, 0);
-          }, 0);
-          const totalRevenue = response.events.reduce((sum: number, e: Event) => {
-            return sum + e.tickets.reduce((ticketSum, t) => ticketSum + (t.soldQuantity * t.ticketPrice), 0);
-          }, 0);
+        // Cache events in localStorage for detail page
+        localStorage.setItem('eventsCache', JSON.stringify(eventsData));
 
-          // Count upcoming events (events with future start dates)
-          const now = new Date();
-          const upcomingEvents = response.events.filter((e: Event) => {
-            const startDate = new Date(e.eventStartDate);
-            return startDate > now;
-          }).length;
+        // Calculate stats from the events
+        const totalEvents = response.data.totalElements;
+        const liveEvents = eventsData.filter((e: Event) => e.active).length;
+        const totalTicketsSold = eventsData.reduce((sum: number, e: Event) => sum + e.totalTicketsSold, 0);
+        const totalRevenue = eventsData.reduce((sum: number, e: Event) => sum + e.totalRevenue, 0);
 
-          // Count completed events (events with past end dates)
-          const completedEvents = response.events.filter((e: Event) => {
-            const endDate = new Date(e.eventEndDate);
-            return endDate < now;
-          }).length;
+        // Count upcoming events (events with future start dates)
+        const now = new Date();
+        const upcomingEvents = eventsData.filter((e: Event) => {
+          const startDate = new Date(e.eventStartDate);
+          return startDate > now;
+        }).length;
 
-          setStats({
-            totalEvents,
-            liveEvents,
-            totalRevenue,
-            totalTicketsSold,
-            upcomingEvents,
-            completedEvents
-          });
-        }
-      } catch (err: any) {
-        console.error('Error fetching events:', err);
-        setError(err?.message || 'Failed to load events data');
-      } finally {
-        setIsLoading(false);
+        // Count completed events (events with past end dates)
+        const completedEvents = eventsData.filter((e: Event) => {
+          const endDate = new Date(e.eventEndDate);
+          return endDate < now;
+        }).length;
+
+        setStats({
+          totalEvents,
+          liveEvents,
+          totalRevenue,
+          totalTicketsSold,
+          upcomingEvents,
+          completedEvents
+        });
+      } else {
+        const errorMsg = response.message || 'Failed to load events';
+        console.error('[Events] API returned error:', errorMsg);
+        setError(errorMsg);
       }
-    };
+    } catch (err: any) {
+      console.error('[Events] Error fetching events:', err);
+      setError(err?.message || 'Failed to load events data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchData();
   }, []);
 
-  const filteredEvents = events.filter(event => {
-    const matchesSearch = event.eventName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.eventLocation.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' ||
-                         (filterStatus === 'active' && event.isActive) ||
-                         (filterStatus === 'inactive' && !event.isActive);
-    const matchesCategory = filterCategory === 'all' || event.category === filterCategory;
-    return matchesSearch && matchesStatus && matchesCategory;
+  const filteredEvents = events.filter(event =>
+    searchTerm === '' ||
+    event.eventName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    event.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    event.eventLocation.toLowerCase().includes(searchTerm.toLowerCase())
+  ).sort((a, b) => {
+    // Sort by createdAt date, newest first (descending order)
+    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return dateB - dateA;
   });
 
-  // Get unique categories from events
-  const categories = Array.from(new Set(events.map(e => e.category))).filter(Boolean);
-
-  const getStatusBadge = (isActive: boolean) => {
-    return isActive
+  const getStatusBadge = (active: boolean) => {
+    return active
       ? 'bg-green-100 text-green-800 border-green-200'
       : 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
-  const getCategoryBadge = (category: string) => {
-    const styles: Record<string, string> = {
-      'Music Events': 'bg-purple-100 text-purple-800 border-purple-200',
-      'Conference': 'bg-blue-100 text-blue-800 border-blue-200',
-      'Workshop': 'bg-orange-100 text-orange-800 border-orange-200',
-      'Sports': 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    };
-    return styles[category] || 'bg-indigo-100 text-indigo-800 border-indigo-200';
-  };
 
-  const formatCurrency = (amount: number, currency: string = 'KES') => {
+  const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-KE', {
       style: 'currency',
-      currency: currency
+      currency: 'KES'
     }).format(amount);
   };
 
@@ -173,20 +180,9 @@ export default function EventsDashboard() {
     });
   };
 
-  const getTicketProgress = (event: Event) => {
-    const totalAvailable = event.tickets.reduce((sum, t) => sum + t.quantityAvailable, 0);
-    const totalSold = event.tickets.reduce((sum, t) => sum + t.soldQuantity, 0);
-    return totalAvailable > 0 ? Math.round((totalSold / totalAvailable) * 100) : 0;
-  };
-
-  const getTotalTickets = (event: Event) => {
-    const totalAvailable = event.tickets.reduce((sum, t) => sum + t.quantityAvailable, 0);
-    const totalSold = event.tickets.reduce((sum, t) => sum + t.soldQuantity, 0);
-    return { sold: totalSold, total: totalAvailable };
-  };
-
-  const getEventRevenue = (event: Event) => {
-    return event.tickets.reduce((sum, t) => sum + (t.soldQuantity * t.ticketPrice), 0);
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    fetchData(newPage);
   };
 
   if (isLoading) {
@@ -330,48 +326,15 @@ export default function EventsDashboard() {
           </div>
         )}
 
-        {/* Filters and Search */}
+        {/* Search */}
         <Card className="p-4 bg-white border border-slate-200">
-          <div className="space-y-3">
-            <Input
-              type="text"
-              placeholder="Search events, organizers, or locations..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-9 border-slate-200 focus:border-slate-500 focus:ring-slate-500 text-sm"
-            />
-
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-start gap-4">
-              <div className="space-y-2">
-                <span className="text-xs font-medium text-slate-600">Status:</span>
-                <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as typeof filterStatus)}>
-                  <SelectTrigger className="h-9 border-slate-200 focus:border-slate-500 focus:ring-slate-500 text-sm">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <span className="text-xs font-medium text-slate-600">Category:</span>
-                <Select value={filterCategory} onValueChange={setFilterCategory}>
-                  <SelectTrigger className="h-9 border-slate-200 focus:border-slate-500 focus:ring-slate-500 text-sm">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
+          <Input
+            type="text"
+            placeholder="Search events, organizers, or locations..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="h-9 border-slate-200 focus:border-slate-500 focus:ring-slate-500 text-sm"
+          />
         </Card>
 
         {/* Events Table */}
@@ -387,10 +350,11 @@ export default function EventsDashboard() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">ID</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Event</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Company</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Date & Time</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Status</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Category</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Tickets</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Revenue</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Actions</th>
@@ -398,52 +362,46 @@ export default function EventsDashboard() {
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
                 {filteredEvents.map((event) => {
-                  const ticketStats = getTotalTickets(event);
-                  const progress = getTicketProgress(event);
-                  const revenue = getEventRevenue(event);
-
                   return (
-                    <tr key={event.id} className="hover:bg-slate-50 transition-colors duration-150">
+                    <tr key={event.eventId} className="hover:bg-slate-50 transition-colors duration-150">
+                      <td className="px-4 py-3">
+                        <p className="text-sm font-mono text-slate-700">{event.eventId}</p>
+                      </td>
                       <td className="px-4 py-3">
                         <div className="max-w-48">
                           <p className="font-medium text-slate-900 truncate" title={event.eventName}>{event.eventName}</p>
                           <p className="text-xs text-slate-500 truncate" title={event.eventLocation}>{event.eventLocation}</p>
-                          <p className="text-xs text-slate-400 truncate" title={event.companyName}>by {event.companyName}</p>
+                          <p className="text-xs text-slate-400 truncate" title={event.eventCategory}>{event.eventCategory}</p>
                         </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="text-sm">
-                          <p className="text-slate-900">{event.date}</p>
-                          <p className="text-xs text-slate-500">{event.time}</p>
+                          <p className="font-medium text-slate-900">{event.companyName}</p>
+                          <p className="text-xs text-slate-500">{event.createdBy.fullName}</p>
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getStatusBadge(event.isActive)}`}>
-                          {event.isActive ? 'Active' : 'Inactive'}
-                        </span>
+                        <div className="text-sm">
+                          <p className="text-slate-900">{formatDate(event.eventStartDate)}</p>
+                          <p className="text-xs text-slate-500">{new Date(event.eventStartDate).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getCategoryBadge(event.category)}`}>
-                          {event.category}
+                        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getStatusBadge(event.active)}`}>
+                          {event.status}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="text-sm">
-                          <p className="text-slate-900">{ticketStats.sold}/{ticketStats.total}</p>
-                          <div className="w-16 bg-gray-200 rounded-full h-1.5 mt-1">
-                            <div
-                              className="bg-blue-600 h-1.5 rounded-full"
-                              style={{ width: `${progress}%` }}
-                            ></div>
-                          </div>
-                          <p className="text-xs text-slate-500">{progress}%</p>
+                          <p className="text-slate-900">{event.totalTicketsSold}</p>
+                          <p className="text-xs text-slate-500">{event.analytics.totalTicketTypes} types</p>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-900">{formatCurrency(revenue, event.currency)}</td>
+                      <td className="px-4 py-3 text-sm text-slate-900">{formatCurrency(event.totalRevenue)}</td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
                           <Button
-                            onClick={() => router.push(`/dashboard/events/${event.id}`)}
+                            onClick={() => window.open(`https://soldoutafrica.com/${event.slug}`, '_blank')}
                             variant="outline"
                             size="sm"
                             className="h-7 px-2 text-xs border-slate-200 text-slate-600 hover:bg-slate-50"
@@ -451,7 +409,7 @@ export default function EventsDashboard() {
                             View
                           </Button>
                           <Button
-                            onClick={() => router.push(`/dashboard/events/${event.id}/edit`)}
+                            onClick={() => window.open(`/dashboard/events/${event.eventId}/edit`, '_blank')}
                             variant="outline"
                             size="sm"
                             className="h-7 px-2 text-xs border-slate-200 text-slate-600 hover:bg-slate-50"
@@ -474,6 +432,35 @@ export default function EventsDashboard() {
               </svg>
               <h3 className="mt-2 text-sm font-medium text-slate-900">No events found</h3>
               <p className="mt-1 text-xs text-slate-500">Try adjusting your search or filter criteria.</p>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+              <div className="text-sm text-slate-600">
+                Page {currentPage + 1} of {totalPages} • Total: {totalElements} events
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={!hasPrevious}
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </Button>
+                <Button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={!hasNext}
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           )}
         </Card>
