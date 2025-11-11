@@ -10,8 +10,8 @@ export function cn(...inputs: ClassValue[]) {
  * Safely handles API errors and ensures JSON responses
  * @param handler The API route handler function
  */
-export function withErrorHandler(handler: Function) {
-  return async (...args: any[]) => {
+export function withErrorHandler<T extends (...args: unknown[]) => Promise<Response>>(handler: T) {
+  return async (...args: Parameters<T>) => {
     try {
       return await handler(...args);
     } catch (error) {

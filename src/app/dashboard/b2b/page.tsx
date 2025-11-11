@@ -107,7 +107,7 @@ export default function B2BDashboard() {
 
         setStats(mockStats);
         setCompanies(mockCompanies);
-      } catch (err) {
+      } catch {
         setError('Failed to load dashboard data');
       } finally {
         setIsLoading(false);

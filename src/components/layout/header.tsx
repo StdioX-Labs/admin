@@ -5,10 +5,9 @@ import { ReactNode } from 'react';
 interface HeaderProps {
   children?: ReactNode;
   title?: string;
-  showUserMenu?: boolean;
 }
 
-export const Header = ({ children, title, showUserMenu = true }: HeaderProps) => {
+export const Header = ({ children, title }: HeaderProps) => {
   return (
     <header className="bg-white shadow-sm border-b px-6 py-4 flex items-center justify-between">
       <div className="flex items-center">

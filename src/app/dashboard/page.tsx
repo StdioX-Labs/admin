@@ -51,7 +51,7 @@ export default function DashboardPage() {
         console.error('[Dashboard] API returned error:', errorMsg);
         setError(errorMsg);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('[Dashboard] Fetch error:', err);
 
       // Check if it's an auth error
@@ -93,7 +93,7 @@ export default function DashboardPage() {
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-slate-600">Welcome back! Here's an overview of your business.</p>
+          <p className="text-slate-600">Welcome back! Here&apos;s an overview of your business.</p>
         </div>
         <div className="flex gap-2">
           <Button

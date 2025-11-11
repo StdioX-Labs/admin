@@ -134,9 +134,9 @@ export default function EventsDashboard() {
         console.error('[Events] API returned error:', errorMsg);
         setError(errorMsg);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('[Events] Error fetching events:', err);
-      setError(err?.message || 'Failed to load events data');
+      setError(err instanceof Error ? err.message : 'Failed to load events data');
     } finally {
       setIsLoading(false);
     }
@@ -144,6 +144,7 @@ export default function EventsDashboard() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filteredEvents = events.filter(event =>

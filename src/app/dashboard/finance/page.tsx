@@ -177,7 +177,7 @@ export default function FinanceDashboard() {
 
         setStats(mockStats);
         setTransactions(mockTransactions);
-      } catch (err) {
+      } catch {
         setError('Failed to load finance data');
       } finally {
         setIsLoading(false);

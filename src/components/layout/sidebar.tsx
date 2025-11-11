@@ -1,12 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { ReactNode, useState } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -29,7 +28,6 @@ interface SidebarProps {
 
 export const Sidebar = ({ children, className = '' }: SidebarProps) => {
   const pathname = usePathname();
-  const router = useRouter();
   const { logout, isLoggingOut } = useAuth();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 

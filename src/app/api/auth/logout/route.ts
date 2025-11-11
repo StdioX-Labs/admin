@@ -3,9 +3,9 @@ import { cookies } from 'next/headers';
 import { withErrorHandler } from '@/lib/auth';
 import { resetRateLimitForIdentifier } from '@/lib/rate-limit';
 
-async function handlePost(request: Request) {
+async function handlePost() {
   // Get the cookie store
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
 
   // Get user email from the auth token to reset their OTP timer
   const authTokenCookie = cookieStore.get('auth_token');
@@ -18,8 +18,8 @@ async function handlePost(request: Request) {
       if (userEmail) {
         resetRateLimitForIdentifier(userEmail);
       }
-    } catch (e) {
-      console.error('Error parsing auth token during logout:', e);
+    } catch {
+      // Ignore parsing errors
     }
   }
 

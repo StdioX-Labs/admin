@@ -16,9 +16,9 @@ export const queryClient = new QueryClient({
 // API error handling
 export class ApiError extends Error {
   status: number;
-  data: any;
+  data: unknown;
 
-  constructor(status: number, message: string, data?: any) {
+  constructor(status: number, message: string, data?: unknown) {
     super(message);
     this.status = status;
     this.data = data;
@@ -175,7 +175,7 @@ export const authApi = {
 
   // Check authentication status
   checkAuth: async () => {
-    return fetchApi<{ isAuthenticated: boolean, user?: any }>('/auth/status', {
+    return fetchApi<{ isAuthenticated: boolean, user?: Record<string, unknown> }>('/auth/status', {
       method: 'GET',
     });
   },
@@ -194,7 +194,7 @@ export const eventsApi = {
   getAllEvents: async (page: number = 0, size: number = 100) => {
     return fetchApi<{
       data: {
-        data: any[];
+        data: unknown[];
         page: number;
         size: number;
         totalElements: number;
@@ -212,7 +212,8 @@ export const eventsApi = {
   // Fetch single event by ID with full details including tickets
   getEventById: async (eventId: string | number) => {
     return fetchApi<{
-      data: any;
+      event?: unknown;
+      data?: unknown;
       message: string;
       status: boolean;
     }>(`/events/${eventId}`, {
@@ -221,9 +222,9 @@ export const eventsApi = {
   },
 
   // Update event
-  updateEvent: async (eventId: string | number, data: any) => {
+  updateEvent: async (eventId: string | number, data: Record<string, unknown>) => {
     return fetchApi<{
-      data: any;
+      data: unknown;
       message: string;
       status: boolean;
     }>(`/events/${eventId}`, {
@@ -233,9 +234,9 @@ export const eventsApi = {
   },
 
   // Update ticket
-  updateTicket: async (ticketId: string | number, data: any) => {
+  updateTicket: async (ticketId: string | number, data: Record<string, unknown>) => {
     return fetchApi<{
-      data: any;
+      data: unknown;
       message: string;
       status: boolean;
     }>(`/tickets/${ticketId}`, {

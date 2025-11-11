@@ -23,9 +23,7 @@ import {
   Star,
   Ticket,
   Info,
-  Share2,
-  X,
-  Maximize2
+  Share2
 } from "lucide-react"
 import Image from "next/image"
 import { eventsApi } from "@/lib/api"
@@ -79,7 +77,6 @@ export default function EventDetailPage() {
   const router = useRouter()
   const [event, setEvent] = useState<Event | null>(null)
   const [loading, setLoading] = useState(true)
-  const [isPosterModalOpen, setIsPosterModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchEvent = async () => {

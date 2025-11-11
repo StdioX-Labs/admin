@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +20,6 @@ interface ValidationErrors {
 }
 
 export const LoginForm = () => {
-  const router = useRouter();
   const { requestOtp, validateOtp, isRequestingOtp, isValidatingOtp } = useAuth();
 
   const [formData, setFormData] = useState<LoginFormData>({
@@ -97,12 +95,12 @@ export const LoginForm = () => {
       } else {
         throw new Error(response.message || 'Failed to send verification code');
       }
-    } catch (error: any) {
+    } catch (error) {
       // Check if it's a rate limit error
-      if (error.status === 429) {
-        setError(error.message || 'Too many requests. Please try again later.');
+      if (error instanceof Error && 'status' in error && (error as { status: number }).status === 429) {
+        setError((error as { message: string }).message || 'Too many requests. Please try again later.');
       } else {
-        setError(error.message || 'Failed to send verification code');
+        setError(error instanceof Error ? error.message : 'Failed to send verification code');
       }
     }
   };
@@ -133,8 +131,8 @@ export const LoginForm = () => {
       } else {
         throw new Error(response.message || 'Invalid verification code');
       }
-    } catch (error: any) {
-      setError(error.message || 'Verification failed');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Verification failed');
     }
   };
 
@@ -154,12 +152,12 @@ export const LoginForm = () => {
       } else {
         throw new Error(response.message || 'Failed to resend verification code');
       }
-    } catch (error: any) {
+    } catch (error) {
       // Check if it's a rate limit error
-      if (error.status === 429) {
-        setError(error.message || 'Too many requests. Please try again later.');
+      if (error instanceof Error && 'status' in error && (error as { status: number }).status === 429) {
+        setError((error as { message: string }).message || 'Too many requests. Please try again later.');
       } else {
-        setError(error.message || 'Failed to resend verification code');
+        setError(error instanceof Error ? error.message : 'Failed to resend verification code');
       }
     }
   };

@@ -12,7 +12,8 @@ interface OtpInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const OtpInput = React.forwardRef<HTMLInputElement, OtpInputProps>(
-  ({ length = 4, onComplete, onChange, value = '', className, disabled = false, placeholder, ...props }, ref) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  ({ length = 4, onComplete, onChange, value = '', className, disabled = false, ...props }, ref) => {
     // Ensure value is always a string
     const stringValue = String(value || '');
 

@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME;
 const API_PASSWORD = process.env.NEXT_PUBLIC_API_PASSWORD;
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   console.log('[Dashboard Stats API] Starting request...');
   console.log('[Dashboard Stats API] API_BASE_URL:', API_BASE_URL);
 

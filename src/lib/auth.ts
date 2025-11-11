@@ -50,22 +50,23 @@ export function withErrorHandler(
  * Verify if a user is authenticated
  * Returns the auth token data if valid, null otherwise
  */
-export function verifyAuth(authToken: string | undefined): any | null {
+export function verifyAuth(authToken: string | undefined): Record<string, unknown> | null {
   if (!authToken) {
     return null;
   }
 
   try {
-    const authData = JSON.parse(authToken);
+    const authData = JSON.parse(authToken) as Record<string, unknown>;
     const now = Date.now();
 
     // Check if token has expired (2 hours)
-    if (now - authData.issuedAt > 60 * 60 * 2 * 1000) {
+    const issuedAt = typeof authData.issuedAt === 'number' ? authData.issuedAt : 0;
+    if (now - issuedAt > 60 * 60 * 2 * 1000) {
       return null;
     }
 
     return authData;
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -73,14 +74,14 @@ export function verifyAuth(authToken: string | undefined): any | null {
 /**
  * Check if user has required role
  */
-export function hasRole(authData: any, requiredRole: string): boolean {
+export function hasRole(authData: Record<string, unknown> | null, requiredRole: string): boolean {
   return authData?.role === requiredRole;
 }
 
 /**
  * Check if user is a super admin
  */
-export function isSuperAdmin(authData: any): boolean {
+export function isSuperAdmin(authData: Record<string, unknown> | null): boolean {
   return hasRole(authData, 'SUPER_ADMIN');
 }
 

@@ -12,6 +12,8 @@ export default function B2BDetailPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
 
+  const id = params?.id as string | undefined;
+
   useEffect(() => {
     // Simulate loading
     const timer = setTimeout(() => setLoading(false), 500)
@@ -22,6 +24,14 @@ export default function B2BDetailPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader />
+      </div>
+    )
+  }
+
+  if (!id) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <p className="text-slate-600">Invalid B2B ID</p>
       </div>
     )
   }
@@ -45,12 +55,12 @@ export default function B2BDetailPage() {
           <CardHeader>
             <CardTitle className="flex items-center">
               <Building2 className="w-6 h-6 mr-2" />
-              B2B Details - ID: {params.id}
+              B2B Details - ID: {id}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-slate-600">
-              This page is under construction. B2B ID: {params.id}
+              This page is under construction. B2B ID: {id}
             </p>
           </CardContent>
         </Card>

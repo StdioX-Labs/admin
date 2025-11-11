@@ -9,7 +9,7 @@ async function handlePost(request: Request) {
   const { otp: userEnteredOtp } = body;
 
   // Get the stored verification data from cookies
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const verificationCookie = cookieStore.get('auth_verification');
 
   if (!verificationCookie || !verificationCookie.value) {

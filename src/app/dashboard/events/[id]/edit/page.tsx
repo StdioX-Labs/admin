@@ -9,6 +9,41 @@ import { Card } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { eventsApi } from "@/lib/api";
 
+// API Response Interfaces
+interface ApiTicket {
+  id: number;
+  ticketName: string;
+  ticketPrice: number;
+  quantityAvailable: number;
+  soldQuantity: number;
+  isActive: boolean;
+  ticketsToIssue: number;
+  isSoldOut: boolean;
+  ticketLimitPerPerson: number;
+  numberOfComplementary: number;
+  ticketSaleStartDate: string;
+  ticketSaleEndDate: string;
+  isFree: boolean;
+  ticketStatus: string;
+  createAt: string;
+}
+
+interface ApiEvent {
+  id: number;
+  eventName: string;
+  slug: string;
+  eventDescription: string;
+  eventPosterUrl: string;
+  category: string;
+  eventLocation: string;
+  ticketSaleStartDate: string;
+  ticketSaleEndDate: string;
+  eventStartDate: string;
+  eventEndDate: string;
+  isActive: boolean;
+  tickets: ApiTicket[];
+}
+
 interface Ticket {
   ticketId: number;
   ticketName: string;
@@ -74,6 +109,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
   useEffect(() => {
     fetchEvent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
 
   const fetchEvent = async () => {
@@ -86,7 +122,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
       console.log('[Edit Event] API response:', response);
 
       if (response.status && response.event) {
-        const eventData = response.event;
+        const eventData = response.event as ApiEvent;
 
         // Map the API response to our EventDetail interface
         const mappedEvent: EventDetail = {
@@ -103,7 +139,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
           eventEndDate: eventData.eventEndDate,
           active: eventData.isActive,
           status: eventData.isActive ? 'ACTIVE' : 'INACTIVE',
-          tickets: eventData.tickets.map((ticket: any) => ({
+          tickets: eventData.tickets.map((ticket: ApiTicket) => ({
             ticketId: ticket.id,
             ticketName: ticket.ticketName,
             ticketPrice: ticket.ticketPrice,
@@ -157,9 +193,9 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
       } else {
         setError(response.message || 'Failed to load event');
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('[Edit Event] Error fetching event:', err);
-      setError(err?.message || 'Failed to load event data');
+      setError(err instanceof Error ? err.message : 'Failed to load event data');
     } finally {
       setIsLoading(false);
     }
@@ -218,9 +254,9 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
       } else {
         setError(response.message || 'Failed to update event');
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('[Edit Event] Error updating event:', err);
-      setError(err?.message || 'Failed to update event');
+      setError(err instanceof Error ? err.message : 'Failed to update event');
     } finally {
       setIsSaving(false);
     }
@@ -267,15 +303,15 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
       } else {
         setError(response.message || 'Failed to update ticket');
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('[Edit Event] Error updating ticket:', err);
-      setError(err?.message || 'Failed to update ticket');
+      setError(err instanceof Error ? err.message : 'Failed to update ticket');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const updateTicketForm = (ticketId: number, field: string, value: any) => {
+  const updateTicketForm = (ticketId: number, field: string, value: string | number | boolean) => {
     setTicketForms(prev => ({
       ...prev,
       [ticketId]: {
@@ -351,7 +387,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
             <h2 className="text-2xl font-bold text-slate-900 mb-2">Event Not Found</h2>
             <p className="text-slate-600 mb-6">
-              The event you're looking for doesn't exist or may have been deleted.
+              The event you&apos;re looking for doesn&apos;t exist or may have been deleted.
             </p>
 
             <Button

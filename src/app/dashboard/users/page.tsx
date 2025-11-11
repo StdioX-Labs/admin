@@ -193,7 +193,7 @@ export default function UsersDashboard() {
 
         setStats(mockStats);
         setUsers(mockUsers);
-      } catch (err) {
+      } catch {
         setError('Failed to load users data');
       } finally {
         setIsLoading(false);
