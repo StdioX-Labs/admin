@@ -228,7 +228,7 @@ export const eventsApi = {
       message: string;
       status: boolean;
     }>(`/events/${eventId}`, {
-      method: 'PUT',
+      method: 'POST',
       body: JSON.stringify(data),
     });
   },
@@ -240,7 +240,7 @@ export const eventsApi = {
       message: string;
       status: boolean;
     }>(`/tickets/${ticketId}`, {
-      method: 'PUT',
+      method: 'POST',
       body: JSON.stringify(data),
     });
   },
@@ -266,4 +266,3 @@ export const dashboardApi = {
     });
   },
 };
-
