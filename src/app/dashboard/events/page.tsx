@@ -73,7 +73,7 @@ export default function EventsDashboard() {
   const [stats, setStats] = useState<EventStats | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize] = useState(50);
+  const [pageSize] = useState(40);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [hasNext, setHasNext] = useState(false);
