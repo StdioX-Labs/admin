@@ -41,10 +41,11 @@ export const Sidebar = ({ children, className = '' }: SidebarProps) => {
 
   const sidebarLinks = [
     { href: '/dashboard', label: 'Dashboard' },
-    { href: '/dashboard/b2b', label: 'B2B' },
     { href: '/dashboard/events', label: 'Events' },
-    { href: '/dashboard/finance', label: 'Finance' },
-    { href: '/dashboard/users', label: 'Users' },
+    // { href: '/dashboard/b2b', label: 'B2B' },
+    //
+    // { href: '/dashboard/finance', label: 'Finance' },
+    // { href: '/dashboard/users', label: 'Users' },
   ];
 
   const handleLogout = async () => {

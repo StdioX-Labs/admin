@@ -191,7 +191,7 @@ export const authApi = {
 // Events API
 export const eventsApi = {
   // Fetch all events with pagination
-  getAllEvents: async (page: number = 0, size: number = 50) => {
+  getAllEvents: async (page: number = 0, size: number = 30) => {
     return fetchApi<{
       data: {
         data: unknown[];
