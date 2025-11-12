@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { eventsApi } from "@/lib/api";
+import Image from 'next/image';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // API Response Interfaces
 interface ApiTicket {
@@ -97,6 +99,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
     eventDescription: '',
     eventCategory: '',
     eventLocation: '',
+    eventPosterUrl: '',
     ticketSaleStartDate: '',
     ticketSaleEndDate: '',
     eventStartDate: '',
@@ -166,6 +169,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
           eventDescription: mappedEvent.eventDescription || '',
           eventCategory: mappedEvent.eventCategory || '',
           eventLocation: mappedEvent.eventLocation || '',
+          eventPosterUrl: mappedEvent.eventPosterUrl || '',
           ticketSaleStartDate: formatDateTimeLocal(mappedEvent.ticketSaleStartDate),
           ticketSaleEndDate: formatDateTimeLocal(mappedEvent.ticketSaleEndDate),
           eventStartDate: formatDateTimeLocal(mappedEvent.eventStartDate),
@@ -234,6 +238,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         eventDescription: eventForm.eventDescription,
         eventCategory: eventForm.eventCategory,
         eventLocation: eventForm.eventLocation,
+        eventPosterUrl: eventForm.eventPosterUrl,
         ticketSaleStartDate: formatToISO(eventForm.ticketSaleStartDate),
         ticketSaleEndDate: formatToISO(eventForm.ticketSaleEndDate),
         eventStartDate: formatToISO(eventForm.eventStartDate),
@@ -431,306 +436,338 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
           </Alert>
         )}
 
-        {/* Event Details Form */}
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">Event Details</h2>
-          <form onSubmit={handleEventSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="eventName">Event Name</Label>
-                <Input
-                  id="eventName"
-                  value={eventForm.eventName}
-                  onChange={(e) => setEventForm({ ...eventForm, eventName: e.target.value })}
-                  required
-                />
-              </div>
+        <Tabs defaultValue="event">
+          <TabsList>
+            <TabsTrigger value="event">Event Details</TabsTrigger>
+            <TabsTrigger value="tickets">Tickets</TabsTrigger>
+          </TabsList>
 
-              <div className="space-y-2">
-                <Label htmlFor="eventCategory">Category</Label>
-                <Input
-                  id="eventCategory"
-                  value={eventForm.eventCategory}
-                  onChange={(e) => setEventForm({ ...eventForm, eventCategory: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="eventLocation">Location</Label>
-                <Input
-                  id="eventLocation"
-                  value={eventForm.eventLocation}
-                  onChange={(e) => setEventForm({ ...eventForm, eventLocation: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="eventDescription">Description</Label>
-                <textarea
-                  id="eventDescription"
-                  value={eventForm.eventDescription}
-                  onChange={(e) => setEventForm({ ...eventForm, eventDescription: e.target.value })}
-                  className="w-full min-h-[100px] px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ticketSaleStartDate">Ticket Sale Start</Label>
-                <Input
-                  id="ticketSaleStartDate"
-                  type="datetime-local"
-                  value={eventForm.ticketSaleStartDate}
-                  onChange={(e) => setEventForm({ ...eventForm, ticketSaleStartDate: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ticketSaleEndDate">Ticket Sale End</Label>
-                <Input
-                  id="ticketSaleEndDate"
-                  type="datetime-local"
-                  value={eventForm.ticketSaleEndDate}
-                  onChange={(e) => setEventForm({ ...eventForm, ticketSaleEndDate: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="eventStartDate">Event Start</Label>
-                <Input
-                  id="eventStartDate"
-                  type="datetime-local"
-                  value={eventForm.eventStartDate}
-                  onChange={(e) => setEventForm({ ...eventForm, eventStartDate: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="eventEndDate">Event End</Label>
-                <Input
-                  id="eventEndDate"
-                  type="datetime-local"
-                  value={eventForm.eventEndDate}
-                  onChange={(e) => setEventForm({ ...eventForm, eventEndDate: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="active">Status</Label>
-                <select
-                  id="active"
-                  value={eventForm.active ? 'true' : 'false'}
-                  onChange={(e) => setEventForm({ ...eventForm, active: e.target.value === 'true' })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
-                >
-                  <option value="true">Active</option>
-                  <option value="false">Inactive</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? 'Saving...' : 'Update Event'}
-              </Button>
-            </div>
-          </form>
-        </Card>
-
-        {/* Tickets Section */}
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">Tickets ({event.tickets.length})</h2>
-          <div className="space-y-4">
-            {event.tickets.map((ticket) => {
-              const ticketForm = ticketForms[ticket.ticketId] || ticket;
-              const isEditing = editingTicketId === ticket.ticketId;
-
-              return (
-                <Card key={ticket.ticketId} className="p-4 border-2 border-slate-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-slate-900">
-                      {ticket.ticketName}
-                    </h3>
-                    <div className="flex gap-2">
-                      {!isEditing ? (
-                        <Button
-                          onClick={() => setEditingTicketId(ticket.ticketId)}
-                          variant="outline"
-                          size="sm"
-                        >
-                          Edit
-                        </Button>
-                      ) : (
-                        <>
-                          <Button
-                            onClick={() => handleTicketSubmit(ticket.ticketId)}
-                            size="sm"
-                            disabled={isSaving}
-                          >
-                            {isSaving ? 'Saving...' : 'Save'}
-                          </Button>
-                          <Button
-                            onClick={() => {
-                              setEditingTicketId(null);
-                              // Reset form with proper defaults
-                              setTicketForms(prev => ({
-                                ...prev,
-                                [ticket.ticketId]: {
-                                  ticketName: ticket.ticketName || '',
-                                  ticketPrice: ticket.ticketPrice ?? 0,
-                                  quantityAvailable: ticket.quantityAvailable ?? 0,
-                                  isActive: ticket.isActive ?? true,
-                                  ticketsToIssue: ticket.ticketsToIssue ?? 1,
-                                  ticketLimitPerPerson: ticket.ticketLimitPerPerson ?? 0,
-                                  numberOfComplementary: ticket.numberOfComplementary ?? 0,
-                                  ticketSaleStartDate: formatDateTimeLocal(ticket.ticketSaleStartDate),
-                                  ticketSaleEndDate: formatDateTimeLocal(ticket.ticketSaleEndDate),
-                                  isFree: ticket.isFree ?? false,
-                                },
-                              }));
-                            }}
-                            variant="outline"
-                            size="sm"
-                          >
-                            Cancel
-                          </Button>
-                        </>
-                      )}
-                    </div>
+          <TabsContent value="event">
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold text-slate-900 mb-4">Event Details</h2>
+              <form onSubmit={handleEventSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="eventName">Event Name</Label>
+                    <Input
+                      id="eventName"
+                      value={eventForm.eventName}
+                      onChange={(e) => setEventForm({ ...eventForm, eventName: e.target.value })}
+                      required
+                    />
                   </div>
 
-                  {isEditing ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Ticket Name</Label>
-                        <Input
-                          value={ticketForm.ticketName || ''}
-                          onChange={(e) => updateTicketForm(ticket.ticketId, 'ticketName', e.target.value)}
+                  <div className="space-y-2">
+                    <Label htmlFor="eventCategory">Category</Label>
+                    <Input
+                      id="eventCategory"
+                      value={eventForm.eventCategory}
+                      onChange={(e) => setEventForm({ ...eventForm, eventCategory: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="eventLocation">Location</Label>
+                    <Input
+                      id="eventLocation"
+                      value={eventForm.eventLocation}
+                      onChange={(e) => setEventForm({ ...eventForm, eventLocation: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="eventPosterUrl">Event Poster URL</Label>
+                    <Input
+                      id="eventPosterUrl"
+                      value={eventForm.eventPosterUrl}
+                      onChange={(e) => setEventForm({ ...eventForm, eventPosterUrl: e.target.value })}
+                    />
+                  </div>
+
+                  {event.eventPosterUrl && (
+                    <div className="space-y-2">
+                      <Label>Current Poster</Label>
+                      <div className="mt-2">
+                        <Image
+                          src={event.eventPosterUrl}
+                          alt="Event Poster"
+                          width={200}
+                          height={200}
+                          className="rounded-md object-cover"
                         />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Price (KES)</Label>
-                        <Input
-                          type="number"
-                          value={ticketForm.ticketPrice ?? 0}
-                          onChange={(e) => updateTicketForm(ticket.ticketId, 'ticketPrice', parseFloat(e.target.value) || 0)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Quantity Available</Label>
-                        <Input
-                          type="number"
-                          value={ticketForm.quantityAvailable ?? 0}
-                          onChange={(e) => updateTicketForm(ticket.ticketId, 'quantityAvailable', parseInt(e.target.value) || 0)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Tickets to Issue</Label>
-                        <Input
-                          type="number"
-                          value={ticketForm.ticketsToIssue ?? 1}
-                          onChange={(e) => updateTicketForm(ticket.ticketId, 'ticketsToIssue', parseInt(e.target.value) || 1)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Limit Per Person</Label>
-                        <Input
-                          type="number"
-                          value={ticketForm.ticketLimitPerPerson ?? 0}
-                          onChange={(e) => updateTicketForm(ticket.ticketId, 'ticketLimitPerPerson', parseInt(e.target.value) || 0)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Complementary Tickets</Label>
-                        <Input
-                          type="number"
-                          value={ticketForm.numberOfComplementary ?? 0}
-                          onChange={(e) => updateTicketForm(ticket.ticketId, 'numberOfComplementary', parseInt(e.target.value) || 0)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Sale Start Date</Label>
-                        <Input
-                          type="datetime-local"
-                          value={ticketForm.ticketSaleStartDate}
-                          onChange={(e) => updateTicketForm(ticket.ticketId, 'ticketSaleStartDate', e.target.value)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Sale End Date</Label>
-                        <Input
-                          type="datetime-local"
-                          value={ticketForm.ticketSaleEndDate}
-                          onChange={(e) => updateTicketForm(ticket.ticketId, 'ticketSaleEndDate', e.target.value)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Status</Label>
-                        <select
-                          value={ticketForm.isActive ? 'true' : 'false'}
-                          onChange={(e) => updateTicketForm(ticket.ticketId, 'isActive', e.target.value === 'true')}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-md"
-                        >
-                          <option value="true">Active</option>
-                          <option value="false">Inactive</option>
-                        </select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Free Ticket</Label>
-                        <select
-                          value={ticketForm.isFree ? 'true' : 'false'}
-                          onChange={(e) => updateTicketForm(ticket.ticketId, 'isFree', e.target.value === 'true')}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-md"
-                        >
-                          <option value="false">Paid</option>
-                          <option value="true">Free</option>
-                        </select>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                      <div>
-                        <span className="text-slate-600">Price:</span>
-                        <p className="font-medium">KES {ticket.ticketPrice.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <span className="text-slate-600">Available:</span>
-                        <p className="font-medium">{ticket.quantityAvailable}</p>
-                      </div>
-                      <div>
-                        <span className="text-slate-600">Sold:</span>
-                        <p className="font-medium">{ticket.soldQuantity}</p>
-                      </div>
-                      <div>
-                        <span className="text-slate-600">Status:</span>
-                        <p className={`font-medium ${ticket.isActive ? 'text-green-600' : 'text-gray-600'}`}>
-                          {ticket.isActive ? 'Active' : 'Inactive'}
-                        </p>
                       </div>
                     </div>
                   )}
-                </Card>
-              );
-            })}
-          </div>
-        </Card>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="eventDescription">Description</Label>
+                    <textarea
+                      id="eventDescription"
+                      value={eventForm.eventDescription}
+                      onChange={(e) => setEventForm({ ...eventForm, eventDescription: e.target.value })}
+                      className="w-full min-h-[100px] px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="ticketSaleStartDate">Ticket Sale Start</Label>
+                    <Input
+                      id="ticketSaleStartDate"
+                      type="datetime-local"
+                      value={eventForm.ticketSaleStartDate}
+                      onChange={(e) => setEventForm({ ...eventForm, ticketSaleStartDate: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="ticketSaleEndDate">Ticket Sale End</Label>
+                    <Input
+                      id="ticketSaleEndDate"
+                      type="datetime-local"
+                      value={eventForm.ticketSaleEndDate}
+                      onChange={(e) => setEventForm({ ...eventForm, ticketSaleEndDate: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="eventStartDate">Event Start</Label>
+                    <Input
+                      id="eventStartDate"
+                      type="datetime-local"
+                      value={eventForm.eventStartDate}
+                      onChange={(e) => setEventForm({ ...eventForm, eventStartDate: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="eventEndDate">Event End</Label>
+                    <Input
+                      id="eventEndDate"
+                      type="datetime-local"
+                      value={eventForm.eventEndDate}
+                      onChange={(e) => setEventForm({ ...eventForm, eventEndDate: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="active">Status</Label>
+                    <select
+                      id="active"
+                      value={eventForm.active ? 'true' : 'false'}
+                      onChange={(e) => setEventForm({ ...eventForm, active: e.target.value === 'true' })}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    >
+                      <option value="true">Active</option>
+                      <option value="false">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={isSaving}>
+                    {isSaving ? 'Saving...' : 'Update Event'}
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="tickets">
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold text-slate-900 mb-4">Tickets ({event.tickets.length})</h2>
+              <div className="space-y-4">
+                {event.tickets.map((ticket) => {
+                  const ticketForm = ticketForms[ticket.ticketId] || ticket;
+                  const isEditing = editingTicketId === ticket.ticketId;
+
+                  return (
+                    <Card key={ticket.ticketId} className="p-4 border-2 border-slate-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-lg font-semibold text-slate-900">
+                          {ticket.ticketName}
+                        </h3>
+                        <div className="flex gap-2">
+                          {!isEditing ? (
+                            <Button
+                              onClick={() => setEditingTicketId(ticket.ticketId)}
+                              variant="outline"
+                              size="sm"
+                            >
+                              Edit
+                            </Button>
+                          ) : (
+                            <>
+                              <Button
+                                onClick={() => handleTicketSubmit(ticket.ticketId)}
+                                size="sm"
+                                disabled={isSaving}
+                              >
+                                {isSaving ? 'Saving...' : 'Save'}
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  setEditingTicketId(null);
+                                  // Reset form with proper defaults
+                                  setTicketForms(prev => ({
+                                    ...prev,
+                                    [ticket.ticketId]: {
+                                      ticketName: ticket.ticketName || '',
+                                      ticketPrice: ticket.ticketPrice ?? 0,
+                                      quantityAvailable: ticket.quantityAvailable ?? 0,
+                                      isActive: ticket.isActive ?? true,
+                                      ticketsToIssue: ticket.ticketsToIssue ?? 1,
+                                      ticketLimitPerPerson: ticket.ticketLimitPerPerson ?? 0,
+                                      numberOfComplementary: ticket.numberOfComplementary ?? 0,
+                                      ticketSaleStartDate: formatDateTimeLocal(ticket.ticketSaleStartDate),
+                                      ticketSaleEndDate: formatDateTimeLocal(ticket.ticketSaleEndDate),
+                                      isFree: ticket.isFree ?? false,
+                                    },
+                                  }));
+                                }}
+                                variant="outline"
+                                size="sm"
+                              >
+                                Cancel
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {isEditing ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>Ticket Name</Label>
+                            <Input
+                              value={ticketForm.ticketName || ''}
+                              onChange={(e) => updateTicketForm(ticket.ticketId, 'ticketName', e.target.value)}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Price (KES)</Label>
+                            <Input
+                              type="number"
+                              value={ticketForm.ticketPrice ?? 0}
+                              onChange={(e) => updateTicketForm(ticket.ticketId, 'ticketPrice', parseFloat(e.target.value) || 0)}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Quantity Available</Label>
+                            <Input
+                              type="number"
+                              value={ticketForm.quantityAvailable ?? 0}
+                              onChange={(e) => updateTicketForm(ticket.ticketId, 'quantityAvailable', parseInt(e.target.value) || 0)}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Tickets to Issue</Label>
+                            <Input
+                              type="number"
+                              value={ticketForm.ticketsToIssue ?? 1}
+                              onChange={(e) => updateTicketForm(ticket.ticketId, 'ticketsToIssue', parseInt(e.target.value) || 1)}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Limit Per Person</Label>
+                            <Input
+                              type="number"
+                              value={ticketForm.ticketLimitPerPerson ?? 0}
+                              onChange={(e) => updateTicketForm(ticket.ticketId, 'ticketLimitPerPerson', parseInt(e.target.value) || 0)}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Complementary Tickets</Label>
+                            <Input
+                              type="number"
+                              value={ticketForm.numberOfComplementary ?? 0}
+                              onChange={(e) => updateTicketForm(ticket.ticketId, 'numberOfComplementary', parseInt(e.target.value) || 0)}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Sale Start Date</Label>
+                            <Input
+                              type="datetime-local"
+                              value={ticketForm.ticketSaleStartDate}
+                              onChange={(e) => updateTicketForm(ticket.ticketId, 'ticketSaleStartDate', e.target.value)}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Sale End Date</Label>
+                            <Input
+                              type="datetime-local"
+                              value={ticketForm.ticketSaleEndDate}
+                              onChange={(e) => updateTicketForm(ticket.ticketId, 'ticketSaleEndDate', e.target.value)}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Status</Label>
+                            <select
+                              value={ticketForm.isActive ? 'true' : 'false'}
+                              onChange={(e) => updateTicketForm(ticket.ticketId, 'isActive', e.target.value === 'true')}
+                              className="w-full px-3 py-2 border border-slate-200 rounded-md"
+                            >
+                              <option value="true">Active</option>
+                              <option value="false">Inactive</option>
+                            </select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Free Ticket</Label>
+                            <select
+                              value={ticketForm.isFree ? 'true' : 'false'}
+                              onChange={(e) => updateTicketForm(ticket.ticketId, 'isFree', e.target.value === 'true')}
+                              className="w-full px-3 py-2 border border-slate-200 rounded-md"
+                            >
+                              <option value="false">Paid</option>
+                              <option value="true">Free</option>
+                            </select>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                          <div>
+                            <span className="text-slate-600">Price:</span>
+                            <p className="font-medium">KES {ticket.ticketPrice.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <span className="text-slate-600">Available:</span>
+                            <p className="font-medium">{ticket.quantityAvailable}</p>
+                          </div>
+                          <div>
+                            <span className="text-slate-600">Sold:</span>
+                            <p className="font-medium">{ticket.soldQuantity}</p>
+                          </div>
+                          <div>
+                            <span className="text-slate-600">Status:</span>
+                            <p className={`font-medium ${ticket.isActive ? 'text-green-600' : 'text-gray-600'}`}>
+                              {ticket.isActive ? 'Active' : 'Inactive'}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
 }
-
