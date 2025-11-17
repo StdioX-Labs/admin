@@ -5,17 +5,17 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME;
 const API_PASSWORD = process.env.NEXT_PUBLIC_API_PASSWORD;
 
-export async function GET(request: NextRequest) {
-  console.log('[Events API] Starting request...');
+export async function POST(request: NextRequest) {
+  console.log('[Create Ticket API] Starting request...');
 
   try {
     const cookieStore = await cookies();
     const authTokenCookie = cookieStore.get('auth_token');
 
-    console.log('[Events API] Auth token cookie exists:', !!authTokenCookie);
+    console.log('[Create Ticket API] Auth token cookie exists:', !!authTokenCookie);
 
     if (!authTokenCookie || !authTokenCookie.value) {
-      console.error('[Events API] No auth token found');
+      console.error('[Create Ticket API] No auth token found');
       return NextResponse.json(
         { error: 'Unauthorized - No auth token', status: false, message: 'Please log in to continue' },
         { status: 401 }
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       const maxAge = 2 * 60 * 60 * 1000; // 2 hours
 
       if (now - issuedAt > maxAge) {
-        console.error('[Events API] Token expired');
+        console.error('[Create Ticket API] Token expired');
         cookieStore.delete('auth_token');
         return NextResponse.json(
           { error: 'Session expired', status: false, message: 'Your session has expired. Please log in again.' },
@@ -40,47 +40,42 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      console.log('[Events API] User authenticated:', authData.email);
+      console.log('[Create Ticket API] User authenticated:', authData.email);
     } catch (parseError) {
-      console.error('[Events API] Invalid token format:', parseError);
+      console.error('[Create Ticket API] Invalid token format:', parseError);
       return NextResponse.json(
         { error: 'Invalid session', status: false, message: 'Invalid session. Please log in again.' },
         { status: 401 }
       );
     }
 
-    // Get pagination parameters from query string
-    const searchParams = request.nextUrl.searchParams;
-    // Default to page 0 and size 10 as per client requirements
-    const page = searchParams.get('page') || '0';
-    const size = searchParams.get('size') || '10';
-    const searchName = searchParams.get('searchName');
+    // Get the request body
+    const body = await request.json();
+    console.log('[Create Ticket API] Request body:', JSON.stringify(body).substring(0, 200));
 
     // Create Basic auth string for external API
     const authString = Buffer.from(`${API_USERNAME}:${API_PASSWORD}`).toString('base64');
-    let apiUrl = `${API_BASE_URL}/admin/events/get/all?page=${page}&size=${size}`;
-    if (searchName) {
-      apiUrl += `&searchName=${encodeURIComponent(searchName)}`;
-    }
+    const apiUrl = `${API_BASE_URL}/event/ticket/create`;
 
-    console.log('[Events API] Fetching from:', apiUrl);
+    console.log('[Create Ticket API] Creating ticket at:', apiUrl);
 
     // Make request to the external API using Basic auth
     const response = await fetch(apiUrl, {
-      method: 'GET',
+      method: 'POST',
       headers: {
         'Authorization': `Basic ${authString}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
+      body: JSON.stringify(body),
     });
 
-    console.log('[Events API] Response status:', response.status);
+    console.log('[Create Ticket API] Response status:', response.status);
 
     // Check content type
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
-      console.error('[Events API] Non-JSON response:', contentType);
+      console.error('[Create Ticket API] Non-JSON response:', contentType);
       return NextResponse.json(
         { error: 'Invalid response from API', status: false, message: 'The API returned an invalid response' },
         { status: 500 }
@@ -88,15 +83,15 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    console.log('[Events API] Response data preview:', JSON.stringify(data).substring(0, 200));
+    console.log('[Create Ticket API] Response data:', JSON.stringify(data).substring(0, 200));
 
     if (!response.ok) {
-      console.error('[Events API] API returned error:', data);
+      console.error('[Create Ticket API] API returned error:', data);
       return NextResponse.json(
         {
-          error: data.message || 'Failed to fetch events',
+          error: data.message || 'Failed to create ticket',
           status: false,
-          message: data.message || 'Failed to fetch events'
+          message: data.message || 'Failed to create ticket'
         },
         { status: response.status }
       );
@@ -104,15 +99,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('[Events API] Exception occurred:', error);
+    console.error('[Create Ticket API] Exception occurred:', error);
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',
         status: false,
-        message: 'An error occurred while fetching events'
+        message: 'An error occurred while creating ticket'
       },
       { status: 500 }
     );
   }
 }
-

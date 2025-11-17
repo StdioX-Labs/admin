@@ -112,6 +112,20 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  return handleEventUpdate(request, params);
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return handleEventUpdate(request, params);
+}
+
+async function handleEventUpdate(
+  request: NextRequest,
+  params: Promise<{ id: string }>
+) {
   const { id } = await params;
   console.log('[Event Update API] Starting request for event:', id);
 

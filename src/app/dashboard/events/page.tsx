@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { eventsApi } from "@/lib/api";
+import { Loader2 } from 'lucide-react';
 
 interface TicketSummary {
   ticketId: number;
@@ -73,20 +74,30 @@ export default function EventsDashboard() {
   const [stats, setStats] = useState<EventStats | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize] = useState(30);
+  const [pageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [hasNext, setHasNext] = useState(false);
   const [hasPrevious, setHasPrevious] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingPagination, setIsLoadingPagination] = useState(false);
+  const [togglingEventId, setTogglingEventId] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [showCommissionDialog, setShowCommissionDialog] = useState(false);
+  const [commissionValue, setCommissionValue] = useState('5.0');
+  const [eventToActivate, setEventToActivate] = useState<Event | null>(null);
 
-  const fetchData = async (page: number = currentPage) => {
-    setIsLoading(true);
+  const fetchData = async (page: number = currentPage, search?: string, isPagination = false) => {
+    if (isPagination) {
+      setIsLoadingPagination(true);
+    } else {
+      setIsLoading(true);
+    }
     setError('');
     try {
       console.log('[Events] Fetching page:', page);
-      const response = await eventsApi.getAllEvents(page, pageSize);
+      const response = await eventsApi.getAllEvents(page, pageSize, search);
 
       console.log('[Events] API response:', response);
 
@@ -104,7 +115,7 @@ export default function EventsDashboard() {
 
         // Calculate stats from the events
         const totalEvents = response.data.totalElements;
-        const liveEvents = eventsData.filter((e: Event) => e.active).length;
+        const liveEvents = eventsData.filter((e: Event) => e.status === 'ACTIVE').length;
         const totalTicketsSold = eventsData.reduce((sum: number, e: Event) => sum + e.totalTicketsSold, 0);
         const totalRevenue = eventsData.reduce((sum: number, e: Event) => sum + e.totalRevenue, 0);
 
@@ -139,6 +150,7 @@ export default function EventsDashboard() {
       setError(err instanceof Error ? err.message : 'Failed to load events data');
     } finally {
       setIsLoading(false);
+      setIsLoadingPagination(false);
     }
   };
 
@@ -147,24 +159,24 @@ export default function EventsDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const filteredEvents = events.filter(event =>
-    searchTerm === '' ||
-    event.eventName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    event.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    event.eventLocation.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a, b) => {
-    // Sort by createdAt date, newest first (descending order)
-    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return dateB - dateA;
-  });
-
-  const getStatusBadge = (active: boolean) => {
-    return active
-      ? 'bg-green-100 text-green-800 border-green-200'
-      : 'bg-gray-100 text-gray-800 border-gray-200';
+  const handleSearch = () => {
+    setCurrentPage(0);
+    fetchData(0, searchTerm || undefined);
   };
 
+  const filteredEvents = events
+    .filter(event =>
+      searchTerm === '' ||
+      event.eventName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.eventLocation.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      // Sort by createdAt date, newest first (descending order)
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-KE', {
@@ -183,7 +195,84 @@ export default function EventsDashboard() {
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
-    fetchData(newPage);
+    fetchData(newPage, searchTerm || undefined, true);
+  };
+
+  const handleToggleEventStatus = async (event: Event) => {
+    const newStatus = event.status === 'ACTIVE' ? 'ONHOLD' : 'ACTIVE';
+
+    if (newStatus === 'ACTIVE') {
+      // Show commission dialog for activation
+      setEventToActivate(event);
+      setCommissionValue('5.0');
+      setShowCommissionDialog(true);
+      return;
+    }
+
+    // For deactivation, proceed directly
+    setTogglingEventId(event.eventId);
+    setError('');
+    setSuccess('');
+
+    try {
+      const updateData = {
+        eventName: event.eventName,
+        eventDescription: event.eventDescription,
+        eventCategory: event.eventCategory,
+        eventLocation: event.eventLocation,
+        eventPosterUrl: event.eventPosterUrl,
+        ticketSaleStartDate: event.ticketSaleStartDate,
+        ticketSaleEndDate: event.ticketSaleEndDate,
+        eventStartDate: event.eventStartDate,
+        eventEndDate: event.eventEndDate,
+        status: 'ONHOLD',
+      };
+      const response = await eventsApi.updateEvent(event.eventId, updateData);
+
+      if (response.status === true) {
+        setSuccess(`✅ Event "${event.eventName}" status changed to ONHOLD!`);
+        await fetchData(currentPage, searchTerm || undefined);
+        setTimeout(() => setSuccess(''), 5000);
+      } else {
+        setError(response.message || 'Failed to update event status');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update event status');
+    } finally {
+      setTogglingEventId(null);
+    }
+  };
+
+  const handleActivateWithCommission = async () => {
+    if (!eventToActivate) return;
+
+    const commission = parseFloat(commissionValue);
+    if (isNaN(commission) || commission < 0 || commission > 100) {
+      setError('Please enter a valid commission between 0 and 100');
+      return;
+    }
+
+    setShowCommissionDialog(false);
+    setTogglingEventId(eventToActivate.eventId);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await eventsApi.activateEvent(eventToActivate.eventId, commission);
+
+      if (response.status === true) {
+        setSuccess(`✅ Event "${eventToActivate.eventName}" activated with ${commission}% commission!`);
+        await fetchData(currentPage, searchTerm || undefined);
+        setTimeout(() => setSuccess(''), 5000);
+      } else {
+        setError(response.message || 'Failed to activate event');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to activate event');
+    } finally {
+      setTogglingEventId(null);
+      setEventToActivate(null);
+    }
   };
 
   if (isLoading) {
@@ -199,6 +288,56 @@ export default function EventsDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-3">
+      {/* Commission Dialog Modal */}
+      {showCommissionDialog && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <Card className="max-w-md w-full p-6 bg-white">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">Activate Event</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Set the commission percentage for event: <strong>{eventToActivate?.eventName}</strong>
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Commission (%)
+                </label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="100"
+                  value={commissionValue}
+                  onChange={(e) => setCommissionValue(e.target.value)}
+                  placeholder="5.0"
+                  className="w-full"
+                  autoFocus
+                />
+                <p className="text-xs text-slate-500 mt-1">Enter a value between 0 and 100</p>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  onClick={() => {
+                    setShowCommissionDialog(false);
+                    setEventToActivate(null);
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleActivateWithCommission}
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  Activate Event
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto space-y-4">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
@@ -225,10 +364,15 @@ export default function EventsDashboard() {
           </div>
         </div>
 
-        {/* Error Alert */}
+        {/* Error & Success Alerts */}
         {error && (
-          <Alert variant="destructive" className="border-red-200 bg-red-50">
+          <Alert variant="destructive" className="border-red-200 bg-red-50 animate-in slide-in-from-top-2">
             <AlertDescription className="text-red-700 text-sm">{error}</AlertDescription>
+          </Alert>
+        )}
+        {success && (
+          <Alert className="border-green-200 bg-green-50 animate-in slide-in-from-top-2">
+            <AlertDescription className="text-green-700 text-sm">{success}</AlertDescription>
           </Alert>
         )}
 
@@ -329,17 +473,35 @@ export default function EventsDashboard() {
 
         {/* Search */}
         <Card className="p-4 bg-white border border-slate-200">
-          <Input
-            type="text"
-            placeholder="Search events, organizers, or locations..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-9 border-slate-200 focus:border-slate-500 focus:ring-slate-500 text-sm"
-          />
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              placeholder="Search events, organizers, or locations..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              className="h-9 border-slate-200 focus:border-slate-500 focus:ring-slate-500 text-sm"
+            />
+            <Button
+              onClick={handleSearch}
+              size="sm"
+              className="h-9 px-4 whitespace-nowrap"
+            >
+              Search
+            </Button>
+          </div>
         </Card>
 
         {/* Events Table */}
-        <Card className="bg-white border border-slate-200 overflow-hidden">
+        <Card className="bg-white border border-slate-200 overflow-hidden relative">
+          {isLoadingPagination && (
+            <div className="absolute inset-0 bg-white/80 z-10 flex items-center justify-center">
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin text-slate-600 mx-auto mb-2" />
+                <p className="text-sm text-slate-600">Loading...</p>
+              </div>
+            </div>
+          )}
           <div className="p-4 border-b border-slate-200">
             <h3 className="text-lg font-semibold text-slate-900">Events</h3>
             <p className="text-xs text-slate-600 mt-1">
@@ -358,6 +520,7 @@ export default function EventsDashboard() {
                   <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Status</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Tickets</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Revenue</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Toggle</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Actions</th>
                 </tr>
               </thead>
@@ -388,7 +551,11 @@ export default function EventsDashboard() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getStatusBadge(event.active)}`}>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${
+                          event.status === 'ACTIVE' ? 'bg-green-100 text-green-800 border-green-200' : 
+                          event.status === 'ONHOLD' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 
+                          'bg-gray-100 text-gray-800 border-gray-200'
+                        }`}>
                           {event.status}
                         </span>
                       </td>
@@ -399,6 +566,25 @@ export default function EventsDashboard() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-900">{formatCurrency(event.totalRevenue)}</td>
+                      <td className="px-4 py-3">
+                        <Button
+                          onClick={() => handleToggleEventStatus(event)}
+                          disabled={togglingEventId === event.eventId}
+                          variant="outline"
+                          size="sm"
+                          className={`h-7 px-2 text-xs ${
+                            event.status === 'ACTIVE'
+                              ? 'border-yellow-300 text-yellow-700 hover:bg-yellow-50'
+                              : 'border-green-300 text-green-700 hover:bg-green-50'
+                          }`}
+                        >
+                          {togglingEventId === event.eventId ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            event.status === 'ACTIVE' ? 'Set ONHOLD' : 'Activate'
+                          )}
+                        </Button>
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
                           <Button

@@ -191,7 +191,9 @@ export const authApi = {
 // Events API
 export const eventsApi = {
   // Fetch all events with pagination
-  getAllEvents: async (page: number = 0, size: number = 30) => {
+  getAllEvents: async (page: number = 0, size: number = 10, searchName?: string) => {
+    let url = `/events?page=${page}&size=${size}`;
+    if (searchName) url += `&searchName=${encodeURIComponent(searchName)}`;
     return fetchApi<{
       data: {
         data: unknown[];
@@ -204,7 +206,7 @@ export const eventsApi = {
       };
       message: string;
       status: boolean;
-    }>(`/events?page=${page}&size=${size}`, {
+    }>(url, {
       method: 'GET',
     });
   },
@@ -228,7 +230,7 @@ export const eventsApi = {
       message: string;
       status: boolean;
     }>(`/events/${eventId}`, {
-      method: 'POST',
+      method: 'PUT',
       body: JSON.stringify(data),
     });
   },
@@ -242,6 +244,46 @@ export const eventsApi = {
     }>(`/tickets/${ticketId}`, {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  },
+
+  // Create new ticket
+  createTicket: async (data: Record<string, unknown>) => {
+    return fetchApi<{
+      data: unknown;
+      message: string;
+      status: boolean;
+    }>('/tickets/create', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Activate event
+  activateEvent: async (eventId: string | number, commission: number = 5.0) => {
+    return fetchApi<{
+      data: unknown;
+      message: string;
+      status: boolean;
+    }>('/events/activate', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        eventId: typeof eventId === 'string' ? parseInt(eventId) : eventId, 
+        commission: parseFloat(commission.toString())
+      }),
+    });
+  },
+};
+
+// B2B API
+export const b2bApi = {
+  getActiveSubscriptions: async () => {
+    return fetchApi<{
+      data: unknown;
+      message: string;
+      status: boolean;
+    }>(`/b2b-subscriptions/active`, {
+      method: 'GET',
     });
   },
 };
