@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { eventsApi } from "@/lib/api";
 import Image from 'next/image';
-import { ArrowLeft, Upload, Plus, X, Loader2, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Plus, X, Loader2, CheckCircle2 } from 'lucide-react';
 
 interface ApiTicket {
   id: number;
@@ -417,7 +417,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
         <Card className="p-8 text-center max-w-md">
           <h2 className="text-2xl font-bold text-slate-900 mb-2">Event Not Found</h2>
-          <p className="text-slate-600 mb-6">The event you're looking for doesn't exist.</p>
+          <p className="text-slate-600 mb-6">The event you&apos;re looking for doesn&apos;t exist.</p>
           <Button onClick={() => router.push('/dashboard/events')}>Back to Events</Button>
         </Card>
       </div>

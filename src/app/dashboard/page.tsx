@@ -45,14 +45,17 @@ export default function DashboardPage() {
 
       if (response.status && response.data) {
         // Try to fetch active B2B subscriptions separately and merge into stats
-        let mergedStats = { ...response.data } as any;
+        const mergedStats = { ...response.data } as DashboardStats & Record<string, unknown>;
         try {
           const b2bResp = await b2bApi.getActiveSubscriptions();
           if (b2bResp && b2bResp.status && b2bResp.data) {
             // If data is an array, use its length; otherwise try to read a count property
-            const d: any = b2bResp.data;
+            const d: unknown = b2bResp.data;
             if (Array.isArray(d)) mergedStats.activeB2BSubscriptions = d.length;
-            else if (typeof d === 'object' && d !== null) mergedStats.activeB2BSubscriptions = d.count ?? d.total ?? mergedStats.activeB2BSubscriptions;
+            else if (typeof d === 'object' && d !== null) {
+              const dataObj = d as Record<string, unknown>;
+              mergedStats.activeB2BSubscriptions = (dataObj.count as number) ?? (dataObj.total as number) ?? mergedStats.activeB2BSubscriptions;
+            }
           }
         } catch (e) {
           console.warn('[Dashboard] Failed to fetch active B2B subscriptions:', e);
