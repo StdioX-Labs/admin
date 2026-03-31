@@ -188,15 +188,103 @@ export const authApi = {
   }
 };
 
+// Shared event type matching /events/get/all response
+export interface ActiveEventTicket {
+  id: number;
+  ticketName: string;
+  ticketPrice: number;
+  quantityAvailable: number;
+  soldQuantity: number;
+  isActive: boolean;
+  ticketsToIssue: number;
+  isSoldOut: boolean;
+  isFree: boolean;
+  ticketStatus: string;
+  createAt: string;
+}
+
+export interface ActiveEvent {
+  id: number;
+  eventName: string;
+  eventDescription: string;
+  eventPosterUrl: string;
+  eventCategoryId: number;
+  ticketSaleStartDate: string;
+  ticketSaleEndDate: string;
+  eventLocation: string;
+  eventStartDate: string;
+  eventEndDate: string;
+  isActive: boolean;
+  published: boolean;
+  tickets: ActiveEventTicket[];
+  createdById: number;
+  companyId: number;
+  companyName: string;
+  comission: number;
+  category: string;
+  date: string;
+  time: string;
+  isFeatured: boolean;
+  price: number;
+  slug: string;
+  currency: string;
+}
+
+export interface AdminEventTicketSummary {
+  ticketId: number;
+  ticketName: string;
+  ticketPrice: number;
+  ticketStatus?: string;
+  // Fields returned by /admin/events/get/all
+  ticketsSold?: number;
+  revenue?: number;
+  // Fields returned by /admin/events/all (newer endpoint)
+  uniqueTicketCount?: number;
+  totalTicketSaleBalance?: number;
+  originalTicketCount?: number;
+  ticketCount?: number; // remaining available
+}
+
+export interface AdminEvent {
+  eventId: number;
+  eventName: string;
+  slug: string;
+  eventDescription: string;
+  eventPosterUrl: string;
+  eventCategory: string;
+  eventLocation: string;
+  ticketSaleStartDate: string;
+  ticketSaleEndDate: string;
+  eventStartDate: string;
+  eventEndDate: string;
+  active: boolean;
+  status: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+  companyId: number;
+  companyName: string;
+  totalTicketsSold: number;
+  totalRevenue: number;
+  totalPlatformFee: number;
+  analytics: {
+    dailySalesGraph: string;
+    currentWeekSales: number;
+    totalAttendees: number;
+    totalTicketTypes: number;
+  };
+  ticketSummaries: AdminEventTicketSummary[];
+}
+
 // Events API
 export const eventsApi = {
   // Fetch all events with pagination
-  getAllEvents: async (page: number = 0, size: number = 10, searchName?: string) => {
+  getAllEvents: async (page: number = 0, size: number = 10, searchName?: string, status?: string) => {
     let url = `/events?page=${page}&size=${size}`;
     if (searchName) url += `&searchName=${encodeURIComponent(searchName)}`;
+    if (status) url += `&status=${encodeURIComponent(status)}`;
     return fetchApi<{
       data: {
-        data: unknown[];
+        data: AdminEvent[];
         page: number;
         size: number;
         totalElements: number;
@@ -206,9 +294,33 @@ export const eventsApi = {
       };
       message: string;
       status: boolean;
-    }>(url, {
-      method: 'GET',
-    });
+    }>(url, { method: 'GET' });
+  },
+
+  // Fetch ALL pages of active events from the admin API (for sales report)
+  getAllActiveAdminEvents: async (): Promise<AdminEvent[]> => {
+    const PAGE_SIZE = 50;
+    const collected: AdminEvent[] = [];
+    let page = 0;
+    let hasMore = true;
+    while (hasMore) {
+      const resp = await fetchApi<{
+        data: {
+          data: AdminEvent[];
+          hasNext: boolean;
+        };
+        status: boolean;
+        message: string;
+      }>(`/events?page=${page}&size=${PAGE_SIZE}&status=ACTIVE`, { method: 'GET' });
+      if (resp.status && resp.data?.data) {
+        collected.push(...resp.data.data);
+        hasMore = resp.data.hasNext;
+        page++;
+      } else {
+        break;
+      }
+    }
+    return collected;
   },
 
   // Fetch single event by ID with full details including tickets
@@ -259,6 +371,17 @@ export const eventsApi = {
     });
   },
 
+  // Fetch all active events from /events/get/all
+  getActiveEvents: async () => {
+    return fetchApi<{
+      events: ActiveEvent[];
+      message: string;
+      status: boolean;
+    }>('/active-events', {
+      method: 'GET',
+    });
+  },
+
   // Activate event
   activateEvent: async (eventId: string | number, commission: number = 5.0) => {
     return fetchApi<{
@@ -305,6 +428,134 @@ export const dashboardApi = {
       status: boolean;
     }>('/dashboard/stats', {
       method: 'GET',
+    });
+  },
+};
+
+// Transactions API
+export interface TransactionRecord {
+  id: number;
+  companyId: number;
+  event: {
+    id: number;
+    eventName: string;
+    eventPosterUrl: string;
+    eventLocation: string;
+    eventStartDate: string;
+    comission: number;
+    currency: string;
+  };
+  ticket: {
+    id: number;
+    ticketName: string;
+    ticketPrice: number;
+    soldQuantity: number;
+    quantityAvailable: number;
+  };
+  buyer: {
+    id: number;
+    email: string | null;
+    mobileNumber: string;
+    firstName: string | null;
+    lastName: string | null;
+    createdAt: string;
+  };
+  barcode: string;
+  transactionId: string;
+  transactionType: string;
+  transactionAmount: number;
+  platformFee: number;
+  createdAt: string;
+}
+
+export interface TransactionStats {
+  ticketsSold: number;
+  platformLiability: number;
+  totalSales: number;
+}
+
+export const transactionsApi = {
+  fetchDetailed: async (params: {
+    id: number;
+    idType: 'company' | 'event' | 'user';
+    transactionType?: string;
+    page?: number;
+    size?: number;
+  }) => {
+    return fetchApi<{
+      data: {
+        data: TransactionRecord[];
+        page: number;
+        size: number;
+        totalElements: number;
+        totalPages: number;
+        hasNext: boolean;
+        hasPrevious: boolean;
+      };
+      stats: TransactionStats;
+      message: string;
+      status: boolean;
+    }>('/transactions/detailed', {
+      method: 'POST',
+      body: JSON.stringify({
+        id: params.id,
+        idType: params.idType,
+        transactionType: params.transactionType ?? 'TICKET_SALE',
+        page: params.page ?? 0,
+        size: params.size ?? 50,
+      }),
+    });
+  },
+};
+
+// Event creation API
+export const createEventApi = {
+  createEvent: async (data: {
+    eventName: string;
+    eventDescription: string;
+    eventPosterUrl: string;
+    eventCategory: { id: number };
+    ticketSaleStartDate: string;
+    ticketSaleEndDate: string;
+    eventLocation: string;
+    eventStartDate: string;
+    eventEndDate: string;
+    percentageComission: number;
+    users: { id: number };
+    company: { id: number };
+    slug: string;
+    currency: string;
+  }) => {
+    return fetchApi<{
+      message: string;
+      event_id?: number;
+      event?: { id: number; eventName: string; slug: string };
+      status: boolean;
+    }>('/event/create', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  createTicket: async (data: {
+    event: { id: number };
+    ticketName: string;
+    ticketPrice: number;
+    quantityAvailable: number;
+    ticketsToIssue: number;
+    ticketLimitPerPerson: number;
+    numberOfComplementary: number;
+    ticketSaleStartDate: string;
+    ticketSaleEndDate: string;
+    isFree: boolean;
+  }) => {
+    return fetchApi<{
+      message: string;
+      ticket?: { id: number; ticketName: string };
+      status: boolean;
+    }>('/tickets/create', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   },
 };

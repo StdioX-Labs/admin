@@ -55,12 +55,16 @@ export async function GET(request: NextRequest) {
     const page = searchParams.get('page') || '0';
     const size = searchParams.get('size') || '10';
     const searchName = searchParams.get('searchName');
+    const status = searchParams.get('status');
 
     // Create Basic auth string for external API
     const authString = Buffer.from(`${API_USERNAME}:${API_PASSWORD}`).toString('base64');
     let apiUrl = `${API_BASE_URL}/admin/events/get/all?page=${page}&size=${size}`;
     if (searchName) {
       apiUrl += `&searchName=${encodeURIComponent(searchName)}`;
+    }
+    if (status) {
+      apiUrl += `&status=${encodeURIComponent(status)}`;
     }
 
     console.log('[Events API] Fetching from:', apiUrl);

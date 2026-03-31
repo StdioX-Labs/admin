@@ -28,14 +28,14 @@ export default function B2BCompanyDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => router.push("/dashboard/b2b/companies")}
-            className="hover:bg-slate-100"
+            className="hover:bg-accent"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Companies
@@ -50,7 +50,7 @@ export default function B2BCompanyDetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-slate-600">
+            <p className="text-muted-foreground">
               This page is under construction. Company ID: {companyId}
             </p>
           </CardContent>

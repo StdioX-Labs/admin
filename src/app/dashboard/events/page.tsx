@@ -4,10 +4,29 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { eventsApi } from "@/lib/api";
-import { Loader2 } from 'lucide-react';
+import {
+  Calendar,
+  CheckCircle2,
+  Clock,
+  Plus,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Pencil,
+  Loader2,
+  AlertCircle,
+  MapPin,
+  RotateCcw,
+  Building2,
+  Tag,
+  Ticket,
+  DollarSign,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 
 interface TicketSummary {
   ticketId: number;
@@ -59,19 +78,195 @@ interface Event {
   ticketSummaries: TicketSummary[];
 }
 
-interface EventStats {
-  totalEvents: number;
-  liveEvents: number;
-  totalRevenue: number;
-  totalTicketsSold: number;
-  upcomingEvents: number;
-  completedEvents: number;
+function fmt(n: number) {
+  return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(n);
+}
+function fmtNum(n: number) {
+  return new Intl.NumberFormat('en-KE').format(n);
+}
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === 'ACTIVE') return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+      <span className="h-1 w-1 rounded-full bg-emerald-400 animate-pulse" />
+      Active
+    </span>
+  );
+  if (status === 'ONHOLD') return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
+      <Clock className="h-2.5 w-2.5" />
+      On Hold
+    </span>
+  );
+  return (
+    <span className="inline-flex items-center text-[10px] font-medium text-muted-foreground bg-accent border border-border px-1.5 py-0.5 rounded">
+      {status}
+    </span>
+  );
+}
+
+function EventCard({ event, onToggle, onEdit, toggling }: {
+  event: Event;
+  onToggle: (e: Event) => void;
+  onEdit: (id: number) => void;
+  toggling: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const startDate = new Date(event.eventStartDate);
+  const dateStr = startDate.toLocaleDateString('en-KE', { month: 'short', day: 'numeric', year: 'numeric' });
+  const timeStr = startDate.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="flex">
+        {/* Poster */}
+        <div className="w-20 sm:w-28 flex-shrink-0 self-stretch">
+          {event.eventPosterUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={event.eventPosterUrl} alt={event.eventName} className="w-full h-full object-cover" style={{ minHeight: '120px' }} />
+          ) : (
+            <div className="w-full h-full bg-accent flex items-center justify-center" style={{ minHeight: '120px' }}>
+              <Calendar className="h-6 w-6 text-muted-foreground/30" />
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm font-semibold text-foreground truncate">{event.eventName}</h3>
+                <StatusBadge status={event.status} />
+              </div>
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
+                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
+                  <Building2 className="h-2.5 w-2.5" />{event.companyName}
+                </span>
+                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
+                  <MapPin className="h-2.5 w-2.5" />{event.eventLocation}
+                </span>
+                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
+                  <Calendar className="h-2.5 w-2.5" />{dateStr} · {timeStr}
+                </span>
+                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
+                  <Tag className="h-2.5 w-2.5" />{event.eventCategory}
+                </span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <Button
+                onClick={() => onToggle(event)}
+                disabled={toggling}
+                variant="outline"
+                size="sm"
+                className={`h-7 px-2.5 text-[11px] border transition-colors ${
+                  event.status === 'ACTIVE'
+                    ? 'border-amber-500/20 text-amber-400 hover:bg-amber-500/10 bg-transparent'
+                    : 'border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 bg-transparent'
+                }`}
+              >
+                {toggling ? <Loader2 className="h-3 w-3 animate-spin" /> : event.status === 'ACTIVE' ? 'Hold' : 'Activate'}
+              </Button>
+              <Button
+                onClick={() => onEdit(event.eventId)}
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-muted-foreground/50 hover:text-foreground transition-colors"
+                title="Edit"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                onClick={() => window.open(`https://soldoutafrica.com/${event.slug}`, '_blank')}
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-muted-foreground/50 hover:text-foreground transition-colors"
+                title="View live"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+            <div className="rounded-md bg-background/50 border border-border/60 px-2.5 py-2">
+              <p className="text-[10px] text-muted-foreground/60 mb-0.5">Revenue</p>
+              <p className="text-sm font-bold text-emerald-400 tabular-nums">{fmt(event.totalRevenue)}</p>
+            </div>
+            <div className="rounded-md bg-background/50 border border-border/60 px-2.5 py-2">
+              <p className="text-[10px] text-muted-foreground/60 mb-0.5">Tickets Sold</p>
+              <p className="text-sm font-bold text-foreground tabular-nums">{fmtNum(event.totalTicketsSold)}</p>
+              <p className="text-[10px] text-muted-foreground/40 mt-0.5">{event.analytics.totalTicketTypes} type{event.analytics.totalTicketTypes !== 1 ? 's' : ''}</p>
+            </div>
+            <div className="rounded-md bg-background/50 border border-border/60 px-2.5 py-2">
+              <p className="text-[10px] text-muted-foreground/60 mb-0.5">Platform Fee</p>
+              <p className="text-sm font-bold text-blue-400 tabular-nums">{fmt(event.totalPlatformFee)}</p>
+            </div>
+            <div className="rounded-md bg-background/50 border border-border/60 px-2.5 py-2">
+              <p className="text-[10px] text-muted-foreground/60 mb-0.5">This Week</p>
+              <p className="text-sm font-bold text-violet-400 tabular-nums">{fmtNum(event.analytics.currentWeekSales)} sales</p>
+            </div>
+          </div>
+
+          {/* Expand toggle */}
+          {event.ticketSummaries.length > 0 && (
+            <button
+              onClick={() => setExpanded(e => !e)}
+              className="mt-3 flex items-center gap-1 text-[11px] text-muted-foreground/50 hover:text-foreground transition-colors"
+            >
+              {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              {expanded ? 'Hide' : 'Show'} ticket breakdown
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Ticket breakdown */}
+      {expanded && event.ticketSummaries.length > 0 && (
+        <div className="border-t border-border bg-background/30 px-4 py-3">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-border/60">
+                <th className="text-left text-[10px] text-muted-foreground/50 uppercase tracking-wider pb-2 font-medium">Ticket Type</th>
+                <th className="text-right text-[10px] text-muted-foreground/50 uppercase tracking-wider pb-2 font-medium">Price</th>
+                <th className="text-right text-[10px] text-muted-foreground/50 uppercase tracking-wider pb-2 font-medium">Sold</th>
+                <th className="text-right text-[10px] text-muted-foreground/50 uppercase tracking-wider pb-2 font-medium">Revenue</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40">
+              {event.ticketSummaries.map((t) => (
+                <tr key={t.ticketId} className="hover:bg-accent/10 transition-colors">
+                  <td className="py-2 text-foreground/80">{t.ticketName}</td>
+                  <td className="py-2 text-right tabular-nums text-foreground/70">
+                    {t.ticketPrice === 0 ? 'Free' : fmt(t.ticketPrice)}
+                  </td>
+                  <td className="py-2 text-right tabular-nums text-foreground/90 font-medium">{fmtNum(t.ticketsSold ?? 0)}</td>
+                  <td className="py-2 text-right tabular-nums font-medium text-emerald-400">{fmt(t.revenue ?? 0)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-border/60">
+                <td colSpan={2} className="pt-2 text-[10px] text-muted-foreground/50 uppercase tracking-wider font-medium">Total</td>
+                <td className="pt-2 text-right tabular-nums font-bold text-foreground">{fmtNum(event.totalTicketsSold)}</td>
+                <td className="pt-2 text-right tabular-nums font-bold text-emerald-400">{fmt(event.totalRevenue)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function EventsDashboard() {
   const router = useRouter();
   const [events, setEvents] = useState<Event[]>([]);
-  const [stats, setStats] = useState<EventStats | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize] = useState(10);
@@ -89,19 +284,12 @@ export default function EventsDashboard() {
   const [eventToActivate, setEventToActivate] = useState<Event | null>(null);
 
   const fetchData = async (page: number = currentPage, search?: string, isPagination = false) => {
-    if (isPagination) {
-      setIsLoadingPagination(true);
-    } else {
-      setIsLoading(true);
-    }
+    if (isPagination) setIsLoadingPagination(true);
+    else setIsLoading(true);
     setError('');
     try {
-      console.log('[Events] Fetching page:', page);
       const response = await eventsApi.getAllEvents(page, pageSize, search);
-
-      console.log('[Events] API response:', response);
-
-      if (response.status && response.data && response.data.data) {
+      if (response.status && response.data?.data) {
         const eventsData = response.data.data as Event[];
         setEvents(eventsData);
         setCurrentPage(response.data.page);
@@ -109,113 +297,41 @@ export default function EventsDashboard() {
         setTotalElements(response.data.totalElements);
         setHasNext(response.data.hasNext);
         setHasPrevious(response.data.hasPrevious);
-
-        // Cache events in localStorage for detail page
         localStorage.setItem('eventsCache', JSON.stringify(eventsData));
-
-        // Calculate stats from the events
-        const totalEvents = response.data.totalElements;
-        const liveEvents = eventsData.filter((e: Event) => e.status === 'ACTIVE').length;
-        const totalTicketsSold = eventsData.reduce((sum: number, e: Event) => sum + e.totalTicketsSold, 0);
-        const totalRevenue = eventsData.reduce((sum: number, e: Event) => sum + e.totalRevenue, 0);
-
-        // Count upcoming events (events with future start dates)
-        const now = new Date();
-        const upcomingEvents = eventsData.filter((e: Event) => {
-          const startDate = new Date(e.eventStartDate);
-          return startDate > now;
-        }).length;
-
-        // Count completed events (events with past end dates)
-        const completedEvents = eventsData.filter((e: Event) => {
-          const endDate = new Date(e.eventEndDate);
-          return endDate < now;
-        }).length;
-
-        setStats({
-          totalEvents,
-          liveEvents,
-          totalRevenue,
-          totalTicketsSold,
-          upcomingEvents,
-          completedEvents
-        });
       } else {
-        const errorMsg = response.message || 'Failed to load events';
-        console.error('[Events] API returned error:', errorMsg);
-        setError(errorMsg);
+        setError(response.message || 'Failed to load events');
       }
     } catch (err) {
-      console.error('[Events] Error fetching events:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load events data');
+      setError(err instanceof Error ? err.message : 'Failed to load events');
     } finally {
       setIsLoading(false);
       setIsLoadingPagination(false);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const handleSearch = () => {
     setCurrentPage(0);
     fetchData(0, searchTerm || undefined);
   };
 
-  const filteredEvents = events
-    .filter(event =>
-      searchTerm === '' ||
-      event.eventName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      event.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      event.eventLocation.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => {
-      // Sort by createdAt date, newest first (descending order)
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dateB - dateA;
-    });
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-KE', {
-      style: 'currency',
-      currency: 'KES'
-    }).format(amount);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-KE', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
-  const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
-    fetchData(newPage, searchTerm || undefined, true);
+  const handlePageChange = (p: number) => {
+    setCurrentPage(p);
+    fetchData(p, searchTerm || undefined, true);
   };
 
   const handleToggleEventStatus = async (event: Event) => {
-    const newStatus = event.status === 'ACTIVE' ? 'ONHOLD' : 'ACTIVE';
-
-    if (newStatus === 'ACTIVE') {
-      // Show commission dialog for activation
+    if (event.status !== 'ACTIVE') {
       setEventToActivate(event);
       setCommissionValue('5.0');
       setShowCommissionDialog(true);
       return;
     }
-
-    // For deactivation, proceed directly
     setTogglingEventId(event.eventId);
-    setError('');
-    setSuccess('');
-
+    setError(''); setSuccess('');
     try {
-      const updateData = {
+      const response = await eventsApi.updateEvent(event.eventId, {
         eventName: event.eventName,
         eventDescription: event.eventDescription,
         eventCategory: event.eventCategory,
@@ -226,11 +342,9 @@ export default function EventsDashboard() {
         eventStartDate: event.eventStartDate,
         eventEndDate: event.eventEndDate,
         status: 'ONHOLD',
-      };
-      const response = await eventsApi.updateEvent(event.eventId, updateData);
-
+      });
       if (response.status === true) {
-        setSuccess(`✅ Event "${event.eventName}" status changed to ONHOLD!`);
+        setSuccess(`Event "${event.eventName}" set to ONHOLD`);
         await fetchData(currentPage, searchTerm || undefined);
         setTimeout(() => setSuccess(''), 5000);
       } else {
@@ -245,23 +359,18 @@ export default function EventsDashboard() {
 
   const handleActivateWithCommission = async () => {
     if (!eventToActivate) return;
-
     const commission = parseFloat(commissionValue);
     if (isNaN(commission) || commission < 0 || commission > 100) {
-      setError('Please enter a valid commission between 0 and 100');
+      setError('Commission must be between 0 and 100');
       return;
     }
-
     setShowCommissionDialog(false);
     setTogglingEventId(eventToActivate.eventId);
-    setError('');
-    setSuccess('');
-
+    setError(''); setSuccess('');
     try {
       const response = await eventsApi.activateEvent(eventToActivate.eventId, commission);
-
       if (response.status === true) {
-        setSuccess(`✅ Event "${eventToActivate.eventName}" activated with ${commission}% commission!`);
+        setSuccess(`"${eventToActivate.eventName}" activated at ${commission}% commission`);
         await fetchData(currentPage, searchTerm || undefined);
         setTimeout(() => setSuccess(''), 5000);
       } else {
@@ -275,32 +384,23 @@ export default function EventsDashboard() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600 mx-auto mb-3"></div>
-          <p className="text-slate-600 text-sm">Loading events...</p>
-        </div>
-      </div>
-    );
-  }
+  const totRevenue = events.reduce((s, e) => s + e.totalRevenue, 0);
+  const totSold = events.reduce((s, e) => s + e.totalTicketsSold, 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-3">
-      {/* Commission Dialog Modal */}
+    <div className="space-y-4 pb-8">
+
+      {/* Commission dialog */}
       {showCommissionDialog && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <Card className="max-w-md w-full p-6 bg-white">
-            <h3 className="text-lg font-bold text-slate-900 mb-4">Activate Event</h3>
-            <p className="text-sm text-slate-600 mb-4">
-              Set the commission percentage for event: <strong>{eventToActivate?.eventName}</strong>
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => { setShowCommissionDialog(false); setEventToActivate(null); }}>
+          <div className="bg-card border border-border rounded-xl p-6 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-foreground mb-1">Activate Event</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Set commission for <span className="text-foreground font-medium">{eventToActivate?.eventName}</span>
             </p>
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Commission (%)
-                </label>
+                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Commission (%)</label>
                 <Input
                   type="number"
                   step="0.1"
@@ -309,349 +409,158 @@ export default function EventsDashboard() {
                   value={commissionValue}
                   onChange={(e) => setCommissionValue(e.target.value)}
                   placeholder="5.0"
-                  className="w-full"
+                  className="h-9 text-sm"
                   autoFocus
                 />
-                <p className="text-xs text-slate-500 mt-1">Enter a value between 0 and 100</p>
               </div>
-              <div className="flex gap-2 justify-end">
-                <Button
-                  onClick={() => {
-                    setShowCommissionDialog(false);
-                    setEventToActivate(null);
-                  }}
-                  variant="outline"
-                  size="sm"
-                >
+              <div className="flex gap-2 pt-1">
+                <Button onClick={() => { setShowCommissionDialog(false); setEventToActivate(null); }} variant="outline" size="sm" className="flex-1 border-border text-muted-foreground hover:text-foreground bg-transparent">
                   Cancel
                 </Button>
-                <Button
-                  onClick={handleActivateWithCommission}
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  Activate Event
+                <Button onClick={handleActivateWithCommission} size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white">
+                  Activate
                 </Button>
               </div>
             </div>
-          </Card>
+          </div>
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto space-y-4">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Events Dashboard</h1>
-            <p className="text-slate-600 text-sm mt-1">Manage and monitor all events</p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              onClick={() => router.push('/dashboard/events/analytics')}
-              variant="outline"
-              size="sm"
-              className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"
-            >
-              Analytics
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground tracking-tight">Events</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {totalElements > 0 ? `${totalElements} total events` : 'Manage and monitor all events'}
+          </p>
+        </div>
+        <Button onClick={() => router.push('/dashboard/events/create')} size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 gap-1.5 text-xs h-8">
+          <Plus className="h-3 w-3" />
+          New Event
+        </Button>
+      </div>
+
+      {/* Alerts */}
+      {error && (
+        <Alert variant="destructive" className="border-destructive/30 bg-destructive/5 py-2.5">
+          <AlertDescription className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
+              <span className="text-sm text-destructive">{error}</span>
+            </div>
+            <Button onClick={() => fetchData()} variant="outline" size="sm" className="border-destructive/30 text-destructive hover:bg-destructive/10 bg-transparent h-7 text-xs gap-1 flex-shrink-0">
+              <RotateCcw className="h-3 w-3" /> Retry
             </Button>
-            <Button
-              onClick={() => router.push('/dashboard/events/create')}
-              size="sm"
-              className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
-            >
-              Create Event
+          </AlertDescription>
+        </Alert>
+      )}
+      {success && (
+        <Alert className="border-emerald-500/20 bg-emerald-500/5 py-2.5">
+          <AlertDescription className="flex items-center gap-2">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+            <span className="text-sm text-emerald-400">{success}</span>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Page summary */}
+      {!isLoading && events.length > 0 && (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg border border-border bg-card px-4 py-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <DollarSign className="h-3 w-3 text-emerald-400" />
+              <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Page Revenue</span>
+            </div>
+            <p className="text-lg font-bold tabular-nums text-emerald-400">{fmt(totRevenue)}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-card px-4 py-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Ticket className="h-3 w-3 text-violet-400" />
+              <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Tickets Sold</span>
+            </div>
+            <p className="text-lg font-bold tabular-nums text-violet-400">{fmtNum(totSold)}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Search */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
+          <Input
+            type="text"
+            placeholder="Search events..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            className="h-8 pl-8 text-xs border-border bg-background"
+          />
+        </div>
+        <Button onClick={handleSearch} size="sm" variant="outline" className="h-8 text-xs border-border bg-transparent text-muted-foreground hover:text-foreground">
+          Search
+        </Button>
+      </div>
+
+      {/* Cards */}
+      <div className="relative">
+        {isLoadingPagination && (
+          <div className="absolute inset-0 bg-background/50 z-10 flex items-center justify-center backdrop-blur-[1px] rounded-xl">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-card overflow-hidden animate-pulse flex">
+                <div className="w-20 sm:w-28 bg-accent flex-shrink-0" style={{ minHeight: '120px' }} />
+                <div className="flex-1 p-4 space-y-2.5">
+                  <div className="h-3.5 w-48 rounded bg-accent" />
+                  <div className="h-2.5 w-64 rounded bg-accent" />
+                  <div className="grid grid-cols-4 gap-2 mt-3">
+                    {Array.from({ length: 4 }).map((__, j) => <div key={j} className="h-14 rounded bg-accent" />)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : events.length === 0 ? (
+          <div className="rounded-xl border border-border bg-card py-16 text-center">
+            <Calendar className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
+            <p className="text-sm font-medium text-muted-foreground">No events found</p>
+            {searchTerm && <p className="text-xs text-muted-foreground/60 mt-1">Try a different search term</p>}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {events.map(event => (
+              <EventCard
+                key={event.eventId}
+                event={event}
+                onToggle={handleToggleEventStatus}
+                onEdit={(id) => router.push(`/dashboard/events/${id}/edit`)}
+                toggling={togglingEventId === event.eventId}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] text-muted-foreground/60">
+            Page {currentPage + 1} of {totalPages} · {totalElements} events
+          </p>
+          <div className="flex items-center gap-1">
+            <Button onClick={() => handlePageChange(currentPage - 1)} disabled={!hasPrevious} variant="outline" size="sm" className="h-7 w-7 p-0 border-border bg-transparent text-muted-foreground hover:text-foreground disabled:opacity-30">
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button onClick={() => handlePageChange(currentPage + 1)} disabled={!hasNext} variant="outline" size="sm" className="h-7 w-7 p-0 border-border bg-transparent text-muted-foreground hover:text-foreground disabled:opacity-30">
+              <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
-
-        {/* Error & Success Alerts */}
-        {error && (
-          <Alert variant="destructive" className="border-red-200 bg-red-50 animate-in slide-in-from-top-2">
-            <AlertDescription className="text-red-700 text-sm">{error}</AlertDescription>
-          </Alert>
-        )}
-        {success && (
-          <Alert className="border-green-200 bg-green-50 animate-in slide-in-from-top-2">
-            <AlertDescription className="text-green-700 text-sm">{success}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Stats Cards */}
-        {stats && (
-          <div className="space-y-3">
-            {/* First Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Total Events</p>
-                    <p className="text-2xl font-bold text-slate-900">{stats.totalEvents}</p>
-                  </div>
-                  <div className="p-2 bg-slate-100 rounded-lg">
-                    <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Active Events</p>
-                    <p className="text-2xl font-bold text-green-600">{stats.liveEvents}</p>
-                  </div>
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Total Revenue</p>
-                    <p className="text-xl font-bold text-green-600">{formatCurrency(stats.totalRevenue)}</p>
-                  </div>
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                    </svg>
-                  </div>
-                </div>
-              </Card>
-            </div>
-
-            {/* Second Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Tickets Sold</p>
-                    <p className="text-2xl font-bold text-blue-600">{stats.totalTicketsSold}</p>
-                  </div>
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a1 1 0 001 1h1a1 1 0 001-1V7a2 2 0 00-2-2H5zM5 14a2 2 0 00-2 2v3a1 1 0 001 1h1a1 1 0 001-1v-3a2 2 0 00-2-2H5z" />
-                    </svg>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Upcoming Events</p>
-                    <p className="text-2xl font-bold text-purple-600">{stats.upcomingEvents}</p>
-                  </div>
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Completed Events</p>
-                    <p className="text-2xl font-bold text-slate-600">{stats.completedEvents}</p>
-                  </div>
-                  <div className="p-2 bg-slate-100 rounded-lg">
-                    <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          </div>
-        )}
-
-        {/* Search */}
-        <Card className="p-4 bg-white border border-slate-200">
-          <div className="flex gap-2">
-            <Input
-              type="text"
-              placeholder="Search events, organizers, or locations..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              className="h-9 border-slate-200 focus:border-slate-500 focus:ring-slate-500 text-sm"
-            />
-            <Button
-              onClick={handleSearch}
-              size="sm"
-              className="h-9 px-4 whitespace-nowrap"
-            >
-              Search
-            </Button>
-          </div>
-        </Card>
-
-        {/* Events Table */}
-        <Card className="bg-white border border-slate-200 overflow-hidden relative">
-          {isLoadingPagination && (
-            <div className="absolute inset-0 bg-white/80 z-10 flex items-center justify-center">
-              <div className="text-center">
-                <Loader2 className="h-8 w-8 animate-spin text-slate-600 mx-auto mb-2" />
-                <p className="text-sm text-slate-600">Loading...</p>
-              </div>
-            </div>
-          )}
-          <div className="p-4 border-b border-slate-200">
-            <h3 className="text-lg font-semibold text-slate-900">Events</h3>
-            <p className="text-xs text-slate-600 mt-1">
-              {filteredEvents.length} of {events.length} events
-            </p>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">ID</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Event</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Company</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Date & Time</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Status</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Tickets</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Revenue</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Toggle</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
-                {filteredEvents.map((event) => {
-                  return (
-                    <tr key={event.eventId} className="hover:bg-slate-50 transition-colors duration-150">
-                      <td className="px-4 py-3">
-                        <p className="text-sm font-mono text-slate-700">{event.eventId}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="max-w-48">
-                          <p className="font-medium text-slate-900 truncate" title={event.eventName}>{event.eventName}</p>
-                          <p className="text-xs text-slate-500 truncate" title={event.eventLocation}>{event.eventLocation}</p>
-                          <p className="text-xs text-slate-400 truncate" title={event.eventCategory}>{event.eventCategory}</p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm">
-                          <p className="font-medium text-slate-900">{event.companyName}</p>
-                          <p className="text-xs text-slate-500">{event.createdBy.fullName}</p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm">
-                          <p className="text-slate-900">{formatDate(event.eventStartDate)}</p>
-                          <p className="text-xs text-slate-500">{new Date(event.eventStartDate).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' })}</p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${
-                          event.status === 'ACTIVE' ? 'bg-green-100 text-green-800 border-green-200' : 
-                          event.status === 'ONHOLD' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 
-                          'bg-gray-100 text-gray-800 border-gray-200'
-                        }`}>
-                          {event.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm">
-                          <p className="text-slate-900">{event.totalTicketsSold}</p>
-                          <p className="text-xs text-slate-500">{event.analytics.totalTicketTypes} types</p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-900">{formatCurrency(event.totalRevenue)}</td>
-                      <td className="px-4 py-3">
-                        <Button
-                          onClick={() => handleToggleEventStatus(event)}
-                          disabled={togglingEventId === event.eventId}
-                          variant="outline"
-                          size="sm"
-                          className={`h-7 px-2 text-xs ${
-                            event.status === 'ACTIVE'
-                              ? 'border-yellow-300 text-yellow-700 hover:bg-yellow-50'
-                              : 'border-green-300 text-green-700 hover:bg-green-50'
-                          }`}
-                        >
-                          {togglingEventId === event.eventId ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            event.status === 'ACTIVE' ? 'Set ONHOLD' : 'Activate'
-                          )}
-                        </Button>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-1">
-                          <Button
-                            onClick={() => window.open(`https://soldoutafrica.com/${event.slug}`, '_blank')}
-                            variant="outline"
-                            size="sm"
-                            className="h-7 px-2 text-xs border-slate-200 text-slate-600 hover:bg-slate-50"
-                          >
-                            View
-                          </Button>
-                          <Button
-                            onClick={() => window.open(`/dashboard/events/${event.eventId}/edit`, '_blank')}
-                            variant="outline"
-                            size="sm"
-                            className="h-7 px-2 text-xs border-slate-200 text-slate-600 hover:bg-slate-50"
-                          >
-                            Edit
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {filteredEvents.length === 0 && (
-            <div className="text-center py-8">
-              <svg className="mx-auto h-10 w-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <h3 className="mt-2 text-sm font-medium text-slate-900">No events found</h3>
-              <p className="mt-1 text-xs text-slate-500">Try adjusting your search or filter criteria.</p>
-            </div>
-          )}
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-              <div className="text-sm text-slate-600">
-                Page {currentPage + 1} of {totalPages} • Total: {totalElements} events
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={!hasPrevious}
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-3 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </Button>
-                <Button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={!hasNext}
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-3 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
-        </Card>
-      </div>
+      )}
     </div>
   );
 }

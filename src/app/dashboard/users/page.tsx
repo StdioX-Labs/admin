@@ -230,7 +230,7 @@ export default function UsersDashboard() {
   const getStatusBadge = (status: string) => {
     const styles = {
       active: 'bg-green-100 text-green-800 border-green-200',
-      inactive: 'bg-gray-100 text-gray-800 border-gray-200',
+      inactive: 'bg-accent text-foreground border-border',
       suspended: 'bg-red-100 text-red-800 border-red-200',
       pending: 'bg-yellow-100 text-yellow-800 border-yellow-200'
     };
@@ -265,30 +265,30 @@ export default function UsersDashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600 mx-auto mb-3"></div>
-          <p className="text-slate-600 text-sm">Loading users...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-muted-foreground mx-auto mb-3"></div>
+          <p className="text-muted-foreground text-sm">Loading users...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-3">
+    <div className="p-3">
       <div className="max-w-6xl mx-auto space-y-4">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Users Dashboard</h1>
-            <p className="text-slate-600 text-sm mt-1">Manage and monitor platform users</p>
+            <h1 className="text-2xl font-bold text-foreground">Users Dashboard</h1>
+            <p className="text-muted-foreground text-sm mt-1">Manage and monitor platform users</p>
           </div>
           <div className="flex gap-2">
             <Button
               onClick={() => router.push('/dashboard/users/analytics')}
               variant="outline"
               size="sm"
-              className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"
+              className="border-border text-muted-foreground hover:bg-background hover:border-border transition-all duration-200"
             >
               Analytics
             </Button>
@@ -296,7 +296,7 @@ export default function UsersDashboard() {
               onClick={() => router.push('/dashboard/users/export')}
               variant="outline"
               size="sm"
-              className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"
+              className="border-border text-muted-foreground hover:bg-background hover:border-border transition-all duration-200"
             >
               Export
             </Button>
@@ -322,24 +322,24 @@ export default function UsersDashboard() {
           <div className="space-y-3">
             {/* First Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
+              <Card className="p-4 bg-card border border-border hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Total Users</p>
-                    <p className="text-2xl font-bold text-slate-900">{stats.totalUsers}</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Total Users</p>
+                    <p className="text-2xl font-bold text-foreground">{stats.totalUsers}</p>
                   </div>
-                  <div className="p-2 bg-slate-100 rounded-lg">
-                    <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="p-2 bg-accent rounded-lg">
+                    <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
                     </svg>
                   </div>
                 </div>
               </Card>
 
-              <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
+              <Card className="p-4 bg-card border border-border hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Active Users</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Active Users</p>
                     <p className="text-2xl font-bold text-green-600">{stats.activeUsers}</p>
                   </div>
                   <div className="p-2 bg-green-100 rounded-lg">
@@ -350,10 +350,10 @@ export default function UsersDashboard() {
                 </div>
               </Card>
 
-              <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
+              <Card className="p-4 bg-card border border-border hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">New This Month</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">New This Month</p>
                     <p className="text-2xl font-bold text-blue-600">{stats.newUsersThisMonth}</p>
                   </div>
                   <div className="p-2 bg-blue-100 rounded-lg">
@@ -367,10 +367,10 @@ export default function UsersDashboard() {
 
             {/* Second Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
+              <Card className="p-4 bg-card border border-border hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Suspended Users</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Suspended Users</p>
                     <p className="text-2xl font-bold text-red-600">{stats.suspendedUsers}</p>
                   </div>
                   <div className="p-2 bg-red-100 rounded-lg">
@@ -381,10 +381,10 @@ export default function UsersDashboard() {
                 </div>
               </Card>
 
-              <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
+              <Card className="p-4 bg-card border border-border hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Verified Users</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Verified Users</p>
                     <p className="text-2xl font-bold text-purple-600">{stats.verifiedUsers}</p>
                   </div>
                   <div className="p-2 bg-purple-100 rounded-lg">
@@ -395,10 +395,10 @@ export default function UsersDashboard() {
                 </div>
               </Card>
 
-              <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
+              <Card className="p-4 bg-card border border-border hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Total Revenue</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Total Revenue</p>
                     <p className="text-xl font-bold text-green-600">{formatCurrency(stats.totalRevenue)}</p>
                   </div>
                   <div className="p-2 bg-green-100 rounded-lg">
@@ -413,23 +413,23 @@ export default function UsersDashboard() {
         )}
 
         {/* Filters and Search */}
-        <Card className="p-4 bg-white border border-slate-200">
+        <Card className="p-4 bg-card border border-border">
           <div className="space-y-3">
             <Input
               type="text"
               placeholder="Search users, emails, phone numbers, or companies..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-9 border-slate-200 focus:border-slate-500 focus:ring-slate-500 text-sm"
+              className="h-9 border-border focus:border-ring text-sm"
             />
 
             {/* Filter Dropdowns */}
             <div className="flex flex-col sm:flex-row gap-3 ">
               {/* Role Filter */}
               <div className="space-y-2">
-                <span className="text-xs font-medium text-slate-600">Role:</span>
+                <span className="text-xs font-medium text-muted-foreground">Role:</span>
                 <Select value={filterRole} onValueChange={(value) => setFilterRole(value as typeof filterRole)}>
-                  <SelectTrigger className="h-9 border-slate-200 focus:border-slate-500 focus:ring-slate-500 text-sm">
+                  <SelectTrigger className="h-9 border-border focus:border-ring text-sm">
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
@@ -444,9 +444,9 @@ export default function UsersDashboard() {
 
               {/* Status Filter */}
               <div className="space-y-2">
-                <span className="text-xs font-medium text-slate-600">Status:</span>
+                <span className="text-xs font-medium text-muted-foreground">Status:</span>
                 <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as typeof filterStatus)}>
-                  <SelectTrigger className="h-9 border-slate-200 focus:border-slate-500 focus:ring-slate-500 text-sm">
+                  <SelectTrigger className="h-9 border-border focus:border-ring text-sm">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -461,9 +461,9 @@ export default function UsersDashboard() {
 
               {/* Verification Filter */}
               <div className="space-y-2">
-                <span className="text-xs font-medium text-slate-600">Verification:</span>
+                <span className="text-xs font-medium text-muted-foreground">Verification:</span>
                 <Select value={filterVerified} onValueChange={(value) => setFilterVerified(value as typeof filterVerified)}>
-                  <SelectTrigger className="h-9 border-slate-200 focus:border-slate-500 focus:ring-slate-500 text-sm">
+                  <SelectTrigger className="h-9 border-border focus:border-ring text-sm">
                     <SelectValue placeholder="Select verification" />
                   </SelectTrigger>
                   <SelectContent>
@@ -478,36 +478,36 @@ export default function UsersDashboard() {
         </Card>
 
         {/* Users Table */}
-        <Card className="bg-white border border-slate-200 overflow-hidden">
-          <div className="p-4 border-b border-slate-200">
-            <h3 className="text-lg font-semibold text-slate-900">Users</h3>
-            <p className="text-xs text-slate-600 mt-1">
+        <Card className="bg-card border border-border overflow-hidden">
+          <div className="p-4 border-b border-border">
+            <h3 className="text-lg font-semibold text-foreground">Users</h3>
+            <p className="text-xs text-muted-foreground mt-1">
               {filteredUsers.length} of {users.length} users
             </p>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50">
+              <thead className="bg-background">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">User</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Role</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Status</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Activity</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Events</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Spent</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Actions</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">User</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Role</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Status</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Activity</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Events</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Spent</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
+              <tbody className="bg-card divide-y divide-slate-200">
                 {filteredUsers.map((user) => {
                   const activity = getActivityStatus(user.lastActive);
                   return (
-                    <tr key={user.id} className="hover:bg-slate-50 transition-colors duration-150">
+                    <tr key={user.id} className="hover:bg-background transition-colors duration-150">
                       <td className="px-4 py-3">
                         <div className="max-w-48">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium text-slate-900 truncate" title={user.name}>
+                            <p className="font-medium text-foreground truncate" title={user.name}>
                               {user.name}
                             </p>
                             {user.isVerified && (
@@ -516,10 +516,10 @@ export default function UsersDashboard() {
                               </svg>
                             )}
                           </div>
-                          <p className="text-xs text-slate-500 truncate" title={user.email}>
+                          <p className="text-xs text-muted-foreground truncate" title={user.email}>
                             {user.email}
                           </p>
-                          <p className="text-xs text-slate-400 truncate" title={user.location}>
+                          <p className="text-xs text-muted-foreground truncate" title={user.location}>
                             {user.location}
                           </p>
                           {user.companyName && (
@@ -544,18 +544,18 @@ export default function UsersDashboard() {
                           <p className={`font-medium ${activity.color}`}>
                             {activity.status}
                           </p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-muted-foreground">
                             Joined {formatDate(user.joinDate)}
                           </p>
                         </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="text-sm">
-                          <p className="font-medium text-slate-900">{user.totalEvents}</p>
-                          <p className="text-xs text-slate-500">{user.totalTickets} tickets</p>
+                          <p className="font-medium text-foreground">{user.totalEvents}</p>
+                          <p className="text-xs text-muted-foreground">{user.totalTickets} tickets</p>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm font-medium text-slate-900">
+                      <td className="px-4 py-3 text-sm font-medium text-foreground">
                         {formatCurrency(user.totalSpent)}
                       </td>
                       <td className="px-4 py-3">
@@ -564,7 +564,7 @@ export default function UsersDashboard() {
                             onClick={() => router.push(`/dashboard/users/${user.id}`)}
                             variant="outline"
                             size="sm"
-                            className="h-7 px-2 text-xs border-slate-200 text-slate-600 hover:bg-slate-50"
+                            className="h-7 px-2 text-xs border-border text-muted-foreground hover:bg-background"
                           >
                             View
                           </Button>
@@ -572,7 +572,7 @@ export default function UsersDashboard() {
                             onClick={() => router.push(`/dashboard/users/${user.id}/edit`)}
                             variant="outline"
                             size="sm"
-                            className="h-7 px-2 text-xs border-slate-200 text-slate-600 hover:bg-slate-50"
+                            className="h-7 px-2 text-xs border-border text-muted-foreground hover:bg-background"
                           >
                             Edit
                           </Button>
@@ -587,11 +587,11 @@ export default function UsersDashboard() {
 
           {filteredUsers.length === 0 && (
             <div className="text-center py-8">
-              <svg className="mx-auto h-10 w-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="mx-auto h-10 w-10 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-slate-900">No users found</h3>
-              <p className="mt-1 text-xs text-slate-500">Try adjusting your search or filter criteria.</p>
+              <h3 className="mt-2 text-sm font-medium text-foreground">No users found</h3>
+              <p className="mt-1 text-xs text-muted-foreground">Try adjusting your search or filter criteria.</p>
             </div>
           )}
         </Card>

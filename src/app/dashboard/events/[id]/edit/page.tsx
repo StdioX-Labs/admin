@@ -403,10 +403,10 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-600 mx-auto mb-4"></div>
-          <p className="text-slate-600 text-sm">Loading event details...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-muted-foreground mx-auto mb-4"></div>
+          <p className="text-muted-foreground text-sm">Loading event details...</p>
         </div>
       </div>
     );
@@ -414,10 +414,10 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
   if (!event) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <Card className="p-8 text-center max-w-md">
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Event Not Found</h2>
-          <p className="text-slate-600 mb-6">The event you&apos;re looking for doesn&apos;t exist.</p>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Event Not Found</h2>
+          <p className="text-muted-foreground mb-6">The event you&apos;re looking for doesn&apos;t exist.</p>
           <Button onClick={() => router.push('/dashboard/events')}>Back to Events</Button>
         </Card>
       </div>
@@ -425,7 +425,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center gap-3">
           <Button onClick={() => router.push('/dashboard/events')} variant="ghost" size="sm">
@@ -434,8 +434,8 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
           </Button>
           <div className="h-6 w-px bg-slate-300" />
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Edit Event</h1>
-            <p className="text-slate-600 text-sm">ID: {eventId} • {event.eventName}</p>
+            <h1 className="text-3xl font-bold text-foreground">Edit Event</h1>
+            <p className="text-muted-foreground text-sm">ID: {eventId} • {event.eventName}</p>
           </div>
         </div>
 
@@ -539,8 +539,8 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
           <div className="space-y-4">
             {event.tickets.length === 0 ? (
-              <div className="text-center py-12 bg-slate-50 rounded-lg border-2 border-dashed">
-                <p className="text-slate-600">No tickets yet. Create your first ticket!</p>
+              <div className="text-center py-12 bg-background rounded-lg border-2 border-dashed">
+                <p className="text-muted-foreground">No tickets yet. Create your first ticket!</p>
               </div>
             ) : (
               event.tickets.map((ticket) => {
@@ -551,7 +551,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                     <div className="flex justify-between mb-4">
                       <div>
                         <h3 className="text-xl font-bold">{ticket.ticketName}</h3>
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${ticket.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{ticket.isActive ? 'Active' : 'Inactive'}</span>
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${ticket.isActive ? 'bg-green-100 text-green-800' : 'bg-accent text-foreground'}`}>{ticket.isActive ? 'Active' : 'Inactive'}</span>
                       </div>
                       <div className="flex gap-2">
                         {!isEditing ? (
@@ -579,10 +579,10 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                       </div>
                     ) : (
                       <div className="grid grid-cols-4 gap-4 text-sm">
-                        <div><span className="text-slate-600 block">Price</span><p className="font-semibold text-lg">KES {ticket.ticketPrice.toLocaleString()}</p></div>
-                        <div><span className="text-slate-600 block">Available</span><p className="font-semibold text-lg">{ticket.quantityAvailable}</p></div>
-                        <div><span className="text-slate-600 block">Sold</span><p className="font-semibold text-lg text-blue-600">{ticket.soldQuantity}</p></div>
-                        <div><span className="text-slate-600 block">Remaining</span><p className="font-semibold text-lg text-green-600">{ticket.quantityAvailable - ticket.soldQuantity}</p></div>
+                        <div><span className="text-muted-foreground block">Price</span><p className="font-semibold text-lg">KES {ticket.ticketPrice.toLocaleString()}</p></div>
+                        <div><span className="text-muted-foreground block">Available</span><p className="font-semibold text-lg">{ticket.quantityAvailable}</p></div>
+                        <div><span className="text-muted-foreground block">Sold</span><p className="font-semibold text-lg text-blue-600">{ticket.soldQuantity}</p></div>
+                        <div><span className="text-muted-foreground block">Remaining</span><p className="font-semibold text-lg text-green-600">{ticket.quantityAvailable - ticket.soldQuantity}</p></div>
                       </div>
                     )}
                   </Card>

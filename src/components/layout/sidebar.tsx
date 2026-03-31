@@ -13,39 +13,29 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Loader, LoadingButton } from "@/components/ui/loader";
+import { LayoutDashboard, CalendarDays, BarChart2, PlusCircle, LogOut } from 'lucide-react';
 
 interface SidebarProps {
   children?: ReactNode;
   className?: string;
+  onClose?: () => void;
 }
 
-export const Sidebar = ({ children, className = '' }: SidebarProps) => {
+export const Sidebar = ({ children, className = '', onClose }: SidebarProps) => {
   const pathname = usePathname();
   const { logout, isLoggingOut } = useAuth();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  // Get user email from localStorage (set during login)
   const userEmail = typeof window !== 'undefined' ? localStorage.getItem('userEmail') || 'user@example.com' : 'user@example.com';
-
-  // Truncate email to max 20 characters
-  const truncatedEmail = userEmail.length > 20
-    ? `${userEmail.substring(0, 17)}...`
-    : userEmail;
+  const truncatedEmail = userEmail.length > 22 ? `${userEmail.substring(0, 19)}...` : userEmail;
+  const initials = userEmail.charAt(0).toUpperCase();
 
   const sidebarLinks = [
-    { href: '/dashboard', label: 'Dashboard' },
-    { href: '/dashboard/events', label: 'Events' },
-    // { href: '/dashboard/b2b', label: 'B2B' },
-    //
-    // { href: '/dashboard/finance', label: 'Finance' },
-    // { href: '/dashboard/users', label: 'Users' },
+    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/dashboard/events', label: 'Events', icon: CalendarDays },
+    { href: '/dashboard/events/sales', label: 'Sales', icon: BarChart2 },
+    { href: '/dashboard/events/create', label: 'Create Event', icon: PlusCircle },
   ];
 
   const handleLogout = async () => {
@@ -55,110 +45,104 @@ export const Sidebar = ({ children, className = '' }: SidebarProps) => {
 
   return (
     <>
-      <aside className={`bg-gradient-to-b from-gray-900 to-gray-800 text-white w-64 min-h-screen flex flex-col ${className}`}>
-        <div className="p-6 flex-1">
-          <h2 className="text-2xl font-bold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-            SoldOutAfrica
-          </h2>
-          <nav>
-            <ul className="space-y-3">
-              {sidebarLinks.map((link) => {
-                const isActive = pathname === link.href;
-                return (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className={`
-                        relative block p-3 rounded-xl font-medium transition-all duration-300 ease-in-out
-                        ${isActive
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg transform scale-105'
-                          : 'text-gray-300 hover:text-white hover:bg-gray-700/50 hover:translate-x-2'
-                        }
-                        group overflow-hidden
-                      `}
-                    >
-                      <span className="relative z-10">{link.label}</span>
-                      {!isActive && (
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300 ease-out rounded-xl"></div>
-                      )}
-                      {isActive && (
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 animate-pulse opacity-75 rounded-xl"></div>
-                      )}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-          {children}
+      <aside className={`h-full bg-background border-r border-border flex flex-col ${className}`}>
+        {/* Brand */}
+        <div className="px-5 h-14 flex items-center border-b border-border flex-shrink-0">
+          <div>
+            <span className="text-sm font-semibold tracking-tight text-foreground">
+              SoldOutAfrica
+            </span>
+            <span className="ml-2 text-[10px] font-medium bg-accent text-muted-foreground px-1.5 py-0.5 rounded">
+              Admin
+            </span>
+          </div>
         </div>
 
-        {/* User Profile Section */}
-        <div className="p-6 border-t border-gray-700">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => setShowLogoutModal(true)}
-                  disabled={isLoggingOut}
-                  className="w-full flex items-center justify-between p-3 rounded-xl text-gray-300 hover:text-white hover:bg-red-600/20 transition-all duration-300 group disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="font-medium truncate text-sm">{truncatedEmail}</span>
-                  {isLoggingOut ? (
-                    <Loader size="sm" variant="spinner" color="white" />
-                  ) : (
-                    <svg
-                      className="w-5 h-5 transition-transform duration-300 group-hover:scale-110 group-hover:text-red-400 flex-shrink-0 ml-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                  )}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                <p className="text-sm">{userEmail}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+        {/* Nav */}
+        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+          <p className="px-3 pt-3 pb-1 text-[10px] font-semibold tracking-widest uppercase text-muted-foreground/60">
+            Menu
+          </p>
+          {sidebarLinks.map((link) => {
+            const isActive = pathname === link.href;
+            const Icon = link.icon;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={onClose}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+                  isActive
+                    ? 'bg-accent text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                }`}
+              >
+                <Icon
+                  className={`h-4 w-4 flex-shrink-0 transition-colors ${
+                    isActive ? 'text-foreground' : 'text-muted-foreground'
+                  }`}
+                />
+                {link.label}
+                {isActive && (
+                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-foreground" />
+                )}
+              </Link>
+            );
+          })}
+          {children}
+        </nav>
+
+        {/* User / Logout */}
+        <div className="p-2 border-t border-border flex-shrink-0">
+          <button
+            onClick={() => setShowLogoutModal(true)}
+            disabled={isLoggingOut}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed group"
+          >
+            {/* Avatar */}
+            <div className="h-7 w-7 rounded-full bg-accent border border-border flex items-center justify-center flex-shrink-0">
+              <span className="text-xs font-semibold text-foreground">{initials}</span>
+            </div>
+            <div className="flex-1 text-left min-w-0">
+              <p className="text-xs font-medium text-foreground truncate">{truncatedEmail}</p>
+              <p className="text-[10px] text-muted-foreground">Super Admin</p>
+            </div>
+            {isLoggingOut ? (
+              <Loader size="sm" variant="spinner" />
+            ) : (
+              <LogOut className="h-3.5 w-3.5 flex-shrink-0 opacity-0 group-hover:opacity-100 group-hover:text-destructive transition-all duration-150" />
+            )}
+          </button>
         </div>
       </aside>
 
-      {/* Logout Confirmation Modal */}
+      {/* Logout Modal */}
       <AlertDialog open={showLogoutModal} onOpenChange={setShowLogoutModal}>
-        <AlertDialogContent className="sm:max-w-md">
+        <AlertDialogContent className="sm:max-w-sm bg-card border-border">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <svg
-                className="w-5 h-5 text-red-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-              Confirm Logout
+            <AlertDialogTitle className="text-foreground flex items-center gap-2 text-base">
+              <LogOut className="h-4 w-4 text-muted-foreground" />
+              Sign out
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-600">
-              You are about to sign out of your account. You will need to sign in again to access your dashboard.
+            <AlertDialogDescription className="text-muted-foreground text-sm">
+              You will need to sign in again to access the dashboard.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel
               disabled={isLoggingOut}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-900 border-gray-300 disabled:opacity-50"
+              className="bg-transparent border-border text-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50 text-sm"
             >
               Cancel
             </AlertDialogCancel>
             <LoadingButton
               isLoading={isLoggingOut}
-              loadingText="Signing Out..."
+              loadingText="Signing out..."
               variant="destructive"
               onClick={handleLogout}
+              className="text-sm"
             >
-              Sign Out
+              Sign out
             </LoadingButton>
           </AlertDialogFooter>
         </AlertDialogContent>

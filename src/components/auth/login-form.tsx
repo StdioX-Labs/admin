@@ -32,7 +32,6 @@ export const LoginForm = () => {
   const [resendTimer, setResendTimer] = useState(0);
   const [resendCount, setResendCount] = useState(0);
 
-  // Timer countdown effect
   useEffect(() => {
     if (resendTimer > 0) {
       const interval = setInterval(() => {
@@ -56,47 +55,32 @@ export const LoginForm = () => {
   };
 
   const handleInputChange = (field: keyof LoginFormData, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-
-    // Clear validation errors when user starts typing
+    setFormData(prev => ({ ...prev, [field]: value }));
     if (validationErrors[field]) {
-      setValidationErrors(prev => ({
-        ...prev,
-        [field]: undefined
-      }));
+      setValidationErrors(prev => ({ ...prev, [field]: undefined }));
     }
-
     if (error) setError('');
   };
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const emailError = validateEmail(formData.email);
     if (emailError) {
       setValidationErrors({ email: emailError });
       return;
     }
-
     setError('');
     setValidationErrors({});
-
     try {
       const response = await requestOtp(formData.email, 'email');
-
       if (response.status) {
         setStep('otp');
         setResendCount(1);
-        // Set initial timer to 1 minute (60 seconds)
         setResendTimer(60);
       } else {
         throw new Error(response.message || 'Failed to send verification code');
       }
     } catch (error) {
-      // Check if it's a rate limit error
       if (error instanceof Error && 'status' in error && (error as { status: number }).status === 429) {
         setError((error as { message: string }).message || 'Too many requests. Please try again later.');
       } else {
@@ -107,24 +91,18 @@ export const LoginForm = () => {
 
   const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const otpError = validateOtpInput(formData.otp);
     if (otpError) {
       setValidationErrors({ otp: otpError });
       return;
     }
-
     setError('');
     setValidationErrors({});
-
     try {
       const response = await validateOtp(formData.otp);
-
       if (response.status && response.user) {
-        // Verify if user is a SUPER_ADMIN
         if (response.user.role === 'SUPER_ADMIN') {
           setStep('login');
-          // The useAuth hook handles the redirection
         } else {
           throw new Error('Access denied. Only administrators can access this portal.');
         }
@@ -138,22 +116,17 @@ export const LoginForm = () => {
 
   const handleResendOtp = async () => {
     if (resendTimer > 0) return;
-
     setError('');
-
     try {
       const response = await requestOtp(formData.email, 'email');
-
       if (response.status) {
         setResendCount((prev) => prev + 1);
-        // Double the timer for each resend: 1min, 2min, 4min, 8min, then block at 5th request
         const nextTimer = Math.pow(2, resendCount - 1) * 60;
         setResendTimer(nextTimer);
       } else {
         throw new Error(response.message || 'Failed to resend verification code');
       }
     } catch (error) {
-      // Check if it's a rate limit error
       if (error instanceof Error && 'status' in error && (error as { status: number }).status === 429) {
         setError((error as { message: string }).message || 'Too many requests. Please try again later.');
       } else {
@@ -173,25 +146,25 @@ export const LoginForm = () => {
   }
 
   return (
-    <div className=" bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-2 rounded-2xl">
-      <div className="w-full max-w-md bg-white/90 backdrop-blur-sm rounded-xl shadow-xl border border-white/20 p-6">
+    <div className="rounded-xl border border-border bg-card shadow-sm">
+      <div className="p-6 space-y-5">
         {/* Header */}
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {step === 'email' ? 'Welcome' : 'Verify Your Identity'}
+        <div className="space-y-1">
+          <h2 className="text-base font-semibold text-foreground">
+            {step === 'email' ? 'Sign in' : 'Check your email'}
           </h2>
-          <p className="text-gray-600 mt-1 text-sm">
+          <p className="text-sm text-muted-foreground">
             {step === 'email'
-              ? 'Sign in to your admin dashboard'
-              : 'Enter the verification code sent to your email'
+              ? 'Enter your email to receive a verification code'
+              : `We sent a code to ${formData.email}`
             }
           </p>
         </div>
 
-        {/* Error Message */}
+        {/* Error */}
         {error && (
-          <Alert variant="destructive" className="mb-4 border-red-200 bg-red-50">
-            <AlertDescription className="text-sm text-red-700">
+          <Alert variant="destructive" className="border-destructive/50 bg-destructive/10 py-2">
+            <AlertDescription className="text-sm text-destructive">
               {error}
             </AlertDescription>
           </Alert>
@@ -200,7 +173,10 @@ export const LoginForm = () => {
         {/* Email Step */}
         {step === 'email' && (
           <form onSubmit={handleEmailSubmit} className="space-y-4">
-            <div className="space-y-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-sm font-medium text-foreground">
+                Email address
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -208,26 +184,24 @@ export const LoginForm = () => {
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 disabled={isRequestingOtp}
-                placeholder="Enter your email address"
-                className={`h-11 text-base transition-all duration-200 ${
-                  validationErrors.email
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500 bg-red-50'
-                    : 'border-gray-200 focus:border-slate-900 focus:ring-slate-900 hover:border-gray-300'
+                placeholder="you@example.com"
+                className={`h-10 bg-background text-foreground placeholder:text-muted-foreground border-border focus-visible:ring-ring ${
+                  validationErrors.email ? 'border-destructive focus-visible:ring-destructive' : ''
                 }`}
               />
               {validationErrors.email && (
-                <p className="text-sm text-red-600 mt-1">{validationErrors.email}</p>
+                <p className="text-xs text-destructive">{validationErrors.email}</p>
               )}
             </div>
 
             <LoadingButton
               type="submit"
               isLoading={isRequestingOtp}
-              loadingText="Sending..."
+              loadingText="Sending code..."
               variant="primary"
-              className="w-full h-11 bg-gradient-to-r from-slate-600 to-indigo-600 hover:from-slate-700 hover:to-indigo-700 active:from-blue-800 active:to-indigo-800 focus:from-blue-700 focus:to-indigo-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl active:shadow-md focus:ring-4 focus:ring-blue-100 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+              className="w-full h-10 bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-sm rounded-lg transition-colors"
             >
-              Send Verification Code
+              Continue with email
             </LoadingButton>
           </form>
         )}
@@ -235,28 +209,25 @@ export const LoginForm = () => {
         {/* OTP Step */}
         {step === 'otp' && (
           <form onSubmit={handleOtpSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="otp" className="text-sm font-medium text-gray-700">
-                Verification Code
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-foreground">
+                Verification code
               </Label>
               <OtpInput
-                id="otp"
                 value={formData.otp}
                 onChange={(value) => handleInputChange('otp', value)}
                 length={4}
                 disabled={isValidatingOtp}
-                className={`h-11 text-center text-lg tracking-widest font-mono transition-all duration-200 ${
-                  validationErrors.otp
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500 bg-red-50'
-                    : 'border-gray-200 focus:border-slate-900 focus:ring-slate-900 hover:border-gray-300'
+                className={`bg-background text-foreground border-border focus:ring-ring ${
+                  validationErrors.otp ? 'border-destructive' : ''
                 }`}
               />
               {validationErrors.otp && (
-                <p className="text-sm text-red-600 mt-1">{validationErrors.otp}</p>
+                <p className="text-xs text-destructive">{validationErrors.otp}</p>
               )}
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">
-                  Sent to {formData.email}
+              <div className="flex items-center justify-between pt-1">
+                <p className="text-xs text-muted-foreground">
+                  Didn&apos;t receive it?
                 </p>
                 <Button
                   type="button"
@@ -264,18 +235,18 @@ export const LoginForm = () => {
                   size="sm"
                   onClick={handleResendOtp}
                   disabled={isRequestingOtp || isValidatingOtp || resendTimer > 0}
-                  className="text-xs font-medium text-blue-600 hover:text-slate-900 active:text-blue-700 focus:text-blue-700 p-0 h-auto transition-colors duration-150 hover:underline disabled:opacity-50 disabled:no-underline"
+                  className="text-xs font-medium text-foreground hover:text-muted-foreground p-0 h-auto transition-colors disabled:opacity-40"
                 >
                   {resendTimer > 0
                     ? `Resend in ${formatTime(resendTimer)}`
                     : isRequestingOtp
                       ? 'Resending...'
-                      : 'Resend Code'}
+                      : 'Resend code'}
                 </Button>
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -285,7 +256,7 @@ export const LoginForm = () => {
                   setResendCount(0);
                 }}
                 disabled={isValidatingOtp}
-                className="flex-1 h-11 border-gray-200 text-gray-700 hover:bg-gray-50 active:bg-gray-100 focus:bg-gray-50 hover:border-gray-300 active:border-gray-400 focus:border-gray-300 font-medium rounded-lg transition-all duration-200 hover:shadow-md focus:ring-2 focus:ring-gray-100"
+                className="flex-1 h-10 border-border text-foreground bg-transparent hover:bg-accent hover:text-accent-foreground font-medium text-sm rounded-lg transition-colors"
               >
                 Back
               </Button>
@@ -294,25 +265,16 @@ export const LoginForm = () => {
                 isLoading={isValidatingOtp}
                 loadingText="Verifying..."
                 variant="primary"
-                className="flex-1 h-11 bg-gradient-to-r from-slate-600 to-indigo-600 hover:from-slate-700 hover:to-indigo-700 active:from-blue-800 active:to-indigo-800 focus:from-blue-700 focus:to-indigo-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl active:shadow-md focus:ring-4 focus:ring-blue-100 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
+                className="flex-1 h-10 bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-sm rounded-lg transition-colors disabled:opacity-50"
                 disabled={formData.otp.length !== 4}
               >
-                Verify & Sign In
+                Verify & sign in
               </LoadingButton>
             </div>
           </form>
         )}
-
-        {/* Footer */}
-        <div className="text-center mt-6 pt-4 border-t border-gray-100">
-          <p className="text-xs text-gray-500">
-            Need help?{' '}
-            <Button variant="link" size="sm" className="text-xs p-0 h-auto text-blue-600 hover:text-slate-900 active:text-blue-700 focus:text-blue-700 transition-colors duration-150 hover:underline">
-              Contact Support
-            </Button>
-          </p>
-        </div>
       </div>
+
     </div>
   );
 };

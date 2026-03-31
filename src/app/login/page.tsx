@@ -2,16 +2,20 @@ import { LoginForm } from "@/components/auth/login-form";
 
 export default function LoginPage() {
   return (
-    <div className=" flex items-center justify-center p-4">
-      <div className="w-full space-y-2">
-        <div className="text-center">
-          <h1 className="text-3xl mb-3 font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-            SoldOutAfrica
-          </h1>
-
+    <div className="space-y-8">
+      {/* Brand */}
+      <div className="text-center space-y-2">
+        <div className="inline-flex items-center justify-center h-12 w-12 rounded-2xl bg-foreground mb-4">
+          <span className="text-background text-lg font-bold tracking-tighter">S</span>
         </div>
-        <LoginForm />
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+          SoldOutAfrica
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Sign in to the admin portal
+        </p>
       </div>
+      <LoginForm />
     </div>
   );
 }

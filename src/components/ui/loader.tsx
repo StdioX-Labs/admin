@@ -21,10 +21,10 @@ export const Loader = ({
   };
 
   const colorClasses = {
-    primary: 'text-slate-900',
-    secondary: 'text-purple-600',
+    primary: 'text-foreground',
+    secondary: 'text-muted-foreground',
     white: 'text-white',
-    gray: 'text-gray-600'
+    gray: 'text-muted-foreground'
   };
 
   const baseClasses = cn(
@@ -135,10 +135,10 @@ export const LoadingButton = ({
   ...props
 }: LoadingButtonProps) => {
   const variantClasses = {
-    primary: 'bg-blue-600 hover:bg-blue-700 text-white',
-    secondary: 'bg-gray-600 hover:bg-gray-700 text-white',
-    destructive: 'bg-red-600 hover:bg-red-700 text-white',
-    outline: 'border border-gray-300 hover:bg-gray-50 text-gray-900'
+    primary: 'bg-primary hover:bg-primary/90 text-primary-foreground',
+    secondary: 'bg-secondary hover:bg-secondary/80 text-secondary-foreground',
+    destructive: 'bg-destructive hover:bg-destructive/90 text-white',
+    outline: 'border border-border hover:bg-accent text-foreground bg-transparent'
   };
 
   return (
@@ -174,10 +174,10 @@ export const FullScreenLoader = ({
   variant = 'spinner'
 }: FullScreenLoaderProps) => {
   return (
-    <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="text-center">
-        <Loader size="xl" variant={variant} color="primary" className="mx-auto mb-4" />
-        <p className="text-gray-600 font-medium">{message}</p>
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="text-center space-y-3">
+        <Loader size="xl" variant={variant} color="primary" className="mx-auto" />
+        <p className="text-sm text-muted-foreground font-medium">{message}</p>
       </div>
     </div>
   );

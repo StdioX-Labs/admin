@@ -135,8 +135,8 @@ export default function B2BDashboard() {
 
   const getLicenseBadge = (license: string) => {
     const styles = {
-      basic: 'bg-gray-100 text-gray-800 border-gray-200',
-      premium: 'bg-slate-100 text-slate-800 border-slate-200',
+      basic: 'bg-accent text-foreground border-border',
+      premium: 'bg-accent text-foreground border-border',
       enterprise: 'bg-purple-100 text-purple-800 border-purple-200'
     };
     return styles[license as keyof typeof styles] || styles.basic;
@@ -158,30 +158,30 @@ export default function B2BDashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600 mx-auto mb-3"></div>
-          <p className="text-slate-600 text-sm">Loading dashboard...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-muted-foreground mx-auto mb-3"></div>
+          <p className="text-muted-foreground text-sm">Loading dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-3">
+    <div className="p-3">
       <div className="max-w-6xl mx-auto space-y-4">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">B2B Dashboard</h1>
-            <p className="text-slate-600 text-sm mt-1">Manage your business partnerships</p>
+            <h1 className="text-2xl font-bold text-foreground">B2B Dashboard</h1>
+            <p className="text-muted-foreground text-sm mt-1">Manage your business partnerships</p>
           </div>
           <div className="flex gap-2">
             <Button
               onClick={() => router.push('/dashboard/b2b/analytics')}
               variant="outline"
               size="sm"
-              className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"
+              className="border-border text-muted-foreground hover:bg-background hover:border-border transition-all duration-200"
             >
               Analytics
             </Button>
@@ -207,24 +207,24 @@ export default function B2BDashboard() {
           <div className="space-y-3">
             {/* First Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
+              <Card className="p-4 bg-card border border-border hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Total Companies</p>
-                    <p className="text-2xl font-bold text-slate-900">{stats.totalCompanies}</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Total Companies</p>
+                    <p className="text-2xl font-bold text-foreground">{stats.totalCompanies}</p>
                   </div>
-                  <div className="p-2 bg-slate-100 rounded-lg">
-                    <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="p-2 bg-accent rounded-lg">
+                    <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
                   </div>
                 </div>
               </Card>
 
-              <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
+              <Card className="p-4 bg-card border border-border hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Active Companies</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Active Companies</p>
                     <p className="text-2xl font-bold text-emerald-600">{stats.activeCompanies}</p>
                   </div>
                   <div className="p-2 bg-emerald-100 rounded-lg">
@@ -235,10 +235,10 @@ export default function B2BDashboard() {
                 </div>
               </Card>
 
-              <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
+              <Card className="p-4 bg-card border border-border hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Total Revenue</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Total Revenue</p>
                     <p className="text-xl font-bold text-green-600">{formatCurrency(stats.totalRevenue)}</p>
                   </div>
                   <div className="p-2 bg-green-100 rounded-lg">
@@ -252,10 +252,10 @@ export default function B2BDashboard() {
 
             {/* Second Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
+              <Card className="p-4 bg-card border border-border hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Total Events</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Total Events</p>
                     <p className="text-2xl font-bold text-purple-600">{stats.totalEvents}</p>
                   </div>
                   <div className="p-2 bg-purple-100 rounded-lg">
@@ -266,10 +266,10 @@ export default function B2BDashboard() {
                 </div>
               </Card>
 
-              <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
+              <Card className="p-4 bg-card border border-border hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Pending Approvals</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Pending Approvals</p>
                     <p className="text-2xl font-bold text-yellow-600">{stats.pendingApprovals}</p>
                   </div>
                   <div className="p-2 bg-yellow-100 rounded-lg">
@@ -280,14 +280,14 @@ export default function B2BDashboard() {
                 </div>
               </Card>
 
-              <Card className="p-4 bg-white border border-slate-200 hover:shadow-md transition-shadow duration-200">
+              <Card className="p-4 bg-card border border-border hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-600 mb-1">Monthly Growth</p>
-                    <p className="text-2xl font-bold text-slate-600">+{stats.monthlyGrowth}%</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Monthly Growth</p>
+                    <p className="text-2xl font-bold text-muted-foreground">+{stats.monthlyGrowth}%</p>
                   </div>
-                  <div className="p-2 bg-slate-100 rounded-lg">
-                    <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="p-2 bg-accent rounded-lg">
+                    <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                     </svg>
                   </div>
@@ -298,14 +298,14 @@ export default function B2BDashboard() {
         )}
 
         {/* Filters and Search */}
-        <Card className="p-4 bg-white border border-slate-200">
+        <Card className="p-4 bg-card border border-border">
           <div className="space-y-3">
             <Input
               type="text"
               placeholder="Search companies..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-9 border-slate-200 focus:border-slate-500 focus:ring-slate-500 text-sm"
+              className="h-9 border-border focus:border-ring text-sm"
             />
             <div className="flex flex-wrap gap-2">
               {(['all', 'active', 'pending', 'inactive'] as const).map((status) => (
@@ -316,8 +316,8 @@ export default function B2BDashboard() {
                   onClick={() => setFilterStatus(status)}
                   className={`capitalize transition-all duration-200 text-xs px-3 py-1 ${
                     filterStatus === status
-                      ? 'bg-slate-600 text-white hover:bg-slate-700'
-                      : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                      ? 'bg-slate-600 text-white hover:bg-accent'
+                      : 'border-border text-muted-foreground hover:bg-background'
                   }`}
                 >
                   {status}
@@ -328,34 +328,34 @@ export default function B2BDashboard() {
         </Card>
 
         {/* Companies Table - Compact for laptops */}
-        <Card className="bg-white border border-slate-200 overflow-hidden">
-          <div className="p-4 border-b border-slate-200">
-            <h3 className="text-lg font-semibold text-slate-900">Companies</h3>
-            <p className="text-xs text-slate-600 mt-1">
+        <Card className="bg-card border border-border overflow-hidden">
+          <div className="p-4 border-b border-border">
+            <h3 className="text-lg font-semibold text-foreground">Companies</h3>
+            <p className="text-xs text-muted-foreground mt-1">
               {filteredCompanies.length} of {companies.length} companies
             </p>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50">
+              <thead className="bg-background">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Company</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Status</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">License</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Events</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Revenue</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Activity</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">Actions</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Company</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Status</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">License</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Events</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Revenue</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Activity</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
+              <tbody className="bg-card divide-y divide-slate-200">
                 {filteredCompanies.map((company) => (
-                  <tr key={company.id} className="hover:bg-slate-50 transition-colors duration-150">
+                  <tr key={company.id} className="hover:bg-background transition-colors duration-150">
                     <td className="px-4 py-3">
                       <div>
-                        <div className="text-sm font-medium text-slate-900 truncate max-w-32">{company.name}</div>
-                        <div className="text-xs text-slate-500 truncate max-w-32">{company.email}</div>
+                        <div className="text-sm font-medium text-foreground truncate max-w-32">{company.name}</div>
+                        <div className="text-xs text-muted-foreground truncate max-w-32">{company.email}</div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -368,15 +368,15 @@ export default function B2BDashboard() {
                         {company.licenseType}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-900">{company.eventsCount}</td>
-                    <td className="px-4 py-3 text-sm text-slate-900">{formatCurrency(company.totalRevenue)}</td>
-                    <td className="px-4 py-3 text-xs text-slate-500">{formatDate(company.lastActivity)}</td>
+                    <td className="px-4 py-3 text-sm text-foreground">{company.eventsCount}</td>
+                    <td className="px-4 py-3 text-sm text-foreground">{formatCurrency(company.totalRevenue)}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{formatDate(company.lastActivity)}</td>
                     <td className="px-4 py-3">
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => router.push(`/dashboard/b2b/companies/${company.id}`)}
-                        className="text-xs px-2 py-1 text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"
+                        className="text-xs px-2 py-1 text-muted-foreground border-border hover:bg-background hover:border-border transition-all duration-200"
                       >
                         View
                       </Button>
@@ -389,11 +389,11 @@ export default function B2BDashboard() {
 
           {filteredCompanies.length === 0 && (
             <div className="text-center py-8">
-              <svg className="mx-auto h-10 w-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="mx-auto h-10 w-10 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-slate-900">No companies found</h3>
-              <p className="mt-1 text-xs text-slate-500">Try adjusting your search or filter criteria.</p>
+              <h3 className="mt-2 text-sm font-medium text-foreground">No companies found</h3>
+              <p className="mt-1 text-xs text-muted-foreground">Try adjusting your search or filter criteria.</p>
             </div>
           )}
         </Card>
