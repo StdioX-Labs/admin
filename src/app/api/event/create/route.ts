@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const authString = Buffer.from(`${API_USERNAME}:${API_PASSWORD}`).toString('base64');
 
     // Inject user/company from session if not provided
-    let enrichedBody = { ...body };
+    const enrichedBody = { ...body };
     try {
       const authData = JSON.parse(authTokenCookie.value);
       if (!enrichedBody.users && authData.userId) {
