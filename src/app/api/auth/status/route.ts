@@ -33,7 +33,7 @@ export async function GET() {
       // For example, check if the token is expired
       const now = Date.now();
       const issuedAt = authData.issuedAt || 0;
-      const maxAge = 2 * 60 * 60 * 1000; // 2 hours (updated from 24 hours)
+      const maxAge = 8 * 60 * 60 * 1000; // 8 hours (matches cookie maxAge)
 
       if (now - issuedAt > maxAge) {
         // Token expired

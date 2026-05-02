@@ -123,15 +123,14 @@ async function handlePost(request: Request) {
     }
   );
 
-  // Set the authentication token in a cookie with 2-hour expiry
   response.cookies.set({
     name: 'auth_token',
     value: JSON.stringify(authToken),
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 2, // 2 hours (7200 seconds)
+    maxAge: 60 * 60 * 8, // 8 hours
     path: '/',
-    sameSite: 'strict'
+    sameSite: 'lax',
   });
 
   return response;
