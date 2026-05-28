@@ -149,6 +149,9 @@ function SalesCard({ event }: { event: AdminEvent }) {
             <div className="rounded-md bg-background/50 border border-border/60 px-2.5 py-2">
               <p className="text-[10px] text-muted-foreground/60 mb-0.5">Platform Fee</p>
               <p className="text-sm font-bold text-blue-400 tabular-nums">{fmt(event.totalPlatformFee)}</p>
+              {event.percentageCommission != null && (
+                <p className="text-[10px] text-blue-400/60 mt-0.5">{event.percentageCommission}% commission</p>
+              )}
             </div>
             <div className="rounded-md bg-background/50 border border-border/60 px-2.5 py-2">
               <p className="text-[10px] text-muted-foreground/60 mb-0.5">This Week</p>

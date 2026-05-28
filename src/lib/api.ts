@@ -263,6 +263,7 @@ export interface AdminEvent {
   updatedAt: string | null;
   companyId: number;
   companyName: string;
+  percentageCommission: number | null;
   totalTicketsSold: number;
   totalRevenue: number;
   totalPlatformFee: number;
