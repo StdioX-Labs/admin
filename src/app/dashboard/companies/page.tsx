@@ -32,6 +32,14 @@ function fmtDate(s: string | null) {
   return new Date(s).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+function fmtPhone(phone: string | null | undefined): string {
+  if (!phone) return '—';
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('254') && digits.length === 12) return '0' + digits.slice(3);
+  if (digits.startsWith('0') && digits.length >= 9) return digits;
+  return phone;
+}
+
 function ProfileTypeBadge({ type }: { type: string }) {
   const label = type?.replace(/_/g, ' ') ?? '—';
   const color =
@@ -73,9 +81,12 @@ function CompanyCard({ company }: { company: Company }) {
                   <Mail className="h-2.5 w-2.5 flex-shrink-0" />
                   <span className="truncate max-w-[180px]">{company.emailAddress}</span>
                 </span>
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
-                  <Phone className="h-2.5 w-2.5 flex-shrink-0" />{company.phoneNumber}
-                </span>
+                <a
+                  href={`tel:${fmtPhone(company.phoneNumber)}`}
+                  className="flex items-center gap-1 text-[11px] text-muted-foreground/70 hover:text-foreground transition-colors"
+                >
+                  <Phone className="h-2.5 w-2.5 flex-shrink-0" />{fmtPhone(company.phoneNumber)}
+                </a>
                 {company.currency && (
                   <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
                     <DollarSign className="h-2.5 w-2.5 flex-shrink-0" />{company.currency}
