@@ -370,14 +370,14 @@ export default function CreateEventPage() {
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Company</p>
         <div className="flex items-end gap-2">
           <Field label="Company ID" required>
-            <div className="relative">
+            <div className="relative flex-1">
               <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
               <Input
                 type="number"
                 value={form.companyId}
                 onChange={e => { setField('companyId', e.target.value); setCompanyName(''); setCompanyLookupError(''); }}
                 placeholder="Enter company ID"
-                className="h-9 text-sm border-border bg-background pl-8 w-48"
+                className="h-9 text-sm border-border bg-background pl-8 w-full"
               />
             </div>
           </Field>
@@ -387,7 +387,7 @@ export default function CreateEventPage() {
             size="sm"
             onClick={lookupCompany}
             disabled={companyLookupLoading || !form.companyId.trim()}
-            className="h-9 border-border bg-transparent text-xs gap-1.5 flex-shrink-0"
+            className="h-9 border-border bg-transparent text-xs gap-1.5 flex-shrink-0 mb-0"
           >
             {companyLookupLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
             Lookup
@@ -407,20 +407,20 @@ export default function CreateEventPage() {
         )}
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Event Name" required>
           <Input
             value={form.eventName}
             onChange={e => setField('eventName', e.target.value)}
             placeholder="e.g. Nairobi Jazz Night"
-            className="h-9 text-sm border-border bg-background"
+            className="h-10 text-sm border-border bg-background"
           />
         </Field>
         <Field label="Category" required>
           <select
             value={form.eventCategoryId}
             onChange={e => setField('eventCategoryId', e.target.value)}
-            className="w-full h-9 text-sm rounded-md border border-border bg-background px-3 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            className="w-full h-10 text-sm rounded-md border border-border bg-background px-3 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="">Select category</option>
             {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
@@ -433,8 +433,8 @@ export default function CreateEventPage() {
           value={form.eventDescription}
           onChange={e => setField('eventDescription', e.target.value)}
           placeholder="Describe your event..."
-          rows={3}
-          className="w-full text-sm rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+          rows={4}
+          className="w-full text-sm rounded-md border border-border bg-background px-3 py-2.5 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring resize-none leading-relaxed"
         />
       </Field>
 
@@ -445,40 +445,34 @@ export default function CreateEventPage() {
             value={form.eventLocation}
             onChange={e => setField('eventLocation', e.target.value)}
             placeholder="e.g. KICC, Nairobi"
-            className="h-9 text-sm border-border bg-background pl-8"
+            className="h-10 text-sm border-border bg-background pl-8"
           />
         </div>
       </Field>
 
-      <div className="grid sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Event Start Date & Time" required>
-          <div className="relative">
-            <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
-            <Input
-              type="datetime-local"
-              value={form.eventStartDate}
-              onChange={e => setField('eventStartDate', e.target.value)}
-              className="h-9 text-sm border-border bg-background pl-8"
-            />
-          </div>
+          <Input
+            type="datetime-local"
+            value={form.eventStartDate}
+            onChange={e => setField('eventStartDate', e.target.value)}
+            className="h-10 text-sm border-border bg-background"
+          />
         </Field>
         <Field label="Event End Date & Time" required>
-          <div className="relative">
-            <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
-            <Input
-              type="datetime-local"
-              value={form.eventEndDate}
-              onChange={e => setField('eventEndDate', e.target.value)}
-              className="h-9 text-sm border-border bg-background pl-8"
-            />
-          </div>
+          <Input
+            type="datetime-local"
+            value={form.eventEndDate}
+            onChange={e => setField('eventEndDate', e.target.value)}
+            className="h-10 text-sm border-border bg-background"
+          />
         </Field>
         <Field label="Ticket Sale Start" required>
           <Input
             type="datetime-local"
             value={form.ticketSaleStartDate}
             onChange={e => setField('ticketSaleStartDate', e.target.value)}
-            className="h-9 text-sm border-border bg-background"
+            className="h-10 text-sm border-border bg-background"
           />
         </Field>
         <Field label="Ticket Sale End" required>
@@ -486,12 +480,12 @@ export default function CreateEventPage() {
             type="datetime-local"
             value={form.ticketSaleEndDate}
             onChange={e => setField('ticketSaleEndDate', e.target.value)}
-            className="h-9 text-sm border-border bg-background"
+            className="h-10 text-sm border-border bg-background"
           />
         </Field>
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <Field label="Commission %" required>
           <Input
             type="number"
@@ -500,26 +494,26 @@ export default function CreateEventPage() {
             step="0.1"
             value={form.percentageCommission}
             onChange={e => setField('percentageCommission', e.target.value)}
-            className="h-9 text-sm border-border bg-background"
+            className="h-10 text-sm border-border bg-background"
           />
         </Field>
         <Field label="Currency" required>
           <select
             value={form.currency}
             onChange={e => setField('currency', e.target.value)}
-            className="w-full h-9 text-sm rounded-md border border-border bg-background px-3 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            className="w-full h-10 text-sm rounded-md border border-border bg-background px-3 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
             {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </Field>
         <Field label="URL Slug" required>
-          <div className="relative">
+          <div className="relative col-span-2 sm:col-span-1">
             <LinkIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
             <Input
               value={form.slug}
               onChange={e => setField('slug', slugify(e.target.value))}
               placeholder="my-event-name"
-              className="h-9 text-sm border-border bg-background pl-8 font-mono"
+              className="h-10 text-sm border-border bg-background pl-8 font-mono w-full"
             />
           </div>
         </Field>
@@ -607,13 +601,13 @@ export default function CreateEventPage() {
             )}
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Ticket Name" required>
               <Input
                 value={t.ticketName}
                 onChange={e => setTicketField(idx, 'ticketName', e.target.value)}
                 placeholder="e.g. VIP, General, Early Bird"
-                className="h-9 text-sm border-border bg-background"
+                className="h-10 text-sm border-border bg-background"
               />
             </Field>
             <Field label="Price">
@@ -625,9 +619,9 @@ export default function CreateEventPage() {
                   onChange={e => setTicketField(idx, 'ticketPrice', e.target.value)}
                   placeholder={t.isFree ? 'Free' : '0.00'}
                   disabled={t.isFree}
-                  className="h-9 text-sm border-border bg-background disabled:opacity-40"
+                  className="h-10 text-sm border-border bg-background disabled:opacity-40"
                 />
-                <label className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap cursor-pointer select-none">
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap cursor-pointer select-none flex-shrink-0">
                   <input
                     type="checkbox"
                     checked={t.isFree}
@@ -643,7 +637,7 @@ export default function CreateEventPage() {
             </Field>
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <Field label="Quantity Available" required>
               <Input
                 type="number"
@@ -651,7 +645,7 @@ export default function CreateEventPage() {
                 value={t.quantityAvailable}
                 onChange={e => setTicketField(idx, 'quantityAvailable', e.target.value)}
                 placeholder="100"
-                className="h-9 text-sm border-border bg-background"
+                className="h-10 text-sm border-border bg-background"
               />
             </Field>
             <Field label="Tickets to Issue">
@@ -661,7 +655,7 @@ export default function CreateEventPage() {
                 value={t.ticketsToIssue}
                 onChange={e => setTicketField(idx, 'ticketsToIssue', e.target.value)}
                 placeholder="Same as quantity"
-                className="h-9 text-sm border-border bg-background"
+                className="h-10 text-sm border-border bg-background"
               />
             </Field>
             <Field label="Limit per Person">
@@ -670,19 +664,19 @@ export default function CreateEventPage() {
                 min="1"
                 value={t.ticketLimitPerPerson}
                 onChange={e => setTicketField(idx, 'ticketLimitPerPerson', e.target.value)}
-                className="h-9 text-sm border-border bg-background"
+                className="h-10 text-sm border-border bg-background"
               />
             </Field>
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label="Complementary Tickets">
               <Input
                 type="number"
                 min="0"
                 value={t.numberOfComplementary}
                 onChange={e => setTicketField(idx, 'numberOfComplementary', e.target.value)}
-                className="h-9 text-sm border-border bg-background"
+                className="h-10 text-sm border-border bg-background"
               />
             </Field>
             <Field label="Sale Start">
@@ -690,7 +684,7 @@ export default function CreateEventPage() {
                 type="datetime-local"
                 value={t.ticketSaleStartDate || form.ticketSaleStartDate}
                 onChange={e => setTicketField(idx, 'ticketSaleStartDate', e.target.value)}
-                className="h-9 text-sm border-border bg-background"
+                className="h-10 text-sm border-border bg-background"
               />
             </Field>
             <Field label="Sale End">
@@ -698,7 +692,7 @@ export default function CreateEventPage() {
                 type="datetime-local"
                 value={t.ticketSaleEndDate || form.ticketSaleEndDate}
                 onChange={e => setTicketField(idx, 'ticketSaleEndDate', e.target.value)}
-                className="h-9 text-sm border-border bg-background"
+                className="h-10 text-sm border-border bg-background"
               />
             </Field>
           </div>
@@ -806,14 +800,14 @@ export default function CreateEventPage() {
 
   return (
     <div className="max-w-2xl mx-auto pb-10">
-      <div className="mb-6">
+      <div className="mb-5">
         <h1 className="text-xl font-semibold text-foreground tracking-tight">Create Event</h1>
         <p className="text-xs text-muted-foreground mt-0.5">Fill in the event details and add ticket types</p>
       </div>
 
       <Steps current={step} />
 
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
         {step === 3 && renderStep3()}
