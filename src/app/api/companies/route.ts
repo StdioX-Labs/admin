@@ -30,7 +30,16 @@ export async function GET(request: NextRequest) {
     const text = await response.text();
     const contentType = response.headers.get('content-type');
     if (!contentType?.includes('application/json')) {
-      return NextResponse.json({ status: false, message: 'Invalid response from API' }, { status: 500 });
+      console.error('[Companies API] Non-JSON response from backend:', {
+        status: response.status,
+        contentType,
+        url,
+        body: text.substring(0, 500),
+      });
+      return NextResponse.json(
+        { status: false, message: `Backend returned HTTP ${response.status} (non-JSON)` },
+        { status: 500 }
+      );
     }
 
     let data;
