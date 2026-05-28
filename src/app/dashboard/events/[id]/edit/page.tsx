@@ -209,6 +209,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
   const [ticketForms, setTicketForms] = useState<Record<number, Partial<Ticket>>>({});
   const [newTicket, setNewTicket] = useState<NewTicketForm>(emptyNewTicket());
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchEvent(); }, [eventId]);
 
   const fetchEvent = async () => {
@@ -417,7 +418,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
   const toggleTicketExpand = (id: number) => {
     setExpandedTickets(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) { next.delete(id); } else { next.add(id); }
       return next;
     });
   };

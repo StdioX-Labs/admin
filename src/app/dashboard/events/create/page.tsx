@@ -17,7 +17,6 @@ import {
   Calendar,
   MapPin,
   Tag,
-  Image as ImageIcon,
   Link as LinkIcon,
   Loader2,
   Building2,
