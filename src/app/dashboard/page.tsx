@@ -107,7 +107,7 @@ export default function DashboardPage() {
   useEffect(() => { fetchData(); }, []);
 
   const statCards = stats ? [
-    { label: 'Companies', value: stats.totalCompanies, sub: 'B2B registered', icon: Building2, href: '/dashboard/b2b', color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: 'Companies', value: stats.totalCompanies, sub: 'B2B registered', icon: Building2, href: '/dashboard/companies', color: 'text-blue-400', bg: 'bg-blue-500/10' },
     { label: 'Active Events', value: stats.activeEvents, sub: 'Live now', icon: Calendar, href: '/dashboard/events', color: 'text-violet-400', bg: 'bg-violet-500/10' },
     { label: 'Revenue', value: formatCurrency(stats.totalRevenue), sub: 'All-time', icon: DollarSign, href: '/dashboard/finance', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
     { label: 'Users', value: stats.totalUsers, sub: 'Platform total', icon: Users, href: '/dashboard/users', color: 'text-orange-400', bg: 'bg-orange-500/10' },
@@ -117,12 +117,12 @@ export default function DashboardPage() {
     <div className="space-y-6 pb-8">
 
       {/* Top bar */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-medium tracking-widest uppercase text-muted-foreground/60 mb-0.5">
+          <p className="text-[11px] font-medium tracking-widest uppercase text-muted-foreground/60 mb-0.5 hidden sm:block">
             {formatDate()}
           </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
             {getGreeting()}
           </h1>
         </div>
@@ -134,7 +134,7 @@ export default function DashboardPage() {
             className="border-border text-muted-foreground hover:text-foreground hover:bg-accent bg-transparent gap-1.5 text-xs h-8"
           >
             <FileText className="h-3 w-3" />
-            Reports
+            <span className="hidden sm:inline">Reports</span>
           </Button>
           <Button
             onClick={() => router.push('/dashboard/events/create')}
@@ -142,7 +142,7 @@ export default function DashboardPage() {
             className="bg-primary text-primary-foreground hover:bg-primary/90 gap-1.5 text-xs h-8"
           >
             <Plus className="h-3 w-3" />
-            New Event
+            <span className="hidden sm:inline">New Event</span>
           </Button>
         </div>
       </div>
@@ -213,7 +213,7 @@ export default function DashboardPage() {
               <h2 className="text-sm font-medium text-foreground">Active Events</h2>
             </div>
             <button
-              onClick={() => router.push('/dashboard/events/active')}
+              onClick={() => router.push('/dashboard/events')}
               className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-0.5 transition-colors"
             >
               View all <ChevronRight className="h-3 w-3" />
@@ -253,7 +253,7 @@ export default function DashboardPage() {
                 return (
                   <button
                     key={event.id}
-                    onClick={() => router.push('/dashboard/events/active')}
+                    onClick={() => router.push('/dashboard/events')}
                     className="w-full text-left px-5 py-3.5 flex items-center gap-3 hover:bg-accent/20 transition-colors group"
                   >
                     {/* Poster */}
@@ -327,7 +327,7 @@ export default function DashboardPage() {
                 <div className="flex items-end justify-between">
                   <span className="text-3xl font-bold text-orange-400 tabular-nums">{stats.pendingApprovals}</span>
                   <Button
-                    onClick={() => router.push('/dashboard/b2b')}
+                    onClick={() => router.push('/dashboard/events/approvals')}
                     variant="outline"
                     size="sm"
                     className="border-orange-500/20 text-orange-400 hover:bg-orange-500/10 bg-transparent h-7 text-xs gap-1"
