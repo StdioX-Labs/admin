@@ -31,7 +31,7 @@ export async function PUT(
       // Check if the token is expired (2 hours)
       const now = Date.now();
       const issuedAt = authData.issuedAt || 0;
-      const maxAge = 2 * 60 * 60 * 1000; // 2 hours
+      const maxAge = 8 * 60 * 60 * 1000; // 2 hours
 
       if (now - issuedAt > maxAge) {
         console.error('[Ticket Update API] Token expired');

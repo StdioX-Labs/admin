@@ -1,16 +1,25 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+const TOKEN_MAX_AGE = 8 * 60 * 60 * 1000; // 8 hours, must match the cookie maxAge
+
+function isValidToken(raw: string | undefined): boolean {
+  if (!raw) return false;
+  try {
+    const data = JSON.parse(raw);
+    return typeof data.issuedAt === 'number' && Date.now() - data.issuedAt < TOKEN_MAX_AGE;
+  } catch {
+    return false;
+  }
+}
+
 export function middleware(request: NextRequest) {
-  // Get the path of the request
   const path = request.nextUrl.pathname;
 
-  // Define public paths that don't require authentication
   const isPublicPath = path === '/login' || path.startsWith('/api/');
 
-  // Check if user is authenticated by looking for the auth_token cookie
   const authToken = request.cookies.get('auth_token')?.value;
-  const isAuthenticated = !!authToken;
+  const isAuthenticated = isValidToken(authToken);
 
   // If the user is not authenticated and trying to access a protected route, redirect to login
   if (!isAuthenticated && !isPublicPath) {
@@ -30,7 +39,6 @@ export function middleware(request: NextRequest) {
 // Configure which paths this middleware will run on
 export const config = {
   matcher: [
-    // Match all routes except for static files, images, API routes, and favicon
-    '/((?!_next/static|_next/image|favicon.ico|api/).*)'
+    '/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$).*)'
   ],
 };

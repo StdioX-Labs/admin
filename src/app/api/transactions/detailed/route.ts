@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
     try {
       const authData = JSON.parse(authTokenCookie.value);
-      if (Date.now() - (authData.issuedAt || 0) > 2 * 60 * 60 * 1000) {
+      if (Date.now() - (authData.issuedAt || 0) > 8 * 60 * 60 * 1000) {
         cookieStore.delete('auth_token');
         return NextResponse.json({ status: false, message: 'Session expired. Please log in again.' }, { status: 401 });
       }

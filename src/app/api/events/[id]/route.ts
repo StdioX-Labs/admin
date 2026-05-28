@@ -28,10 +28,9 @@ export async function GET(
     try {
       const authData = JSON.parse(authTokenCookie.value);
 
-      // Check if the token is expired (2 hours)
       const now = Date.now();
       const issuedAt = authData.issuedAt || 0;
-      const maxAge = 2 * 60 * 60 * 1000; // 2 hours
+      const maxAge = 8 * 60 * 60 * 1000; // 8 hours
 
       if (now - issuedAt > maxAge) {
         console.error('[Event Detail API] Token expired');
@@ -145,10 +144,9 @@ async function handleEventUpdate(
     try {
       const authData = JSON.parse(authTokenCookie.value);
 
-      // Check if the token is expired (2 hours)
       const now = Date.now();
       const issuedAt = authData.issuedAt || 0;
-      const maxAge = 2 * 60 * 60 * 1000; // 2 hours
+      const maxAge = 8 * 60 * 60 * 1000; // 8 hours
 
       if (now - issuedAt > maxAge) {
         console.error('[Event Update API] Token expired');

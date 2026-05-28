@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ReactNode, useState } from 'react';
+import { ReactNode } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import {
   AlertDialog,
@@ -14,7 +14,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader, LoadingButton } from "@/components/ui/loader";
-import { LayoutDashboard, CalendarDays, BarChart2, PlusCircle, LogOut, LineChart } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, BarChart2, PlusCircle, LogOut, LineChart, Clock } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { eventsApi } from '@/lib/api';
 
 interface SidebarProps {
   children?: ReactNode;
@@ -26,6 +28,13 @@ export const Sidebar = ({ children, className = '', onClose }: SidebarProps) => 
   const pathname = usePathname();
   const { logout, isLoggingOut } = useAuth();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    eventsApi.getAllEvents(0, 1, undefined, 'ONHOLD')
+      .then(res => { if (res.status) setPendingCount(res.data?.totalElements ?? 0); })
+      .catch(() => {});
+  }, []);
 
   const userEmail = typeof window !== 'undefined' ? localStorage.getItem('userEmail') || 'user@example.com' : 'user@example.com';
   const truncatedEmail = userEmail.length > 22 ? `${userEmail.substring(0, 19)}...` : userEmail;
@@ -34,6 +43,7 @@ export const Sidebar = ({ children, className = '', onClose }: SidebarProps) => 
   const sidebarLinks = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/dashboard/events', label: 'Events', icon: CalendarDays },
+    { href: '/dashboard/events/approvals', label: 'Approvals', icon: Clock, badge: pendingCount },
     { href: '/dashboard/events/sales', label: 'Sales', icon: BarChart2 },
     { href: '/dashboard/events/create', label: 'Create Event', icon: PlusCircle },
     { href: '/dashboard/analytics', label: 'Analytics', icon: LineChart },
@@ -49,14 +59,10 @@ export const Sidebar = ({ children, className = '', onClose }: SidebarProps) => 
       <aside className={`h-full bg-background border-r border-border flex flex-col ${className}`}>
         {/* Brand */}
         <div className="px-5 h-14 flex items-center border-b border-border flex-shrink-0">
-          <div>
-            <span className="text-sm font-semibold tracking-tight text-foreground">
-              SoldOutAfrica
-            </span>
-            <span className="ml-2 text-[10px] font-medium bg-accent text-muted-foreground px-1.5 py-0.5 rounded">
-              Admin
-            </span>
-          </div>
+          <img src="/bg-dark.svg" alt="SoldOutAfrica" className="h-8 w-8" />
+          <span className="ml-2 text-[10px] font-medium bg-accent text-muted-foreground px-1.5 py-0.5 rounded">
+            Admin
+          </span>
         </div>
 
         {/* Nav */}
@@ -84,9 +90,14 @@ export const Sidebar = ({ children, className = '', onClose }: SidebarProps) => 
                   }`}
                 />
                 {link.label}
-                {isActive && (
-                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-foreground" />
-                )}
+                <span className="ml-auto flex items-center gap-1">
+                  {'badge' in link && link.badge > 0 && (
+                    <span className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-amber-500/20 text-[10px] font-bold text-amber-400 tabular-nums">
+                      {link.badge}
+                    </span>
+                  )}
+                  {isActive && <span className="h-1.5 w-1.5 rounded-full bg-foreground" />}
+                </span>
               </Link>
             );
           })}

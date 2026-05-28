@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     try {
       const authData = JSON.parse(authTokenCookie.value);
       const now = Date.now();
-      if (now - (authData.issuedAt || 0) > 2 * 60 * 60 * 1000) {
+      if (now - (authData.issuedAt || 0) > 8 * 60 * 60 * 1000) {
         cookieStore.delete('auth_token');
         return NextResponse.json(
           { status: false, message: 'Your session has expired. Please log in again.' },

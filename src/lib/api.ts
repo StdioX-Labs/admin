@@ -341,8 +341,8 @@ export const eventsApi = {
       data: unknown;
       message: string;
       status: boolean;
-    }>(`/events/${eventId}`, {
-      method: 'PUT',
+    }>(`/event/update?eventId=${eventId}`, {
+      method: 'POST',
       body: JSON.stringify(data),
     });
   },

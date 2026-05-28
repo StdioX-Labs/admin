@@ -66,18 +66,17 @@ function checkIpRateLimit(ip: string, now: number) {
   const requestLog = ipRateLimitMap.get(ip);
 
   if (requestLog) {
-    // Check if the IP is blocked
     if (requestLog.blockedUntil && now < requestLog.blockedUntil) {
-      const remainingBlockTime = Math.ceil((requestLog.blockedUntil - now) / 60000); // in minutes
+      const remainingBlockTime = Math.ceil((requestLog.blockedUntil - now) / 60000);
       return {
         status: 429,
         message: `Too many requests from this IP. Please try again in ${remainingBlockTime} minute${remainingBlockTime > 1 ? 's' : ''}.`
       };
     }
 
-    // Check if we need to enforce backoff time
-    if (now - requestLog.timestamp < requestLog.backoffTime) {
-      const waitTime = Math.ceil((requestLog.timestamp + requestLog.backoffTime - now) / 60000); // in minutes
+    // Only enforce backoff after the free-attempt threshold is exhausted
+    if (requestLog.count >= IP_MAX_REQUESTS && now - requestLog.timestamp < requestLog.backoffTime) {
+      const waitTime = Math.ceil((requestLog.timestamp + requestLog.backoffTime - now) / 60000);
       return {
         status: 429,
         message: `Please wait ${waitTime} minute${waitTime > 1 ? 's' : ''} before sending another request.`
@@ -95,18 +94,17 @@ function checkIdentifierRateLimit(identifier: string, now: number) {
   const requestLog = identifierRateLimitMap.get(identifier);
 
   if (requestLog) {
-    // Check if the identifier is blocked
     if (requestLog.blockedUntil && now < requestLog.blockedUntil) {
-      const remainingBlockTime = Math.ceil((requestLog.blockedUntil - now) / 60000); // in minutes
+      const remainingBlockTime = Math.ceil((requestLog.blockedUntil - now) / 60000);
       return {
         status: 429,
         message: `Too many requests for this account. Please try again in ${remainingBlockTime} minute${remainingBlockTime > 1 ? 's' : ''}.`
       };
     }
 
-    // Check if we need to enforce backoff time
-    if (now - requestLog.timestamp < requestLog.backoffTime) {
-      const waitTime = Math.ceil((requestLog.timestamp + requestLog.backoffTime - now) / 60000); // in minutes
+    // Only enforce backoff after the free-attempt threshold is exhausted
+    if (requestLog.count >= MAX_REQUESTS && now - requestLog.timestamp < requestLog.backoffTime) {
+      const waitTime = Math.ceil((requestLog.timestamp + requestLog.backoffTime - now) / 60000);
       return {
         status: 429,
         message: `Please wait ${waitTime} minute${waitTime > 1 ? 's' : ''} before requesting another code.`
