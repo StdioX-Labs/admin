@@ -354,7 +354,7 @@ export const eventsApi = {
       data: unknown;
       message: string;
       status: boolean;
-    }>(`/tickets/${ticketId}`, {
+    }>(`/ticket/update?ticketId=${ticketId}`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
