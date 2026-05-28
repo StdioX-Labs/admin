@@ -145,6 +145,7 @@ function EventCard({ event, onToggle, onEdit, toggling }: {
               <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
                 <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
                   <Building2 className="h-2.5 w-2.5" />{event.companyName}
+                  <span className="text-muted-foreground/40 font-mono">#{event.companyId}</span>
                 </span>
                 <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
                   <MapPin className="h-2.5 w-2.5" />{event.eventLocation}

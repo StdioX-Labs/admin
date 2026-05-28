@@ -508,6 +508,18 @@ export const transactionsApi = {
   },
 };
 
+// Company API
+export const companyApi = {
+  getById: async (companyId: number | string) => {
+    return fetchApi<{
+      company?: { id: number; companyName: string; emailAddress: string; phoneNumber: string; isActive: boolean };
+      data?: unknown;
+      message: string;
+      status: boolean;
+    }>(`/company/${companyId}`, { method: 'GET' });
+  },
+};
+
 // Event creation API
 export const createEventApi = {
   createEvent: async (data: {

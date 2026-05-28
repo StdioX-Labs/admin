@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createEventApi } from '@/lib/api';
+import { createEventApi, companyApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -20,6 +20,8 @@ import {
   Image as ImageIcon,
   Link as LinkIcon,
   Loader2,
+  Building2,
+  Search,
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -36,7 +38,7 @@ const CATEGORIES = [
   { id: 9, label: 'Other' },
 ];
 
-const CURRENCIES = ['KES', 'USD', 'UGX', 'TZS', 'RWF', 'GHS'];
+const CURRENCIES = ['KES', 'USD', 'UGX', 'TZS', 'RWF', 'ZAR', 'GHS', 'NGN', 'MWK', 'AUD', 'CAD'];
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -63,9 +65,10 @@ interface EventForm {
   eventEndDate: string;
   ticketSaleStartDate: string;
   ticketSaleEndDate: string;
-  percentageComission: string;
+  percentageCommission: string;
   currency: string;
   slug: string;
+  companyId: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -146,6 +149,9 @@ export default function CreateEventPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [successEventId, setSuccessEventId] = useState<number | null>(null);
+  const [companyName, setCompanyName] = useState('');
+  const [companyLookupLoading, setCompanyLookupLoading] = useState(false);
+  const [companyLookupError, setCompanyLookupError] = useState('');
 
   const [form, setForm] = useState<EventForm>({
     eventName: '',
@@ -157,9 +163,10 @@ export default function CreateEventPage() {
     eventEndDate: '',
     ticketSaleStartDate: '',
     ticketSaleEndDate: '',
-    percentageComission: '5',
+    percentageCommission: '5',
     currency: 'KES',
     slug: '',
+    companyId: '',
   });
 
   const [tickets, setTickets] = useState<TicketForm[]>([emptyTicket()]);
@@ -183,9 +190,35 @@ export default function CreateEventPage() {
   const addTicket = () => setTickets(prev => [...prev, emptyTicket()]);
   const removeTicket = (idx: number) => setTickets(prev => prev.filter((_, i) => i !== idx));
 
+  // ── Company lookup ────────────────────────────────────────────────────────
+
+  const lookupCompany = async () => {
+    const id = form.companyId.trim();
+    if (!id || isNaN(Number(id))) {
+      setCompanyLookupError('Enter a valid numeric company ID');
+      return;
+    }
+    setCompanyLookupLoading(true);
+    setCompanyLookupError('');
+    setCompanyName('');
+    try {
+      const resp = await companyApi.getById(id);
+      if (resp.status && resp.company?.companyName) {
+        setCompanyName(resp.company.companyName);
+      } else {
+        setCompanyLookupError(resp.message || 'Company not found');
+      }
+    } catch {
+      setCompanyLookupError('Failed to look up company');
+    } finally {
+      setCompanyLookupLoading(false);
+    }
+  };
+
   // ── Validation ────────────────────────────────────────────────────────────
 
   const step1Errors: string[] = [];
+  if (!form.companyId.trim() || isNaN(Number(form.companyId))) step1Errors.push('Company ID is required');
   if (!form.eventName.trim()) step1Errors.push('Event name is required');
   if (!form.eventDescription.trim()) step1Errors.push('Description is required');
   if (!form.eventCategoryId) step1Errors.push('Category is required');
@@ -211,7 +244,8 @@ export default function CreateEventPage() {
     setSubmitError('');
     try {
       const catId = parseInt(form.eventCategoryId);
-      const commission = parseFloat(form.percentageComission) || 5;
+      const commission = parseFloat(form.percentageCommission) || 5;
+      const companyIdNum = parseInt(form.companyId);
 
       const eventResp = await createEventApi.createEvent({
         eventName: form.eventName.trim(),
@@ -224,8 +258,8 @@ export default function CreateEventPage() {
         eventStartDate: toIso(form.eventStartDate),
         eventEndDate: toIso(form.eventEndDate),
         percentageComission: commission,
-        users: { id: 0 }, // overridden server-side from auth cookie
-        company: { id: 0 }, // overridden server-side from auth cookie
+        users: { id: 0 },
+        company: { id: companyIdNum },
         slug: form.slug.trim(),
         currency: form.currency,
       });
@@ -274,7 +308,9 @@ export default function CreateEventPage() {
         </div>
         <h2 className="text-lg font-semibold text-foreground">Event created!</h2>
         <p className="text-sm text-muted-foreground">
-          Event ID <span className="font-mono text-foreground">#{successEventId}</span> with {tickets.length} ticket type{tickets.length !== 1 ? 's' : ''} has been created successfully.
+          Event ID <span className="font-mono text-foreground">#{successEventId}</span> for{' '}
+          <span className="text-foreground font-medium">{companyName || `Company #${form.companyId}`}</span>{' '}
+          with {tickets.length} ticket type{tickets.length !== 1 ? 's' : ''} has been created successfully.
         </p>
         <div className="flex justify-center gap-2 pt-2">
           <Button variant="outline" size="sm" className="border-border bg-transparent text-xs" onClick={() => router.push('/dashboard/events')}>
@@ -283,7 +319,8 @@ export default function CreateEventPage() {
           <Button size="sm" className="text-xs" onClick={() => {
             setSuccessEventId(null);
             setStep(1);
-            setForm({ eventName: '', eventDescription: '', eventPosterUrl: '', eventCategoryId: '', eventLocation: '', eventStartDate: '', eventEndDate: '', ticketSaleStartDate: '', ticketSaleEndDate: '', percentageComission: '5', currency: 'KES', slug: '' });
+            setCompanyName('');
+            setForm({ eventName: '', eventDescription: '', eventPosterUrl: '', eventCategoryId: '', eventLocation: '', eventStartDate: '', eventEndDate: '', ticketSaleStartDate: '', ticketSaleEndDate: '', percentageCommission: '5', currency: 'KES', slug: '', companyId: '' });
             setTickets([emptyTicket()]);
           }}>
             Create another
@@ -297,6 +334,48 @@ export default function CreateEventPage() {
 
   const renderStep1 = () => (
     <div className="space-y-4">
+      {/* Company selector */}
+      <div className="rounded-lg border border-border bg-background/50 p-4 space-y-3">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Company</p>
+        <div className="flex items-end gap-2">
+          <Field label="Company ID" required>
+            <div className="relative">
+              <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
+              <Input
+                type="number"
+                value={form.companyId}
+                onChange={e => { setField('companyId', e.target.value); setCompanyName(''); setCompanyLookupError(''); }}
+                placeholder="Enter company ID"
+                className="h-9 text-sm border-border bg-background pl-8 w-48"
+              />
+            </div>
+          </Field>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={lookupCompany}
+            disabled={companyLookupLoading || !form.companyId.trim()}
+            className="h-9 border-border bg-transparent text-xs gap-1.5 flex-shrink-0"
+          >
+            {companyLookupLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
+            Lookup
+          </Button>
+        </div>
+        {companyName && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-emerald-500/5 border border-emerald-500/20">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+            <span className="text-xs text-emerald-400 font-medium">{companyName}</span>
+            <span className="text-[10px] text-muted-foreground/50 font-mono ml-auto">#{form.companyId}</span>
+          </div>
+        )}
+        {companyLookupError && (
+          <p className="text-xs text-destructive flex items-center gap-1.5">
+            <AlertCircle className="h-3 w-3 flex-shrink-0" />{companyLookupError}
+          </p>
+        )}
+      </div>
+
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label="Event Name" required>
           <Input
@@ -388,8 +467,8 @@ export default function CreateEventPage() {
             min="0"
             max="100"
             step="0.1"
-            value={form.percentageComission}
-            onChange={e => setField('percentageComission', e.target.value)}
+            value={form.percentageCommission}
+            onChange={e => setField('percentageCommission', e.target.value)}
             className="h-9 text-sm border-border bg-background"
           />
         </Field>
@@ -571,6 +650,16 @@ export default function CreateEventPage() {
     return (
       <div className="space-y-4">
         <div className="rounded-lg border border-border bg-background/30 p-4 space-y-3">
+          <div className="flex items-center gap-2 pb-2 border-b border-border/60">
+            <Building2 className="h-3.5 w-3.5 text-muted-foreground/60" />
+            <span className="text-xs text-muted-foreground">
+              {companyName ? (
+                <><span className="text-foreground font-medium">{companyName}</span> <span className="text-muted-foreground/40 font-mono">#{form.companyId}</span></>
+              ) : (
+                <span className="font-mono text-foreground">Company #{form.companyId}</span>
+              )}
+            </span>
+          </div>
           <div className="flex items-start gap-3">
             {form.eventPosterUrl && (
               <div className="w-16 h-16 rounded-md overflow-hidden flex-shrink-0 border border-border">
@@ -592,7 +681,7 @@ export default function CreateEventPage() {
           <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/60">
             <div>
               <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">Commission</p>
-              <p className="text-xs font-medium text-foreground mt-0.5">{form.percentageComission}%</p>
+              <p className="text-xs font-medium text-foreground mt-0.5">{form.percentageCommission}%</p>
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">Currency</p>
