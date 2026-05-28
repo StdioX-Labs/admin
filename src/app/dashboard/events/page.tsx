@@ -231,8 +231,8 @@ function EventCard({ event, onToggle, onEdit, toggling }: {
 
       {/* Ticket breakdown */}
       {expanded && event.ticketSummaries.length > 0 && (
-        <div className="border-t border-border bg-background/30 px-4 py-3">
-          <table className="w-full text-xs">
+        <div className="border-t border-border bg-background/30 px-4 py-3 overflow-x-auto">
+          <table className="w-full text-xs min-w-[380px]">
             <thead>
               <tr className="border-b border-border/60">
                 <th className="text-left text-[10px] text-muted-foreground/50 uppercase tracking-wider pb-2 font-medium">Ticket Type</th>

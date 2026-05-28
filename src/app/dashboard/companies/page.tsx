@@ -47,25 +47,12 @@ function ProfileTypeBadge({ type }: { type: string }) {
 
 function CompanyCard({ company }: { company: Company }) {
   const [expanded, setExpanded] = useState(false);
-  const initials = company.companyName.slice(0, 2).toUpperCase();
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
-      <div className="flex items-start gap-4 p-4">
-        {/* Avatar */}
-        {company.profilePhoto ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={company.profilePhoto} alt={company.companyName} className="h-12 w-12 rounded-lg object-cover flex-shrink-0 border border-border" />
-        ) : (
-          <div className="h-12 w-12 rounded-lg bg-accent border border-border flex items-center justify-center flex-shrink-0">
-            <span className="text-sm font-bold text-muted-foreground">{initials}</span>
-          </div>
-        )}
-
-        {/* Main info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-sm font-semibold text-foreground">{company.companyName}</h3>
                 <span className="text-[10px] font-mono text-muted-foreground/40">#{company.id}</span>
@@ -105,9 +92,7 @@ function CompanyCard({ company }: { company: Company }) {
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Expanded details */}
       {expanded && (
         <div className="border-t border-border bg-background/30 px-4 py-3 space-y-3">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
@@ -290,12 +275,9 @@ export default function CompaniesPage() {
         {isLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="rounded-xl border border-border bg-card p-4 animate-pulse flex items-start gap-4">
-                <div className="h-12 w-12 rounded-lg bg-accent flex-shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-3.5 w-48 rounded bg-accent" />
-                  <div className="h-2.5 w-64 rounded bg-accent" />
-                </div>
+              <div key={i} className="rounded-xl border border-border bg-card p-4 animate-pulse space-y-2">
+                <div className="h-3.5 w-48 rounded bg-accent" />
+                <div className="h-2.5 w-64 rounded bg-accent" />
               </div>
             ))}
           </div>

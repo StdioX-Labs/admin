@@ -163,8 +163,8 @@ function EventCard({
                 )}
               </button>
               {expanded && (
-                <div className="mt-2 rounded-lg border border-border/60 overflow-hidden">
-                  <table className="w-full text-xs">
+                <div className="mt-2 rounded-lg border border-border/60 overflow-x-auto">
+                  <table className="w-full text-xs min-w-[280px]">
                     <thead className="bg-accent/30">
                       <tr>
                         <th className="text-left text-[10px] text-muted-foreground/50 uppercase tracking-wider px-3 py-1.5 font-medium">Type</th>
