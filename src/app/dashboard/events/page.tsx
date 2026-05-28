@@ -26,6 +26,8 @@ import {
   DollarSign,
   ChevronDown,
   ChevronUp,
+  Globe,
+  EyeOff,
 } from 'lucide-react';
 
 interface TicketSummary {
@@ -281,6 +283,7 @@ export default function EventsDashboard() {
   const [success, setSuccess] = useState('');
   const [showCommissionDialog, setShowCommissionDialog] = useState(false);
   const [commissionValue, setCommissionValue] = useState('5.0');
+  const [activatePublished, setActivatePublished] = useState(false);
   const [eventToActivate, setEventToActivate] = useState<Event | null>(null);
 
   const fetchData = async (page: number = currentPage, search?: string, isPagination = false) => {
@@ -325,6 +328,7 @@ export default function EventsDashboard() {
     if (event.status !== 'ACTIVE') {
       setEventToActivate(event);
       setCommissionValue('5.0');
+      setActivatePublished(false);
       setShowCommissionDialog(true);
       return;
     }
@@ -332,16 +336,8 @@ export default function EventsDashboard() {
     setError(''); setSuccess('');
     try {
       const response = await eventsApi.updateEvent(event.eventId, {
-        eventName: event.eventName,
-        eventDescription: event.eventDescription,
-        eventCategory: event.eventCategory,
-        eventLocation: event.eventLocation,
-        eventPosterUrl: event.eventPosterUrl,
-        ticketSaleStartDate: event.ticketSaleStartDate,
-        ticketSaleEndDate: event.ticketSaleEndDate,
-        eventStartDate: event.eventStartDate,
-        eventEndDate: event.eventEndDate,
         status: 'ONHOLD',
+        isActive: false,
       });
       if (response.status === true) {
         setSuccess(`Event "${event.eventName}" set to ONHOLD`);
@@ -368,9 +364,14 @@ export default function EventsDashboard() {
     setTogglingEventId(eventToActivate.eventId);
     setError(''); setSuccess('');
     try {
-      const response = await eventsApi.activateEvent(eventToActivate.eventId, commission);
+      const response = await eventsApi.updateEvent(eventToActivate.eventId, {
+        status: 'ACTIVE',
+        isActive: true,
+        percentageCommission: commission,
+        published: activatePublished,
+      });
       if (response.status === true) {
-        setSuccess(`"${eventToActivate.eventName}" activated at ${commission}% commission`);
+        setSuccess(`"${eventToActivate.eventName}" activated at ${commission}% commission · ${activatePublished ? 'Published' : 'Hidden'}`);
         await fetchData(currentPage, searchTerm || undefined);
         setTimeout(() => setSuccess(''), 5000);
       } else {
@@ -412,6 +413,26 @@ export default function EventsDashboard() {
                   className="h-9 text-sm"
                   autoFocus
                 />
+              </div>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-muted-foreground">Published</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setActivatePublished(p => !p)}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
+                      activatePublished ? 'bg-emerald-500/80' : 'bg-muted-foreground/20'
+                    }`}
+                    role="switch"
+                    aria-checked={activatePublished}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${
+                      activatePublished ? 'translate-x-4' : 'translate-x-1'
+                    }`} />
+                  </button>
+                  <span className={`flex items-center gap-1 text-[10px] ${activatePublished ? 'text-emerald-400' : 'text-muted-foreground/50'}`}>
+                    {activatePublished ? <><Globe className="h-2.5 w-2.5" />Live</> : <><EyeOff className="h-2.5 w-2.5" />Hidden</>}
+                  </span>
+                </div>
               </div>
               <div className="flex gap-2 pt-1">
                 <Button onClick={() => { setShowCommissionDialog(false); setEventToActivate(null); }} variant="outline" size="sm" className="flex-1 border-border text-muted-foreground hover:text-foreground bg-transparent">
