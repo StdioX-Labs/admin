@@ -14,8 +14,35 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+    metadataBase: new URL("https://admin.soldoutafrica.com"),
     title: "SoldOutAfrica Admin",
-    description: "SoldOutAfrica Admin Dashboard",
+    description: "Internal admin dashboard for managing events, companies, and platform operations on SoldOutAfrica.",
+    robots: {
+        index: false,
+        follow: false,
+    },
+    openGraph: {
+        type: "website",
+        url: "https://admin.soldoutafrica.com",
+        siteName: "SoldOutAfrica Admin",
+        title: "SoldOutAfrica Admin",
+        description: "Internal admin dashboard for managing events, companies, and platform operations on SoldOutAfrica.",
+        images: [
+            {
+                url: "/icons/og-image.jpg",
+                width: 1200,
+                height: 630,
+                alt: "SoldOutAfrica Admin",
+            },
+        ],
+    },
+    twitter: {
+        card: "summary_large_image",
+        site: "@soldoutafrica",
+        title: "SoldOutAfrica Admin",
+        description: "Internal admin dashboard for managing events, companies, and platform operations on SoldOutAfrica.",
+        images: ["/icons/og-image.jpg"],
+    },
     icons: {
         icon: [
             { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
