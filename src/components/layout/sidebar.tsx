@@ -41,12 +41,12 @@ export const Sidebar = ({ children, className = '', onClose }: SidebarProps) => 
   const initials = userEmail.charAt(0).toUpperCase();
 
   const sidebarLinks = [
-    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/dashboard/events', label: 'Events', icon: CalendarDays },
+    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: 0 },
+    { href: '/dashboard/events', label: 'Events', icon: CalendarDays, badge: 0 },
     { href: '/dashboard/events/approvals', label: 'Approvals', icon: Clock, badge: pendingCount },
-    { href: '/dashboard/events/sales', label: 'Sales', icon: BarChart2 },
-    { href: '/dashboard/events/create', label: 'Create Event', icon: PlusCircle },
-    { href: '/dashboard/analytics', label: 'Analytics', icon: LineChart },
+    { href: '/dashboard/events/sales', label: 'Sales', icon: BarChart2, badge: 0 },
+    { href: '/dashboard/events/create', label: 'Create Event', icon: PlusCircle, badge: 0 },
+    { href: '/dashboard/analytics', label: 'Analytics', icon: LineChart, badge: 0 },
   ];
 
   const handleLogout = async () => {
@@ -91,7 +91,7 @@ export const Sidebar = ({ children, className = '', onClose }: SidebarProps) => 
                 />
                 {link.label}
                 <span className="ml-auto flex items-center gap-1">
-                  {'badge' in link && link.badge > 0 && (
+                  {link.badge > 0 && (
                     <span className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-amber-500/20 text-[10px] font-bold text-amber-400 tabular-nums">
                       {link.badge}
                     </span>
