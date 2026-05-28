@@ -21,7 +21,6 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
-  Loader2,
 } from 'lucide-react';
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
@@ -214,37 +213,35 @@ function SalesCard({ event }: { event: AdminEvent }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 20;
 
 export default function EventSalesPage() {
-  const [events, setEvents] = useState<AdminEvent[]>([]);
+  const [allEvents, setAllEvents] = useState<AdminEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isPaging, setIsPaging] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalElements, setTotalElements] = useState(0);
-  const [hasNext, setHasNext] = useState(false);
-  const [hasPrevious, setHasPrevious] = useState(false);
 
-  const fetchData = useCallback(async (page = 0, searchName?: string, paging = false) => {
-    if (paging) setIsPaging(true);
-    else setIsLoading(true);
+  // Derived pagination — always accurate to the filtered set
+  const totalElements = allEvents.length;
+  const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
+  const hasNext = currentPage < totalPages - 1;
+  const hasPrevious = currentPage > 0;
+  const events = allEvents.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+
+  const fetchData = useCallback(async (searchName?: string) => {
+    setIsLoading(true);
+    setCurrentPage(0);
     setError('');
     try {
-      const resp = await eventsApi.getAllEvents(page, PAGE_SIZE, searchName, 'ACTIVE');
+      // Fetch all active events at once so client-side filtering + pagination is accurate
+      const resp = await eventsApi.getAllEvents(0, 500, searchName, 'ACTIVE');
       if (resp.status && resp.data?.data) {
         const now = new Date();
-        const upcoming = (resp.data.data as AdminEvent[]).filter(
+        const filtered = (resp.data.data as AdminEvent[]).filter(
           e => new Date(e.eventEndDate) >= now
         );
-        setEvents(upcoming);
-        setCurrentPage(resp.data.page);
-        setTotalPages(resp.data.totalPages);
-        setTotalElements(resp.data.totalElements);
-        setHasNext(resp.data.hasNext);
-        setHasPrevious(resp.data.hasPrevious);
+        setAllEvents(filtered);
       } else {
         setError(resp.message || 'Failed to load events');
       }
@@ -252,19 +249,17 @@ export default function EventSalesPage() {
       setError(err instanceof Error ? err.message : 'Failed to load sales data');
     } finally {
       setIsLoading(false);
-      setIsPaging(false);
     }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSearch = () => {
-    setCurrentPage(0);
-    fetchData(0, search || undefined);
+    fetchData(search || undefined);
   };
 
   const handlePageChange = (p: number) => {
-    fetchData(p, search || undefined, true);
+    setCurrentPage(p);
   };
 
   // Totals for current page
@@ -280,12 +275,12 @@ export default function EventSalesPage() {
         <div>
           <h1 className="text-xl font-semibold text-foreground tracking-tight">Event Sales</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {isLoading ? 'Loading...' : `${events.length} upcoming active events`}
+            {isLoading ? 'Loading...' : `${totalElements} upcoming & ongoing events`}
           </p>
         </div>
         <div className="flex gap-2 flex-shrink-0">
           <Button
-            onClick={() => fetchData(currentPage, search || undefined)}
+            onClick={() => fetchData(search || undefined)}
             variant="outline"
             size="sm"
             className="border-border bg-transparent text-muted-foreground hover:text-foreground gap-1.5 text-xs h-8"
@@ -295,11 +290,11 @@ export default function EventSalesPage() {
             <span className="hidden sm:inline">Refresh</span>
           </Button>
           <Button
-            onClick={() => downloadCSV(events)}
+            onClick={() => downloadCSV(allEvents)}
             size="sm"
             variant="outline"
             className="border-border bg-transparent text-muted-foreground hover:text-foreground gap-1.5 text-xs h-8"
-            disabled={isLoading || events.length === 0}
+            disabled={isLoading || allEvents.length === 0}
           >
             <Download className="h-3 w-3" />
             <span className="hidden sm:inline">Export CSV</span>
@@ -382,12 +377,6 @@ export default function EventSalesPage() {
 
       {/* Cards */}
       <div className="relative">
-        {isPaging && (
-          <div className="absolute inset-0 bg-background/50 z-10 flex items-center justify-center backdrop-blur-[1px] rounded-xl">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        )}
-
         {isLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -426,7 +415,7 @@ export default function EventSalesPage() {
           <div className="flex items-center gap-1">
             <Button
               onClick={() => handlePageChange(currentPage - 1)}
-              disabled={!hasPrevious || isPaging}
+              disabled={!hasPrevious}
               variant="outline"
               size="sm"
               className="h-7 w-7 p-0 border-border bg-transparent text-muted-foreground hover:text-foreground disabled:opacity-30"
@@ -435,7 +424,7 @@ export default function EventSalesPage() {
             </Button>
             <Button
               onClick={() => handlePageChange(currentPage + 1)}
-              disabled={!hasNext || isPaging}
+              disabled={!hasNext}
               variant="outline"
               size="sm"
               className="h-7 w-7 p-0 border-border bg-transparent text-muted-foreground hover:text-foreground disabled:opacity-30"
