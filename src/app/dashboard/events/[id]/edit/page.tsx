@@ -62,6 +62,8 @@ interface ApiTicket {
   isFree: boolean;
   ticketStatus: string;
   createAt: string;
+  smsPurchaseMessageTemplate?: string | null;
+  emailPurchaseMessageTemplate?: string | null;
 }
 
 interface ApiEvent {
@@ -103,6 +105,8 @@ interface Ticket {
   ticketSaleEndDate: string;
   isFree: boolean;
   ticketStatus: string;
+  smsPurchaseMessageTemplate: string | null;
+  emailPurchaseMessageTemplate: string | null;
 }
 
 interface EventForm {
@@ -134,6 +138,8 @@ interface NewTicketForm {
   ticketSaleStartDate: string;
   ticketSaleEndDate: string;
   isFree: boolean;
+  smsPurchaseMessageTemplate: string;
+  emailPurchaseMessageTemplate: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -165,7 +171,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
 }
 
 function emptyNewTicket(): NewTicketForm {
-  return { ticketName: '', ticketPrice: '', quantityAvailable: '', ticketsToIssue: '', ticketLimitPerPerson: '1', numberOfComplementary: '0', ticketSaleStartDate: '', ticketSaleEndDate: '', isFree: false };
+  return { ticketName: '', ticketPrice: '', quantityAvailable: '', ticketsToIssue: '', ticketLimitPerPerson: '1', numberOfComplementary: '0', ticketSaleStartDate: '', ticketSaleEndDate: '', isFree: false, smsPurchaseMessageTemplate: '', emailPurchaseMessageTemplate: '' };
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -253,6 +259,8 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
           ticketSaleEndDate: t.ticketSaleEndDate,
           isFree: t.isFree,
           ticketStatus: t.ticketStatus,
+          smsPurchaseMessageTemplate: t.smsPurchaseMessageTemplate ?? null,
+          emailPurchaseMessageTemplate: t.emailPurchaseMessageTemplate ?? null,
         }));
         setTickets(mapped);
 
@@ -270,6 +278,8 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
             ticketSaleEndDate: toLocalDt(t.ticketSaleEndDate),
             isFree: t.isFree,
             ticketStatus: t.ticketStatus,
+            smsPurchaseMessageTemplate: t.smsPurchaseMessageTemplate,
+            emailPurchaseMessageTemplate: t.emailPurchaseMessageTemplate,
           };
         });
         setTicketForms(forms);
@@ -365,6 +375,8 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         ticketSaleStartDate: tf.ticketSaleStartDate ? toISO(tf.ticketSaleStartDate) : undefined,
         ticketSaleEndDate: tf.ticketSaleEndDate ? toISO(tf.ticketSaleEndDate) : undefined,
         isFree: tf.isFree,
+        smsPurchaseMessageTemplate: tf.smsPurchaseMessageTemplate ?? undefined,
+        emailPurchaseMessageTemplate: tf.emailPurchaseMessageTemplate ?? undefined,
       });
       if (resp.status === true) {
         setSuccess(`Ticket "${tf.ticketName}" updated`);
@@ -398,6 +410,8 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         ticketSaleStartDate: toISO(newTicket.ticketSaleStartDate),
         ticketSaleEndDate: toISO(newTicket.ticketSaleEndDate),
         isFree: newTicket.isFree,
+        smsPurchaseMessageTemplate: newTicket.smsPurchaseMessageTemplate || undefined,
+        emailPurchaseMessageTemplate: newTicket.emailPurchaseMessageTemplate || undefined,
       });
       if (resp.status === true) {
         setSuccess(`Ticket "${newTicket.ticketName}" created`);
@@ -721,6 +735,30 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
               </Field>
             </div>
 
+            <div className="space-y-3 pt-1 border-t border-border/60">
+              <p className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider pt-1">Notification Templates</p>
+              <Field label="SMS Template">
+                <textarea
+                  value={newTicket.smsPurchaseMessageTemplate}
+                  onChange={e => setNewTicket(t => ({ ...t, smsPurchaseMessageTemplate: e.target.value }))}
+                  rows={3}
+                  placeholder="Hi {first_name}, your {ticket_name} ticket for {event_name} is confirmed. Access: {ticket_link}"
+                  className="w-full text-sm rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring resize-none font-mono"
+                />
+                <p className="text-[10px] text-muted-foreground/40 mt-1">Placeholders: <span className="font-mono">{'{first_name}'} {'{event_name}'} {'{ticket_name}'} {'{ticket_link}'}</span></p>
+              </Field>
+              <Field label="Email Template">
+                <textarea
+                  value={newTicket.emailPurchaseMessageTemplate}
+                  onChange={e => setNewTicket(t => ({ ...t, emailPurchaseMessageTemplate: e.target.value }))}
+                  rows={4}
+                  placeholder="Dear {first_name},&#10;&#10;Thank you for purchasing your {ticket_name} ticket for {event_name}. We look forward to seeing you!"
+                  className="w-full text-sm rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                />
+                <p className="text-[10px] text-muted-foreground/40 mt-1">Placeholders: <span className="font-mono">{'{first_name}'} {'{event_name}'} {'{ticket_name}'}</span></p>
+              </Field>
+            </div>
+
             <div className="flex justify-end pt-1">
               <Button type="submit" disabled={isCreatingTicket} size="sm" className="h-7 text-xs gap-1.5">
                 {isCreatingTicket ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
@@ -873,25 +911,61 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                               Active
                             </label>
                           </div>
+
+                          <div className="space-y-3 pt-2 border-t border-border/60">
+                            <p className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider">Notification Templates</p>
+                            <Field label="SMS Template">
+                              <textarea
+                                value={String(tf.smsPurchaseMessageTemplate ?? '')}
+                                onChange={e => updateTicketForm(ticket.ticketId, 'smsPurchaseMessageTemplate', e.target.value)}
+                                rows={3}
+                                placeholder="Hi {first_name}, your {ticket_name} ticket for {event_name} is confirmed. Access: {ticket_link}"
+                                className="w-full text-sm rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring resize-none font-mono"
+                              />
+                              <p className="text-[10px] text-muted-foreground/40 mt-1">Placeholders: <span className="font-mono">{'{first_name}'} {'{event_name}'} {'{ticket_name}'} {'{ticket_link}'}</span></p>
+                            </Field>
+                            <Field label="Email Template">
+                              <textarea
+                                value={String(tf.emailPurchaseMessageTemplate ?? '')}
+                                onChange={e => updateTicketForm(ticket.ticketId, 'emailPurchaseMessageTemplate', e.target.value)}
+                                rows={4}
+                                placeholder="Dear {first_name},&#10;&#10;Thank you for purchasing your {ticket_name} ticket for {event_name}. We look forward to seeing you!"
+                                className="w-full text-sm rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                              />
+                              <p className="text-[10px] text-muted-foreground/40 mt-1">Placeholders: <span className="font-mono">{'{first_name}'} {'{event_name}'} {'{ticket_name}'}</span></p>
+                            </Field>
+                          </div>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 text-xs">
-                          <div>
-                            <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-0.5">Available</p>
-                            <p className="font-medium text-foreground tabular-nums">{ticket.quantityAvailable}</p>
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 text-xs">
+                            <div>
+                              <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-0.5">Available</p>
+                              <p className="font-medium text-foreground tabular-nums">{ticket.quantityAvailable}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-0.5">Sold</p>
+                              <p className="font-medium text-foreground tabular-nums">{ticket.soldQuantity}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-0.5">Limit/Person</p>
+                              <p className="font-medium text-foreground tabular-nums">{ticket.ticketLimitPerPerson}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-0.5">Comp.</p>
+                              <p className="font-medium text-foreground tabular-nums">{ticket.numberOfComplementary}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-0.5">Sold</p>
-                            <p className="font-medium text-foreground tabular-nums">{ticket.soldQuantity}</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-0.5">Limit/Person</p>
-                            <p className="font-medium text-foreground tabular-nums">{ticket.ticketLimitPerPerson}</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-0.5">Comp.</p>
-                            <p className="font-medium text-foreground tabular-nums">{ticket.numberOfComplementary}</p>
-                          </div>
+                          {(ticket.smsPurchaseMessageTemplate || ticket.emailPurchaseMessageTemplate) && (
+                            <div className="flex gap-2 pt-1 border-t border-border/40">
+                              {ticket.smsPurchaseMessageTemplate && (
+                                <span className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border text-sky-400 bg-sky-500/10 border-sky-500/20">SMS template set</span>
+                              )}
+                              {ticket.emailPurchaseMessageTemplate && (
+                                <span className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border text-violet-400 bg-violet-500/10 border-violet-500/20">Email template set</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
