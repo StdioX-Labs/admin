@@ -23,6 +23,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/dashboard/finance/transactions': 'Transactions',
   '/dashboard/finance/reports': 'Reports',
   '/dashboard/users': 'Users',
+  '/dashboard/companies': 'Companies',
 };
 
 export const Header = ({ children, onMenuToggle }: HeaderProps) => {

@@ -22,6 +22,8 @@ import {
   Loader2,
   Building2,
   Search,
+  Upload,
+  X,
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -152,6 +154,8 @@ export default function CreateEventPage() {
   const [companyName, setCompanyName] = useState('');
   const [companyLookupLoading, setCompanyLookupLoading] = useState(false);
   const [companyLookupError, setCompanyLookupError] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
   const [form, setForm] = useState<EventForm>({
     eventName: '',
@@ -212,6 +216,34 @@ export default function CreateEventPage() {
       setCompanyLookupError('Failed to look up company');
     } finally {
       setCompanyLookupLoading(false);
+    }
+  };
+
+  // ── Poster upload ─────────────────────────────────────────────────────────
+
+  const handlePosterUpload = async (file: File) => {
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setUploadError('Invalid file type. Use JPEG, PNG, GIF, or WebP.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError('File too large. Maximum size is 10MB.');
+      return;
+    }
+    setIsUploading(true);
+    setUploadError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const resp = await fetch('/api/upload-image', { method: 'POST', body: fd });
+      const data = await resp.json();
+      if (!resp.ok || !data.success) throw new Error(data.error || 'Upload failed');
+      setField('eventPosterUrl', data.url);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -494,22 +526,63 @@ export default function CreateEventPage() {
         </Field>
       </div>
 
-      <Field label="Poster Image URL">
-        <div className="relative">
-          <ImageIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
-          <Input
-            value={form.eventPosterUrl}
-            onChange={e => setField('eventPosterUrl', e.target.value)}
-            placeholder="https://..."
-            className="h-9 text-sm border-border bg-background pl-8"
-          />
-        </div>
-        {form.eventPosterUrl && (
-          <div className="mt-2 rounded-md overflow-hidden border border-border w-24 h-16">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={form.eventPosterUrl} alt="poster preview" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+      <Field label="Poster Image">
+        <div className="space-y-2">
+          {/* File upload area */}
+          <label className={`flex flex-col items-center justify-center gap-2 h-24 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
+            isUploading ? 'border-border bg-accent/20 pointer-events-none' : 'border-border hover:border-foreground/30 hover:bg-accent/20'
+          }`}>
+            <input
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+              className="sr-only"
+              disabled={isUploading}
+              onChange={e => { const f = e.target.files?.[0]; if (f) handlePosterUpload(f); e.target.value = ''; }}
+            />
+            {isUploading ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Uploading...</span>
+              </>
+            ) : (
+              <>
+                <Upload className="h-5 w-5 text-muted-foreground/50" />
+                <span className="text-xs text-muted-foreground/70">Click to upload poster <span className="text-muted-foreground/40">· JPEG, PNG, WebP · max 10MB</span></span>
+              </>
+            )}
+          </label>
+
+          {/* URL fallback */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <LinkIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
+              <Input
+                value={form.eventPosterUrl}
+                onChange={e => { setField('eventPosterUrl', e.target.value); setUploadError(''); }}
+                placeholder="or paste image URL"
+                className="h-9 text-sm border-border bg-background pl-8"
+              />
+            </div>
+            {form.eventPosterUrl && (
+              <button type="button" onClick={() => setField('eventPosterUrl', '')} className="h-9 w-9 flex items-center justify-center rounded-md text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
-        )}
+
+          {uploadError && (
+            <p className="text-xs text-destructive flex items-center gap-1.5">
+              <AlertCircle className="h-3 w-3 flex-shrink-0" />{uploadError}
+            </p>
+          )}
+
+          {form.eventPosterUrl && (
+            <div className="rounded-md overflow-hidden border border-border w-32 h-20">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={form.eventPosterUrl} alt="poster preview" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            </div>
+          )}
+        </div>
       </Field>
     </div>
   );

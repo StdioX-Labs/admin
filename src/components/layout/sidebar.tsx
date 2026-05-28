@@ -14,7 +14,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader, LoadingButton } from "@/components/ui/loader";
-import { LayoutDashboard, CalendarDays, BarChart2, PlusCircle, LogOut, LineChart, Clock } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, BarChart2, PlusCircle, LogOut, LineChart, Clock, Building2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { eventsApi } from '@/lib/api';
 
@@ -47,6 +47,7 @@ export const Sidebar = ({ children, className = '', onClose }: SidebarProps) => 
     { href: '/dashboard/events/sales', label: 'Sales', icon: BarChart2, badge: 0 },
     { href: '/dashboard/events/create', label: 'Create Event', icon: PlusCircle, badge: 0 },
     { href: '/dashboard/analytics', label: 'Analytics', icon: LineChart, badge: 0 },
+    { href: '/dashboard/companies', label: 'Companies', icon: Building2, badge: 0 },
   ];
 
   const handleLogout = async () => {

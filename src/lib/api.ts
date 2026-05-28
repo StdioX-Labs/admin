@@ -509,14 +509,48 @@ export const transactionsApi = {
 };
 
 // Company API
+export interface Company {
+  id: number;
+  companyName: string;
+  emailAddress: string;
+  phoneNumber: string;
+  physicalAddress: string;
+  postalAddress: string;
+  profileType: string;
+  currency: string;
+  bio: string | null;
+  profilePhoto: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const companyApi = {
   getById: async (companyId: number | string) => {
     return fetchApi<{
-      company?: { id: number; companyName: string; emailAddress: string; phoneNumber: string; isActive: boolean };
+      company?: Company;
       data?: unknown;
       message: string;
       status: boolean;
     }>(`/company/${companyId}`, { method: 'GET' });
+  },
+
+  getAll: async (page = 0, size = 20, search?: string) => {
+    let url = `/companies?page=${page}&size=${size}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    return fetchApi<{
+      data?: {
+        companies: Company[];
+        page: number;
+        size: number;
+        totalElements: number;
+        totalPages: number;
+        hasNext: boolean;
+        hasPrevious: boolean;
+      };
+      message: string;
+      status: boolean;
+    }>(url, { method: 'GET' });
   },
 };
 
