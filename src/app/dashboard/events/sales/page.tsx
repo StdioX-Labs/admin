@@ -367,7 +367,7 @@ export default function EventSalesPage() {
         </Button>
         {search && (
           <button
-            onClick={() => { setSearch(''); fetchData(0, undefined); }}
+            onClick={() => { setSearch(''); fetchData(); }}
             className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground border border-border rounded-md bg-transparent transition-colors"
           >
             Clear
