@@ -595,6 +595,8 @@ export const createEventApi = {
     ticketSaleStartDate: string;
     ticketSaleEndDate: string;
     isFree: boolean;
+    smsPurchaseMessageTemplate?: string;
+    emailPurchaseMessageTemplate?: string;
   }) => {
     return fetchApi<{
       message: string;
