@@ -24,7 +24,10 @@ import {
   ChevronDown,
   ChevronUp,
   Upload,
+  PauseCircle,
+  PlayCircle,
 } from 'lucide-react';
+import { SuspendTicketModal } from '@/components/ui/suspend-ticket-modal';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -192,6 +195,15 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
   const [editingTicketId, setEditingTicketId] = useState<number | null>(null);
   const [showNewTicket, setShowNewTicket] = useState(false);
   const [expandedTickets, setExpandedTickets] = useState<Set<number>>(new Set());
+
+  const [showSuspendModal, setShowSuspendModal] = useState(false);
+  const [suspendStep, setSuspendStep] = useState<'confirm' | 'otp'>('confirm');
+  const [suspendActionType, setSuspendActionType] = useState<'suspend' | 'activate'>('suspend');
+  const [suspendTicketId, setSuspendTicketId] = useState<number | null>(null);
+  const [suspendTicketName, setSuspendTicketName] = useState('');
+  const [suspendOtp, setSuspendOtp] = useState('');
+  const [suspendError, setSuspendError] = useState('');
+  const [isSuspending, setIsSuspending] = useState(false);
 
   const [form, setForm] = useState<EventForm>({
     eventName: '',
@@ -427,6 +439,62 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
     } finally {
       setIsCreatingTicket(false);
     }
+  };
+
+  const handleSuspendClick = (ticketId: number, ticketName: string) => {
+    setSuspendTicketId(ticketId);
+    setSuspendTicketName(ticketName);
+    setSuspendActionType('suspend');
+    setSuspendStep('confirm');
+    setSuspendOtp('');
+    setSuspendError('');
+    setShowSuspendModal(true);
+  };
+
+  const handleActivateClick = (ticketId: number, ticketName: string) => {
+    setSuspendTicketId(ticketId);
+    setSuspendTicketName(ticketName);
+    setSuspendActionType('activate');
+    setSuspendStep('confirm');
+    setSuspendOtp('');
+    setSuspendError('');
+    setShowSuspendModal(true);
+  };
+
+  const handleSuspendConfirm = () => {
+    setSuspendStep('otp');
+    setSuspendError('');
+  };
+
+  const handleSuspendOtpSubmit = async () => {
+    if (!suspendTicketId) return;
+    setIsSuspending(true);
+    setSuspendError('');
+    try {
+      const ticketStatus = suspendActionType === 'suspend' ? 'ONHOLD' : 'ACTIVE';
+      const resp = await eventsApi.toggleTicketStatus(suspendTicketId, { otp: suspendOtp, ticketStatus });
+      if (resp.status === true) {
+        setSuccess(`Ticket sales ${suspendActionType === 'suspend' ? 'suspended' : 'activated'} successfully`);
+        setShowSuspendModal(false);
+        setSuspendOtp('');
+        await fetchEvent();
+        setTimeout(() => setSuccess(''), 4000);
+      } else {
+        setSuspendError(resp.message || `Failed to ${suspendActionType} ticket sales`);
+      }
+    } catch (err) {
+      setSuspendError(err instanceof Error ? err.message : `Failed to ${suspendActionType} ticket sales`);
+    } finally {
+      setIsSuspending(false);
+    }
+  };
+
+  const handleSuspendModalClose = () => {
+    if (isSuspending) return;
+    setShowSuspendModal(false);
+    setSuspendStep('confirm');
+    setSuspendOtp('');
+    setSuspendError('');
   };
 
   const toggleTicketExpand = (id: number) => {
@@ -665,6 +733,21 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         </div>
       </form>
 
+      <SuspendTicketModal
+        isOpen={showSuspendModal}
+        onClose={handleSuspendModalClose}
+        step={suspendStep}
+        actionType={suspendActionType}
+        ticketName={suspendTicketName}
+        otp={suspendOtp}
+        onOtpChange={setSuspendOtp}
+        error={suspendError}
+        isLoading={isSuspending}
+        onConfirm={handleSuspendConfirm}
+        onOtpSubmit={handleSuspendOtpSubmit}
+        onBack={() => { setSuspendStep('confirm'); setSuspendError(''); }}
+      />
+
       {/* ── Tickets ────────────────────────────────────────────────────────── */}
       <div className="rounded-xl border border-border bg-card p-5 space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-border">
@@ -820,14 +903,37 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                         {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                       </button>
                       {!isEditing ? (
-                        <Button
-                          onClick={() => { setEditingTicketId(ticket.ticketId); setExpandedTickets(p => new Set([...p, ticket.ticketId])); }}
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-muted-foreground/50 hover:text-foreground transition-colors"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
+                        <>
+                          {ticket.ticketStatus === 'ONHOLD' ? (
+                            <Button
+                              onClick={() => handleActivateClick(ticket.ticketId, ticket.ticketName)}
+                              variant="ghost"
+                              size="sm"
+                              title="Activate ticket sales"
+                              className="h-7 w-7 p-0 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                            >
+                              <PlayCircle className="h-3.5 w-3.5" />
+                            </Button>
+                          ) : !ticket.isSoldOut ? (
+                            <Button
+                              onClick={() => handleSuspendClick(ticket.ticketId, ticket.ticketName)}
+                              variant="ghost"
+                              size="sm"
+                              title="Suspend ticket sales"
+                              className="h-7 w-7 p-0 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                            >
+                              <PauseCircle className="h-3.5 w-3.5" />
+                            </Button>
+                          ) : null}
+                          <Button
+                            onClick={() => { setEditingTicketId(ticket.ticketId); setExpandedTickets(p => new Set([...p, ticket.ticketId])); }}
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-muted-foreground/50 hover:text-foreground transition-colors"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
                       ) : (
                         <>
                           <Button

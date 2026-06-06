@@ -360,6 +360,18 @@ export const eventsApi = {
     });
   },
 
+  // Toggle ticket sale status (suspend / activate)
+  toggleTicketStatus: async (ticketId: string | number, data: { otp: string; ticketStatus: string }) => {
+    return fetchApi<{
+      data: unknown;
+      message: string;
+      status: boolean;
+    }>(`/ticket/status/toggle?ticketId=${ticketId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   // Create new ticket
   createTicket: async (data: Record<string, unknown>) => {
     return fetchApi<{
