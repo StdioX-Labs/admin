@@ -587,7 +587,7 @@ export const createEventApi = {
     eventStartDate: string;
     eventEndDate: string;
     percentageComission: number;
-    users: { id: number };
+    users?: { id: number };
     company: { id: number };
     slug: string;
     currency: string;
