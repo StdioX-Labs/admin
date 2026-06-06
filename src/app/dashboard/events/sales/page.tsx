@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { eventsApi, type AdminEvent } from '@/lib/api';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,8 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
+  Pencil,
+  ExternalLink,
 } from 'lucide-react';
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
@@ -90,7 +93,7 @@ function downloadCSV(events: AdminEvent[]) {
 
 // ─── SalesCard ────────────────────────────────────────────────────────────────
 
-function SalesCard({ event }: { event: AdminEvent }) {
+function SalesCard({ event, onEdit }: { event: AdminEvent; onEdit: (id: number) => void }) {
   const [expanded, setExpanded] = useState(false);
 
   const startDate = new Date(event.eventStartDate);
@@ -163,16 +166,34 @@ function SalesCard({ event }: { event: AdminEvent }) {
             </div>
           </div>
 
-          {/* Expand toggle */}
-          {event.ticketSummaries.length > 0 && (
-            <button
-              onClick={() => setExpanded(e => !e)}
-              className="mt-3 flex items-center gap-1 text-[11px] text-muted-foreground/50 hover:text-foreground transition-colors"
-            >
-              {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-              {expanded ? 'Hide' : 'Show'} ticket breakdown
-            </button>
-          )}
+          {/* Actions + expand toggle */}
+          <div className="flex items-center justify-between mt-3">
+            {event.ticketSummaries.length > 0 ? (
+              <button
+                onClick={() => setExpanded(e => !e)}
+                className="flex items-center gap-1 text-[11px] text-muted-foreground/50 hover:text-foreground transition-colors"
+              >
+                {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                {expanded ? 'Hide' : 'Show'} ticket breakdown
+              </button>
+            ) : <span />}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => window.open(`https://soldoutafrica.com/${event.slug}`, '_blank')}
+                className="flex items-center gap-1 text-[11px] text-muted-foreground/50 hover:text-foreground border border-border/50 hover:border-border rounded px-2 py-1 transition-colors"
+              >
+                <ExternalLink className="h-3 w-3" />
+                View
+              </button>
+              <button
+                onClick={() => onEdit(event.eventId)}
+                className="flex items-center gap-1 text-[11px] text-muted-foreground/50 hover:text-foreground border border-border/50 hover:border-border rounded px-2 py-1 transition-colors"
+              >
+                <Pencil className="h-3 w-3" />
+                Edit
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -219,6 +240,7 @@ function SalesCard({ event }: { event: AdminEvent }) {
 const PAGE_SIZE = 20;
 
 export default function EventSalesPage() {
+  const router = useRouter();
   const [allEvents, setAllEvents] = useState<AdminEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -404,7 +426,7 @@ export default function EventSalesPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {events.map(event => <SalesCard key={event.eventId} event={event} />)}
+            {events.map(event => <SalesCard key={event.eventId} event={event} onEdit={(id) => router.push(`/dashboard/events/${id}/edit`)} />)}
           </div>
         )}
       </div>
