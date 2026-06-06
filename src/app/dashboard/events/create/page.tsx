@@ -289,7 +289,6 @@ export default function CreateEventPage() {
         eventStartDate: toIso(form.eventStartDate),
         eventEndDate: toIso(form.eventEndDate),
         percentageComission: commission,
-        users: { id: 0 },
         company: { id: companyIdNum },
         slug: form.slug.trim(),
         currency: form.currency,
