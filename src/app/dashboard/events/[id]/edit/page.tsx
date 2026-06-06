@@ -455,13 +455,18 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
     setShowSuspendModal(true);
   };
 
-  const handleSuspendConfirm = async () => {
+  const handleSuspendRequestOtp = async () => {
+    setSuspendError('');
+    await eventsApi.requestChallenge();
+  };
+
+  const handleSuspendConfirm = async (otp: string) => {
     if (suspendTicketId === null) return;
     setIsSuspending(true);
     setSuspendError('');
     try {
       const ticketStatus = suspendActionType === 'suspend' ? 'ONHOLD' : 'ACTIVE';
-      const resp = await eventsApi.toggleTicketStatus(suspendTicketId, { otp: '', ticketStatus });
+      const resp = await eventsApi.toggleTicketStatus(suspendTicketId, { otp, ticketStatus });
       if (resp.status === true) {
         setSuccess(`Ticket sales ${suspendActionType === 'suspend' ? 'suspended' : 'activated'} successfully`);
         setShowSuspendModal(false);
@@ -727,6 +732,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         ticketName={suspendTicketName}
         error={suspendError}
         isLoading={isSuspending}
+        onRequestOtp={handleSuspendRequestOtp}
         onConfirm={handleSuspendConfirm}
       />
 

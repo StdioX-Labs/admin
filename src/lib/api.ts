@@ -360,6 +360,13 @@ export const eventsApi = {
     });
   },
 
+  // Request OTP challenge for the currently logged-in admin
+  requestChallenge: async () => {
+    return fetchApi<{ status: boolean; message: string }>('/user/challenge', {
+      method: 'GET',
+    });
+  },
+
   // Toggle ticket sale status (suspend / activate)
   toggleTicketStatus: async (ticketId: string | number, data: { otp: string; ticketStatus: string }) => {
     return fetchApi<{
