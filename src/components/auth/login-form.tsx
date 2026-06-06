@@ -89,9 +89,8 @@ export const LoginForm = () => {
     }
   };
 
-  const handleOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const otpError = validateOtpInput(formData.otp);
+  const submitOtp = async (otp: string) => {
+    const otpError = validateOtpInput(otp);
     if (otpError) {
       setValidationErrors({ otp: otpError });
       return;
@@ -99,7 +98,7 @@ export const LoginForm = () => {
     setError('');
     setValidationErrors({});
     try {
-      const response = await validateOtp(formData.otp);
+      const response = await validateOtp(otp);
       if (response.status && response.user) {
         if (response.user.role === 'SUPER_ADMIN') {
           setStep('login');
@@ -112,6 +111,11 @@ export const LoginForm = () => {
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Verification failed');
     }
+  };
+
+  const handleOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitOtp(formData.otp);
   };
 
   const handleResendOtp = async () => {
@@ -216,11 +220,10 @@ export const LoginForm = () => {
               <OtpInput
                 value={formData.otp}
                 onChange={(value) => handleInputChange('otp', value)}
+                onComplete={(otp) => submitOtp(otp)}
                 length={4}
                 disabled={isValidatingOtp}
-                className={`bg-background text-foreground border-border focus:ring-ring ${
-                  validationErrors.otp ? 'border-destructive' : ''
-                }`}
+                className={validationErrors.otp ? 'border-destructive' : ''}
               />
               {validationErrors.otp && (
                 <p className="text-xs text-destructive">{validationErrors.otp}</p>

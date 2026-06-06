@@ -344,27 +344,27 @@ export default function EventSalesPage() {
 
       {/* Summary stats — page totals */}
       {!isLoading && events.length > 0 && (
-        <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-lg border border-border bg-card px-4 py-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <DollarSign className="h-3 w-3 text-emerald-400" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="rounded-lg border border-border bg-card px-3 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between sm:block">
+            <div className="flex items-center gap-1.5 sm:mb-1">
+              <DollarSign className="h-3 w-3 text-emerald-400 flex-shrink-0" />
               <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Page Revenue</span>
             </div>
-            <p className="text-lg font-bold tabular-nums text-emerald-400">{fmt(totRevenue)}</p>
+            <p className="text-sm sm:text-lg font-bold tabular-nums text-emerald-400">{fmt(totRevenue)}</p>
           </div>
-          <div className="rounded-lg border border-border bg-card px-4 py-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <TrendingUp className="h-3 w-3 text-blue-400" />
+          <div className="rounded-lg border border-border bg-card px-3 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between sm:block">
+            <div className="flex items-center gap-1.5 sm:mb-1">
+              <TrendingUp className="h-3 w-3 text-blue-400 flex-shrink-0" />
               <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Platform Fees</span>
             </div>
-            <p className="text-lg font-bold tabular-nums text-blue-400">{fmt(totFees)}</p>
+            <p className="text-sm sm:text-lg font-bold tabular-nums text-blue-400">{fmt(totFees)}</p>
           </div>
-          <div className="rounded-lg border border-border bg-card px-4 py-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <Ticket className="h-3 w-3 text-violet-400" />
+          <div className="rounded-lg border border-border bg-card px-3 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between sm:block">
+            <div className="flex items-center gap-1.5 sm:mb-1">
+              <Ticket className="h-3 w-3 text-violet-400 flex-shrink-0" />
               <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Tickets Sold</span>
             </div>
-            <p className="text-lg font-bold tabular-nums text-violet-400">{fmtNum(totSold)}</p>
+            <p className="text-sm sm:text-lg font-bold tabular-nums text-violet-400">{fmtNum(totSold)}</p>
           </div>
         </div>
       )}
