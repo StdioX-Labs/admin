@@ -197,11 +197,9 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
   const [expandedTickets, setExpandedTickets] = useState<Set<number>>(new Set());
 
   const [showSuspendModal, setShowSuspendModal] = useState(false);
-  const [suspendStep, setSuspendStep] = useState<'confirm' | 'otp'>('confirm');
   const [suspendActionType, setSuspendActionType] = useState<'suspend' | 'activate'>('suspend');
   const [suspendTicketId, setSuspendTicketId] = useState<number | null>(null);
   const [suspendTicketName, setSuspendTicketName] = useState('');
-  const [suspendOtp, setSuspendOtp] = useState('');
   const [suspendError, setSuspendError] = useState('');
   const [isSuspending, setIsSuspending] = useState(false);
 
@@ -445,8 +443,6 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
     setSuspendTicketId(ticketId);
     setSuspendTicketName(ticketName);
     setSuspendActionType('suspend');
-    setSuspendStep('confirm');
-    setSuspendOtp('');
     setSuspendError('');
     setShowSuspendModal(true);
   };
@@ -455,28 +451,20 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
     setSuspendTicketId(ticketId);
     setSuspendTicketName(ticketName);
     setSuspendActionType('activate');
-    setSuspendStep('confirm');
-    setSuspendOtp('');
     setSuspendError('');
     setShowSuspendModal(true);
   };
 
-  const handleSuspendConfirm = () => {
-    setSuspendStep('otp');
-    setSuspendError('');
-  };
-
-  const handleSuspendOtpSubmit = async () => {
-    if (!suspendTicketId) return;
+  const handleSuspendConfirm = async () => {
+    if (suspendTicketId === null) return;
     setIsSuspending(true);
     setSuspendError('');
     try {
       const ticketStatus = suspendActionType === 'suspend' ? 'ONHOLD' : 'ACTIVE';
-      const resp = await eventsApi.toggleTicketStatus(suspendTicketId, { otp: suspendOtp, ticketStatus });
+      const resp = await eventsApi.toggleTicketStatus(suspendTicketId, { otp: '', ticketStatus });
       if (resp.status === true) {
         setSuccess(`Ticket sales ${suspendActionType === 'suspend' ? 'suspended' : 'activated'} successfully`);
         setShowSuspendModal(false);
-        setSuspendOtp('');
         await fetchEvent();
         setTimeout(() => setSuccess(''), 4000);
       } else {
@@ -492,8 +480,6 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
   const handleSuspendModalClose = () => {
     if (isSuspending) return;
     setShowSuspendModal(false);
-    setSuspendStep('confirm');
-    setSuspendOtp('');
     setSuspendError('');
   };
 
@@ -532,8 +518,9 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
+          type="button"
           onClick={() => router.push('/dashboard/events')}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors min-h-[36px]"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Events
@@ -636,7 +623,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
           </Field>
         </div>
 
-        <div className="grid sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <Field label="Status">
             <select
               value={form.status}
@@ -736,16 +723,11 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
       <SuspendTicketModal
         isOpen={showSuspendModal}
         onClose={handleSuspendModalClose}
-        step={suspendStep}
         actionType={suspendActionType}
         ticketName={suspendTicketName}
-        otp={suspendOtp}
-        onOtpChange={setSuspendOtp}
         error={suspendError}
         isLoading={isSuspending}
         onConfirm={handleSuspendConfirm}
-        onOtpSubmit={handleSuspendOtpSubmit}
-        onBack={() => { setSuspendStep('confirm'); setSuspendError(''); }}
       />
 
       {/* ── Tickets ────────────────────────────────────────────────────────── */}
@@ -794,7 +776,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
               </Field>
             </div>
 
-            <div className="grid sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <Field label="Quantity" required>
                 <Input type="number" min="1" value={newTicket.quantityAvailable} onChange={e => setNewTicket(t => ({ ...t, quantityAvailable: e.target.value }))} placeholder="100" className="h-9 text-sm border-border bg-background" />
               </Field>
@@ -806,7 +788,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
               </Field>
             </div>
 
-            <div className="grid sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <Field label="Complementary">
                 <Input type="number" min="0" value={newTicket.numberOfComplementary} onChange={e => setNewTicket(t => ({ ...t, numberOfComplementary: e.target.value }))} className="h-9 text-sm border-border bg-background" />
               </Field>
@@ -868,13 +850,15 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
               return (
                 <div key={ticket.ticketId} className="rounded-lg border border-border bg-background/30 overflow-hidden">
                   {/* Ticket header */}
-                  <div className="flex items-center gap-3 px-4 py-3">
+                  <div className="flex items-center gap-2 px-3 py-3 sm:px-4">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-foreground">{ticket.ticketName}</span>
-                        <span className={`inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border ${
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm font-medium text-foreground truncate">{ticket.ticketName}</span>
+                        <span className={`inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border flex-shrink-0 ${
                           ticket.ticketStatus === 'ACTIVE' || ticket.isActive
                             ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                            : ticket.ticketStatus === 'ONHOLD'
+                            ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
                             : 'text-muted-foreground bg-accent border-border'
                         }`}>
                           {ticket.ticketStatus || (ticket.isActive ? 'ACTIVE' : 'INACTIVE')}
@@ -895,10 +879,11 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex items-center gap-0.5 flex-shrink-0">
                       <button
+                        type="button"
                         onClick={() => toggleTicketExpand(ticket.ticketId)}
-                        className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground/50 hover:text-foreground hover:bg-accent/50 transition-colors"
+                        className="h-8 w-8 flex items-center justify-center rounded text-muted-foreground/50 hover:text-foreground hover:bg-accent/50 transition-colors"
                       >
                         {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                       </button>
@@ -910,7 +895,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                               variant="ghost"
                               size="sm"
                               title="Activate ticket sales"
-                              className="h-7 w-7 p-0 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                              className="h-8 w-8 p-0 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
                             >
                               <PlayCircle className="h-3.5 w-3.5" />
                             </Button>
@@ -920,7 +905,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                               variant="ghost"
                               size="sm"
                               title="Suspend ticket sales"
-                              className="h-7 w-7 p-0 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                              className="h-8 w-8 p-0 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
                             >
                               <PauseCircle className="h-3.5 w-3.5" />
                             </Button>
@@ -929,7 +914,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                             onClick={() => { setEditingTicketId(ticket.ticketId); setExpandedTickets(p => new Set([...p, ticket.ticketId])); }}
                             variant="ghost"
                             size="sm"
-                            className="h-7 w-7 p-0 text-muted-foreground/50 hover:text-foreground transition-colors"
+                            className="h-8 w-8 p-0 text-muted-foreground/50 hover:text-foreground transition-colors"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
@@ -960,7 +945,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
                   {/* Expanded details / edit form */}
                   {isExpanded && (
-                    <div className="border-t border-border/60 px-4 py-3 bg-background/20">
+                    <div className="border-t border-border/60 px-3 py-3 sm:px-4 bg-background/20">
                       {isEditing ? (
                         <div className="space-y-3">
                           <div className="grid sm:grid-cols-2 gap-3">
@@ -984,7 +969,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                               </div>
                             </Field>
                           </div>
-                          <div className="grid sm:grid-cols-3 gap-3">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <Field label="Quantity">
                               <Input type="number" min="0" value={String(tf.quantityAvailable ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'quantityAvailable', parseInt(e.target.value) || 0)} className="h-9 text-sm border-border bg-background" />
                             </Field>
@@ -995,7 +980,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                               <Input type="number" min="0" value={String(tf.ticketLimitPerPerson ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'ticketLimitPerPerson', parseInt(e.target.value) || 0)} className="h-9 text-sm border-border bg-background" />
                             </Field>
                           </div>
-                          <div className="grid sm:grid-cols-3 gap-3">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <Field label="Complementary">
                               <Input type="number" min="0" value={String(tf.numberOfComplementary ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'numberOfComplementary', parseInt(e.target.value) || 0)} className="h-9 text-sm border-border bg-background" />
                             </Field>
