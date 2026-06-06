@@ -34,11 +34,13 @@ export const OtpInput = React.forwardRef<HTMLInputElement, OtpInputProps>(
         className="relative flex gap-2 justify-center"
         onClick={() => inputRef.current?.focus()}
       >
+        {/* Visual digit boxes */}
         {digits.map((digit, i) => (
           <div
             key={i}
+            aria-hidden="true"
             className={cn(
-              'h-12 w-12 flex items-center justify-center text-lg font-medium rounded-md border transition-colors select-none',
+              'h-12 w-12 flex items-center justify-center text-lg font-medium rounded-md border transition-colors select-none pointer-events-none',
               isFocused && i === activeIndex
                 ? 'border-ring ring-2 ring-ring ring-offset-background'
                 : 'border-input',
@@ -52,6 +54,12 @@ export const OtpInput = React.forwardRef<HTMLInputElement, OtpInputProps>(
           </div>
         ))}
 
+        {/*
+          Real input — positioned over the boxes but invisible so iOS
+          can still detect it for SMS/email autofill (autoComplete="one-time-code").
+          Using opacity-0 alone is enough; iOS autofill triggers on focus
+          regardless of visual opacity.
+        */}
         <input
           ref={inputRef}
           type="text"
@@ -65,7 +73,8 @@ export const OtpInput = React.forwardRef<HTMLInputElement, OtpInputProps>(
           onBlur={() => setIsFocused(false)}
           disabled={disabled}
           aria-label="One-time password"
-          className="absolute inset-0 opacity-0 w-full cursor-text disabled:cursor-not-allowed"
+          className="absolute inset-0 opacity-0 w-full h-full cursor-text disabled:cursor-not-allowed"
+          style={{ fontSize: '16px' }} // prevent iOS zoom-in on focus
         />
       </div>
     );

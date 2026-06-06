@@ -164,7 +164,7 @@ function toISO(s: string): string {
 
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5 min-w-0">
       <label className="text-xs font-medium text-muted-foreground">
         {label}{required && <span className="text-destructive ml-0.5">*</span>}
       </label>
@@ -563,7 +563,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
       )}
 
       {/* ── Event Details Form ─────────────────────────────────────────────── */}
-      <form onSubmit={handleSaveEvent} className="rounded-xl border border-border bg-card p-5 space-y-4">
+      <form onSubmit={handleSaveEvent} className="rounded-xl border border-border bg-card p-5 space-y-4 overflow-x-hidden">
         <div className="flex items-center justify-between pb-3 border-b border-border">
           <h2 className="text-sm font-semibold text-foreground">Event Details</h2>
           <Button type="submit" disabled={isSaving} size="sm" className="h-7 text-xs gap-1.5">
@@ -577,12 +577,12 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
             <Input value={form.eventName} onChange={e => setF('eventName', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
           </Field>
           <Field label="Category">
-            <div className="relative">
+            <div className="relative min-w-0 w-full">
               <Tag className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
               <select
                 value={form.eventCategoryId}
                 onChange={e => setF('eventCategoryId', e.target.value)}
-                className="w-full h-9 text-sm rounded-md border border-border bg-background pl-8 pr-3 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full h-9 text-xs sm:text-sm rounded-md border border-border bg-background min-w-0 pl-8 pr-3 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="">Select category</option>
                 {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
@@ -601,7 +601,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         </Field>
 
         <Field label="Location" required>
-          <div className="relative">
+          <div className="relative min-w-0 w-full">
             <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
             <Input value={form.eventLocation} onChange={e => setF('eventLocation', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background pl-8 min-w-0" />
           </div>
@@ -609,13 +609,13 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Event Start" required>
-            <div className="relative">
+            <div className="relative min-w-0 w-full">
               <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
               <Input type="datetime-local" value={form.eventStartDate} onChange={e => setF('eventStartDate', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background pl-8 min-w-0" />
             </div>
           </Field>
           <Field label="Event End" required>
-            <div className="relative">
+            <div className="relative min-w-0 w-full">
               <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
               <Input type="datetime-local" value={form.eventEndDate} onChange={e => setF('eventEndDate', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background pl-8 min-w-0" />
             </div>
@@ -633,7 +633,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
             <select
               value={form.status}
               onChange={e => setF('status', e.target.value)}
-              className="w-full h-9 text-sm rounded-md border border-border bg-background px-3 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full h-9 text-xs sm:text-sm rounded-md border border-border bg-background min-w-0 px-3 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option value="">— no change —</option>
               {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
@@ -655,7 +655,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
             <select
               value={form.currency}
               onChange={e => setF('currency', e.target.value)}
-              className="w-full h-9 text-sm rounded-md border border-border bg-background px-3 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full h-9 text-xs sm:text-sm rounded-md border border-border bg-background min-w-0 px-3 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
               {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -684,7 +684,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                 <><Upload className="h-4 w-4 text-muted-foreground/50" /><span className="text-xs text-muted-foreground/70">Click to upload <span className="text-muted-foreground/40">· JPEG, PNG, WebP · max 10MB</span></span></>
               )}
             </label>
-            <div className="relative">
+            <div className="relative min-w-0 w-full">
               <Input value={form.eventPosterUrl} onChange={e => { setF('eventPosterUrl', e.target.value); setUploadError(''); }} placeholder="or paste image URL" className="h-9 text-sm border-border bg-background pr-8" />
               {form.eventPosterUrl && (
                 <button type="button" onClick={() => setF('eventPosterUrl', '')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-destructive transition-colors">
@@ -737,7 +737,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
       />
 
       {/* ── Tickets ────────────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+      <div className="rounded-xl border border-border bg-card p-5 space-y-4 overflow-x-hidden">
         <div className="flex items-center justify-between pb-3 border-b border-border">
           <div className="flex items-center gap-2">
             <Ticket className="h-3.5 w-3.5 text-muted-foreground/60" />
@@ -794,7 +794,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
               </Field>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Field label="Complementary">
                 <Input type="number" min="0" value={newTicket.numberOfComplementary} onChange={e => setNewTicket(t => ({ ...t, numberOfComplementary: e.target.value }))} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
               </Field>
@@ -986,7 +986,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                               <Input type="number" min="0" value={String(tf.ticketLimitPerPerson ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'ticketLimitPerPerson', parseInt(e.target.value) || 0)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
                             </Field>
                           </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <Field label="Complementary">
                               <Input type="number" min="0" value={String(tf.numberOfComplementary ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'numberOfComplementary', parseInt(e.target.value) || 0)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
                             </Field>
