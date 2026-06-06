@@ -569,7 +569,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Event Name" required>
-            <Input value={form.eventName} onChange={e => setF('eventName', e.target.value)} className="h-9 text-sm border-border bg-background" />
+            <Input value={form.eventName} onChange={e => setF('eventName', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
           </Field>
           <Field label="Category">
             <div className="relative">
@@ -598,7 +598,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         <Field label="Location" required>
           <div className="relative">
             <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
-            <Input value={form.eventLocation} onChange={e => setF('eventLocation', e.target.value)} className="h-9 text-sm border-border bg-background pl-8" />
+            <Input value={form.eventLocation} onChange={e => setF('eventLocation', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background pl-8 min-w-0" />
           </div>
         </Field>
 
@@ -606,20 +606,20 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
           <Field label="Event Start" required>
             <div className="relative">
               <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
-              <Input type="datetime-local" value={form.eventStartDate} onChange={e => setF('eventStartDate', e.target.value)} className="h-9 text-sm border-border bg-background pl-8" />
+              <Input type="datetime-local" value={form.eventStartDate} onChange={e => setF('eventStartDate', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background pl-8 min-w-0" />
             </div>
           </Field>
           <Field label="Event End" required>
             <div className="relative">
               <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
-              <Input type="datetime-local" value={form.eventEndDate} onChange={e => setF('eventEndDate', e.target.value)} className="h-9 text-sm border-border bg-background pl-8" />
+              <Input type="datetime-local" value={form.eventEndDate} onChange={e => setF('eventEndDate', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background pl-8 min-w-0" />
             </div>
           </Field>
           <Field label="Ticket Sale Start">
-            <Input type="datetime-local" value={form.ticketSaleStartDate} onChange={e => setF('ticketSaleStartDate', e.target.value)} className="h-9 text-sm border-border bg-background" />
+            <Input type="datetime-local" value={form.ticketSaleStartDate} onChange={e => setF('ticketSaleStartDate', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
           </Field>
           <Field label="Ticket Sale End">
-            <Input type="datetime-local" value={form.ticketSaleEndDate} onChange={e => setF('ticketSaleEndDate', e.target.value)} className="h-9 text-sm border-border bg-background" />
+            <Input type="datetime-local" value={form.ticketSaleEndDate} onChange={e => setF('ticketSaleEndDate', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
           </Field>
         </div>
 
@@ -755,7 +755,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
             <div className="grid sm:grid-cols-2 gap-3">
               <Field label="Name" required>
-                <Input value={newTicket.ticketName} onChange={e => setNewTicket(t => ({ ...t, ticketName: e.target.value }))} placeholder="e.g. VIP" className="h-9 text-sm border-border bg-background" />
+                <Input value={newTicket.ticketName} onChange={e => setNewTicket(t => ({ ...t, ticketName: e.target.value }))} placeholder="e.g. VIP" className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
               </Field>
               <Field label="Price">
                 <div className="flex items-center gap-2">
@@ -778,25 +778,25 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <Field label="Quantity" required>
-                <Input type="number" min="1" value={newTicket.quantityAvailable} onChange={e => setNewTicket(t => ({ ...t, quantityAvailable: e.target.value }))} placeholder="100" className="h-9 text-sm border-border bg-background" />
+                <Input type="number" min="1" value={newTicket.quantityAvailable} onChange={e => setNewTicket(t => ({ ...t, quantityAvailable: e.target.value }))} placeholder="100" className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
               </Field>
               <Field label="To Issue">
-                <Input type="number" min="0" value={newTicket.ticketsToIssue} onChange={e => setNewTicket(t => ({ ...t, ticketsToIssue: e.target.value }))} placeholder="Same as qty" className="h-9 text-sm border-border bg-background" />
+                <Input type="number" min="0" value={newTicket.ticketsToIssue} onChange={e => setNewTicket(t => ({ ...t, ticketsToIssue: e.target.value }))} placeholder="Same as qty" className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
               </Field>
               <Field label="Limit / Person">
-                <Input type="number" min="1" value={newTicket.ticketLimitPerPerson} onChange={e => setNewTicket(t => ({ ...t, ticketLimitPerPerson: e.target.value }))} className="h-9 text-sm border-border bg-background" />
+                <Input type="number" min="1" value={newTicket.ticketLimitPerPerson} onChange={e => setNewTicket(t => ({ ...t, ticketLimitPerPerson: e.target.value }))} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
               </Field>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <Field label="Complementary">
-                <Input type="number" min="0" value={newTicket.numberOfComplementary} onChange={e => setNewTicket(t => ({ ...t, numberOfComplementary: e.target.value }))} className="h-9 text-sm border-border bg-background" />
+                <Input type="number" min="0" value={newTicket.numberOfComplementary} onChange={e => setNewTicket(t => ({ ...t, numberOfComplementary: e.target.value }))} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
               </Field>
               <Field label="Sale Start">
-                <Input type="datetime-local" value={newTicket.ticketSaleStartDate} onChange={e => setNewTicket(t => ({ ...t, ticketSaleStartDate: e.target.value }))} className="h-9 text-sm border-border bg-background" />
+                <Input type="datetime-local" value={newTicket.ticketSaleStartDate} onChange={e => setNewTicket(t => ({ ...t, ticketSaleStartDate: e.target.value }))} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
               </Field>
               <Field label="Sale End">
-                <Input type="datetime-local" value={newTicket.ticketSaleEndDate} onChange={e => setNewTicket(t => ({ ...t, ticketSaleEndDate: e.target.value }))} className="h-9 text-sm border-border bg-background" />
+                <Input type="datetime-local" value={newTicket.ticketSaleEndDate} onChange={e => setNewTicket(t => ({ ...t, ticketSaleEndDate: e.target.value }))} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
               </Field>
             </div>
 
@@ -950,7 +950,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                         <div className="space-y-3">
                           <div className="grid sm:grid-cols-2 gap-3">
                             <Field label="Ticket Name">
-                              <Input value={String(tf.ticketName ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'ticketName', e.target.value)} className="h-9 text-sm border-border bg-background" />
+                              <Input value={String(tf.ticketName ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'ticketName', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
                             </Field>
                             <Field label="Price">
                               <div className="flex items-center gap-2">
@@ -971,24 +971,24 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                           </div>
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <Field label="Quantity">
-                              <Input type="number" min="0" value={String(tf.quantityAvailable ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'quantityAvailable', parseInt(e.target.value) || 0)} className="h-9 text-sm border-border bg-background" />
+                              <Input type="number" min="0" value={String(tf.quantityAvailable ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'quantityAvailable', parseInt(e.target.value) || 0)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
                             </Field>
                             <Field label="To Issue">
-                              <Input type="number" min="0" value={String(tf.ticketsToIssue ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'ticketsToIssue', parseInt(e.target.value) || 0)} className="h-9 text-sm border-border bg-background" />
+                              <Input type="number" min="0" value={String(tf.ticketsToIssue ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'ticketsToIssue', parseInt(e.target.value) || 0)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
                             </Field>
                             <Field label="Limit / Person">
-                              <Input type="number" min="0" value={String(tf.ticketLimitPerPerson ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'ticketLimitPerPerson', parseInt(e.target.value) || 0)} className="h-9 text-sm border-border bg-background" />
+                              <Input type="number" min="0" value={String(tf.ticketLimitPerPerson ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'ticketLimitPerPerson', parseInt(e.target.value) || 0)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
                             </Field>
                           </div>
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <Field label="Complementary">
-                              <Input type="number" min="0" value={String(tf.numberOfComplementary ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'numberOfComplementary', parseInt(e.target.value) || 0)} className="h-9 text-sm border-border bg-background" />
+                              <Input type="number" min="0" value={String(tf.numberOfComplementary ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'numberOfComplementary', parseInt(e.target.value) || 0)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
                             </Field>
                             <Field label="Sale Start">
-                              <Input type="datetime-local" value={String(tf.ticketSaleStartDate ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'ticketSaleStartDate', e.target.value)} className="h-9 text-sm border-border bg-background" />
+                              <Input type="datetime-local" value={String(tf.ticketSaleStartDate ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'ticketSaleStartDate', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
                             </Field>
                             <Field label="Sale End">
-                              <Input type="datetime-local" value={String(tf.ticketSaleEndDate ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'ticketSaleEndDate', e.target.value)} className="h-9 text-sm border-border bg-background" />
+                              <Input type="datetime-local" value={String(tf.ticketSaleEndDate ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'ticketSaleEndDate', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
                             </Field>
                           </div>
                           <div className="flex items-center gap-3 pt-1">
