@@ -15,6 +15,7 @@ import {
   Trash2,
   Ticket,
   Calendar,
+  Clock,
   MapPin,
   Tag,
   Link as LinkIcon,
@@ -107,6 +108,41 @@ function Field({ label, required, children }: { label: string; required?: boolea
         {label}{required && <span className="text-destructive ml-0.5">*</span>}
       </label>
       {children}
+    </div>
+  );
+}
+
+// ─── Date + Time picker ───────────────────────────────────────────────────────
+
+function DateTimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const datePart = value ? value.split('T')[0] : '';
+  const timePart = value && value.includes('T') ? value.split('T')[1].slice(0, 5) : '';
+
+  const emit = (d: string, t: string) => {
+    if (!d) { onChange(''); return; }
+    onChange(`${d}T${t || '00:00'}`);
+  };
+
+  return (
+    <div className="flex gap-1.5">
+      <div className="relative flex-1 min-w-0">
+        <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
+        <input
+          type="date"
+          value={datePart}
+          onChange={e => emit(e.target.value, timePart)}
+          className="w-full h-10 text-sm rounded-md border border-border bg-background pl-8 pr-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      </div>
+      <div className="relative w-28 flex-shrink-0">
+        <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
+        <input
+          type="time"
+          value={timePart}
+          onChange={e => emit(datePart, e.target.value)}
+          className="w-full h-10 text-sm rounded-md border border-border bg-background pl-8 pr-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      </div>
     </div>
   );
 }
@@ -451,36 +487,16 @@ export default function CreateEventPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Event Start Date & Time" required>
-          <Input
-            type="datetime-local"
-            value={form.eventStartDate}
-            onChange={e => setField('eventStartDate', e.target.value)}
-            className="h-10 text-sm border-border bg-background"
-          />
+          <DateTimePicker value={form.eventStartDate} onChange={v => setField('eventStartDate', v)} />
         </Field>
         <Field label="Event End Date & Time" required>
-          <Input
-            type="datetime-local"
-            value={form.eventEndDate}
-            onChange={e => setField('eventEndDate', e.target.value)}
-            className="h-10 text-sm border-border bg-background"
-          />
+          <DateTimePicker value={form.eventEndDate} onChange={v => setField('eventEndDate', v)} />
         </Field>
         <Field label="Ticket Sale Start" required>
-          <Input
-            type="datetime-local"
-            value={form.ticketSaleStartDate}
-            onChange={e => setField('ticketSaleStartDate', e.target.value)}
-            className="h-10 text-sm border-border bg-background"
-          />
+          <DateTimePicker value={form.ticketSaleStartDate} onChange={v => setField('ticketSaleStartDate', v)} />
         </Field>
         <Field label="Ticket Sale End" required>
-          <Input
-            type="datetime-local"
-            value={form.ticketSaleEndDate}
-            onChange={e => setField('ticketSaleEndDate', e.target.value)}
-            className="h-10 text-sm border-border bg-background"
-          />
+          <DateTimePicker value={form.ticketSaleEndDate} onChange={v => setField('ticketSaleEndDate', v)} />
         </Field>
       </div>
 
@@ -668,30 +684,26 @@ export default function CreateEventPage() {
             </Field>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Field label="Complementary Tickets">
-              <Input
-                type="number"
-                min="0"
-                value={t.numberOfComplementary}
-                onChange={e => setTicketField(idx, 'numberOfComplementary', e.target.value)}
-                className="h-10 text-sm border-border bg-background"
-              />
-            </Field>
+          <Field label="Complementary Tickets">
+            <Input
+              type="number"
+              min="0"
+              value={t.numberOfComplementary}
+              onChange={e => setTicketField(idx, 'numberOfComplementary', e.target.value)}
+              className="h-10 text-sm border-border bg-background"
+            />
+          </Field>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Sale Start">
-              <Input
-                type="datetime-local"
+              <DateTimePicker
                 value={t.ticketSaleStartDate || form.ticketSaleStartDate}
-                onChange={e => setTicketField(idx, 'ticketSaleStartDate', e.target.value)}
-                className="h-10 text-sm border-border bg-background"
+                onChange={v => setTicketField(idx, 'ticketSaleStartDate', v)}
               />
             </Field>
             <Field label="Sale End">
-              <Input
-                type="datetime-local"
+              <DateTimePicker
                 value={t.ticketSaleEndDate || form.ticketSaleEndDate}
-                onChange={e => setTicketField(idx, 'ticketSaleEndDate', e.target.value)}
-                className="h-10 text-sm border-border bg-background"
+                onChange={v => setTicketField(idx, 'ticketSaleEndDate', v)}
               />
             </Field>
           </div>

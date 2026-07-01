@@ -16,6 +16,7 @@ import {
   X,
   Ticket,
   Calendar,
+  Clock,
   MapPin,
   Building2,
   Globe,
@@ -175,6 +176,39 @@ function Field({ label, required, children }: { label: string; required?: boolea
 
 function emptyNewTicket(): NewTicketForm {
   return { ticketName: '', ticketPrice: '', quantityAvailable: '', ticketsToIssue: '', ticketLimitPerPerson: '1', numberOfComplementary: '0', ticketSaleStartDate: '', ticketSaleEndDate: '', isFree: false, smsPurchaseMessageTemplate: '', emailPurchaseMessageTemplate: '' };
+}
+
+function DateTimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const datePart = value ? value.split('T')[0] : '';
+  const timePart = value && value.includes('T') ? value.split('T')[1].slice(0, 5) : '';
+
+  const emit = (d: string, t: string) => {
+    if (!d) { onChange(''); return; }
+    onChange(`${d}T${t || '00:00'}`);
+  };
+
+  return (
+    <div className="flex gap-1.5">
+      <div className="relative flex-1 min-w-0">
+        <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
+        <input
+          type="date"
+          value={datePart}
+          onChange={e => emit(e.target.value, timePart)}
+          className="w-full h-9 text-xs sm:text-sm rounded-md border border-border bg-background pl-8 pr-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      </div>
+      <div className="relative w-28 flex-shrink-0">
+        <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
+        <input
+          type="time"
+          value={timePart}
+          onChange={e => emit(datePart, e.target.value)}
+          className="w-full h-9 text-xs sm:text-sm rounded-md border border-border bg-background pl-8 pr-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      </div>
+    </div>
+  );
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -609,22 +643,16 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Event Start" required>
-            <div className="relative min-w-0 w-full">
-              <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
-              <Input type="datetime-local" value={form.eventStartDate} onChange={e => setF('eventStartDate', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background pl-8 min-w-0" />
-            </div>
+            <DateTimePicker value={form.eventStartDate} onChange={v => setF('eventStartDate', v)} />
           </Field>
           <Field label="Event End" required>
-            <div className="relative min-w-0 w-full">
-              <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
-              <Input type="datetime-local" value={form.eventEndDate} onChange={e => setF('eventEndDate', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background pl-8 min-w-0" />
-            </div>
+            <DateTimePicker value={form.eventEndDate} onChange={v => setF('eventEndDate', v)} />
           </Field>
           <Field label="Ticket Sale Start">
-            <Input type="datetime-local" value={form.ticketSaleStartDate} onChange={e => setF('ticketSaleStartDate', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
+            <DateTimePicker value={form.ticketSaleStartDate} onChange={v => setF('ticketSaleStartDate', v)} />
           </Field>
           <Field label="Ticket Sale End">
-            <Input type="datetime-local" value={form.ticketSaleEndDate} onChange={e => setF('ticketSaleEndDate', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
+            <DateTimePicker value={form.ticketSaleEndDate} onChange={v => setF('ticketSaleEndDate', v)} />
           </Field>
         </div>
 
@@ -794,15 +822,15 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
               </Field>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Field label="Complementary">
-                <Input type="number" min="0" value={newTicket.numberOfComplementary} onChange={e => setNewTicket(t => ({ ...t, numberOfComplementary: e.target.value }))} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
-              </Field>
+            <Field label="Complementary">
+              <Input type="number" min="0" value={newTicket.numberOfComplementary} onChange={e => setNewTicket(t => ({ ...t, numberOfComplementary: e.target.value }))} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
+            </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Sale Start">
-                <Input type="datetime-local" value={newTicket.ticketSaleStartDate} onChange={e => setNewTicket(t => ({ ...t, ticketSaleStartDate: e.target.value }))} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
+                <DateTimePicker value={newTicket.ticketSaleStartDate} onChange={v => setNewTicket(t => ({ ...t, ticketSaleStartDate: v }))} />
               </Field>
               <Field label="Sale End">
-                <Input type="datetime-local" value={newTicket.ticketSaleEndDate} onChange={e => setNewTicket(t => ({ ...t, ticketSaleEndDate: e.target.value }))} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
+                <DateTimePicker value={newTicket.ticketSaleEndDate} onChange={v => setNewTicket(t => ({ ...t, ticketSaleEndDate: v }))} />
               </Field>
             </div>
 
@@ -986,15 +1014,15 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                               <Input type="number" min="0" value={String(tf.ticketLimitPerPerson ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'ticketLimitPerPerson', parseInt(e.target.value) || 0)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
                             </Field>
                           </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <Field label="Complementary">
-                              <Input type="number" min="0" value={String(tf.numberOfComplementary ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'numberOfComplementary', parseInt(e.target.value) || 0)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
-                            </Field>
+                          <Field label="Complementary">
+                            <Input type="number" min="0" value={String(tf.numberOfComplementary ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'numberOfComplementary', parseInt(e.target.value) || 0)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
+                          </Field>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <Field label="Sale Start">
-                              <Input type="datetime-local" value={String(tf.ticketSaleStartDate ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'ticketSaleStartDate', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
+                              <DateTimePicker value={String(tf.ticketSaleStartDate ?? '')} onChange={v => updateTicketForm(ticket.ticketId, 'ticketSaleStartDate', v)} />
                             </Field>
                             <Field label="Sale End">
-                              <Input type="datetime-local" value={String(tf.ticketSaleEndDate ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'ticketSaleEndDate', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
+                              <DateTimePicker value={String(tf.ticketSaleEndDate ?? '')} onChange={v => updateTicketForm(ticket.ticketId, 'ticketSaleEndDate', v)} />
                             </Field>
                           </div>
                           <div className="flex items-center gap-3 pt-1">
