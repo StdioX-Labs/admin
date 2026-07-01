@@ -114,34 +114,50 @@ function Field({ label, required, children }: { label: string; required?: boolea
 
 // ─── Date + Time picker ───────────────────────────────────────────────────────
 
+const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+const HOURS12 = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+
 function DateTimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const datePart = value ? value.split('T')[0] : '';
-  const timePart = value && value.includes('T') ? value.split('T')[1].slice(0, 5) : '';
+  const rawTime = value && value.includes('T') ? value.split('T')[1].slice(0, 5) : '12:00';
+  const h24 = parseInt(rawTime.split(':')[0]) || 0;
+  const rawMin = parseInt(rawTime.split(':')[1]) || 0;
+  const m = Math.round(rawMin / 5) * 5 % 60;
+  const isPM = h24 >= 12;
+  const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
 
-  const emit = (d: string, t: string) => {
+  const emit = (d: string, newH12: number, newM: number, newIsPM: boolean) => {
     if (!d) { onChange(''); return; }
-    onChange(`${d}T${t || '00:00'}`);
+    const h = (newH12 % 12) + (newIsPM ? 12 : 0);
+    onChange(`${d}T${String(h).padStart(2, '0')}:${String(newM).padStart(2, '0')}`);
   };
 
+  const sel = 'flex-1 h-11 text-base rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center';
+
   return (
-    <div className="flex gap-2">
-      <div className="relative flex-1 min-w-0">
+    <div className="space-y-2">
+      <div className="relative">
         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50 pointer-events-none" />
         <input
           type="date"
           value={datePart}
-          onChange={e => emit(e.target.value, timePart)}
-          className="w-full h-11 text-base rounded-md border border-border bg-background pl-9 pr-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          onChange={e => emit(e.target.value, h12, m, isPM)}
+          className="w-full h-11 text-base rounded-md border border-border bg-background pl-9 pr-3 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
-      <div className="relative w-32 flex-shrink-0">
-        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50 pointer-events-none" />
-        <input
-          type="time"
-          value={timePart}
-          onChange={e => emit(datePart, e.target.value)}
-          className="w-full h-11 text-base rounded-md border border-border bg-background pl-9 pr-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
+      <div className="flex items-center gap-1.5">
+        <Clock className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" />
+        <select value={h12} onChange={e => emit(datePart, Number(e.target.value), m, isPM)} className={sel}>
+          {HOURS12.map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}</option>)}
+        </select>
+        <span className="text-muted-foreground font-bold">:</span>
+        <select value={m} onChange={e => emit(datePart, h12, Number(e.target.value), isPM)} className={sel}>
+          {MINUTES.map(min => <option key={min} value={min}>{String(min).padStart(2, '0')}</option>)}
+        </select>
+        <select value={isPM ? 'PM' : 'AM'} onChange={e => emit(datePart, h12, m, e.target.value === 'PM')} className="w-16 h-11 text-base rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center">
+          <option value="AM">AM</option>
+          <option value="PM">PM</option>
+        </select>
       </div>
     </div>
   );

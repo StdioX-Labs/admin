@@ -25,7 +25,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   }, [sidebarOpen]);
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-dvh bg-background overflow-hidden">
       {/* Mobile backdrop */}
       <div
         className={`fixed inset-0 z-40 bg-background/80 backdrop-blur-sm transition-opacity duration-300 md:hidden ${
