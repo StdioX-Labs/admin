@@ -465,7 +465,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         ticketPrice: newTicket.isFree ? 0 : parseFloat(newTicket.ticketPrice) || 0,
         quantityAvailable: qty,
         ticketsToIssue: parseInt(newTicket.ticketsToIssue) || qty,
-        ticketLimitPerPerson: parseInt(newTicket.ticketLimitPerPerson) || 1,
+        ticketLimitPerPerson: parseInt(newTicket.ticketLimitPerPerson) || 0,
         numberOfComplementary: parseInt(newTicket.numberOfComplementary) || 0,
         ticketSaleStartDate: toISO(newTicket.ticketSaleStartDate),
         ticketSaleEndDate: toISO(newTicket.ticketSaleEndDate),
@@ -834,7 +834,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                 <Input type="number" min="0" value={newTicket.ticketsToIssue} onChange={e => setNewTicket(t => ({ ...t, ticketsToIssue: e.target.value }))} placeholder="Same as qty" className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
               </Field>
               <Field label="Limit / Person">
-                <Input type="number" min="1" value={newTicket.ticketLimitPerPerson} onChange={e => setNewTicket(t => ({ ...t, ticketLimitPerPerson: e.target.value }))} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
+                <Input type="number" min="0" value={newTicket.ticketLimitPerPerson} onChange={e => setNewTicket(t => ({ ...t, ticketLimitPerPerson: e.target.value }))} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
               </Field>
             </div>
 

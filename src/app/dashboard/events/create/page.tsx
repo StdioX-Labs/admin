@@ -361,7 +361,7 @@ export default function CreateEventPage() {
           ticketPrice: t.isFree ? 0 : parseFloat(t.ticketPrice) || 0,
           quantityAvailable: qty,
           ticketsToIssue: parseInt(t.ticketsToIssue) || qty,
-          ticketLimitPerPerson: parseInt(t.ticketLimitPerPerson) || 1,
+          ticketLimitPerPerson: parseInt(t.ticketLimitPerPerson) || 0,
           numberOfComplementary: parseInt(t.numberOfComplementary) || 0,
           ticketSaleStartDate: toIso(t.ticketSaleStartDate || form.ticketSaleStartDate),
           ticketSaleEndDate: toIso(t.ticketSaleEndDate || form.ticketSaleEndDate),
@@ -692,7 +692,7 @@ export default function CreateEventPage() {
             <Field label="Limit per Person">
               <Input
                 type="number"
-                min="1"
+                min="0"
                 value={t.ticketLimitPerPerson}
                 onChange={e => setTicketField(idx, 'ticketLimitPerPerson', e.target.value)}
                 className="h-10 text-sm border-border bg-background"
