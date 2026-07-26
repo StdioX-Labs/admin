@@ -22,6 +22,11 @@ import {
 } from 'lucide-react';
 import { Card, Toggle, money } from '@/components/ui/soa';
 import { DateTimePicker, Field } from '@/components/ui/date-time-picker';
+import {
+  MAX_TICKETS_TO_ISSUE,
+  clampTicketsToIssue,
+  validateTicketsToIssue,
+} from '@/lib/ticket-limits';
 
 const CATEGORIES = [
   { id: 1, label: 'Music' },
@@ -266,6 +271,12 @@ export default function CreateEventPage() {
       step2Errors.push(`Ticket ${i + 1}: price is required`);
     if (!t.quantityAvailable || isNaN(Number(t.quantityAvailable)))
       step2Errors.push(`Ticket ${i + 1}: quantity is required`);
+    const issueError = validateTicketsToIssue(
+      t.ticketsToIssue,
+      parseInt(t.quantityAvailable) || 0,
+      `Ticket ${i + 1}`
+    );
+    if (issueError) step2Errors.push(issueError);
   });
 
   const handleSubmit = async () => {
@@ -304,7 +315,7 @@ export default function CreateEventPage() {
           ticketName: t.ticketName.trim(),
           ticketPrice: t.isFree ? 0 : parseFloat(t.ticketPrice) || 0,
           quantityAvailable: qty,
-          ticketsToIssue: parseInt(t.ticketsToIssue) || qty,
+          ticketsToIssue: clampTicketsToIssue(t.ticketsToIssue, qty),
           ticketLimitPerPerson: parseInt(t.ticketLimitPerPerson) || 0,
           numberOfComplementary: parseInt(t.numberOfComplementary) || 0,
           ticketSaleStartDate: toIso(t.ticketSaleStartDate || form.ticketSaleStartDate),
@@ -520,7 +531,7 @@ export default function CreateEventPage() {
               )}
             </div>
 
-            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))' }}>
               <Field label="Event name" required>
                 <input
                   className="soa-input"
@@ -577,7 +588,7 @@ export default function CreateEventPage() {
               </div>
             </Field>
 
-            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))' }}>
               <Field label="Event starts" required>
                 <DateTimePicker value={form.eventStartDate} onChange={(v) => setField('eventStartDate', v)} />
               </Field>
@@ -598,7 +609,7 @@ export default function CreateEventPage() {
               </Field>
             </div>
 
-            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))' }}>
               <Field label="Commission %">
                 <input
                   className="soa-input tnum"
@@ -781,7 +792,7 @@ export default function CreateEventPage() {
                   )}
                 </div>
 
-                <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+                <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))' }}>
                   <Field label="Ticket name" required>
                     <input
                       className="soa-input"
@@ -823,7 +834,7 @@ export default function CreateEventPage() {
 
                 <div
                   className="grid gap-3 mt-3"
-                  style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}
+                  style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px, 100%), 1fr))' }}
                 >
                   <Field label="Quantity available" required>
                     <input
@@ -841,11 +852,22 @@ export default function CreateEventPage() {
                       className="soa-input tnum"
                       type="number"
                       min="0"
+                      max={MAX_TICKETS_TO_ISSUE}
                       value={t.ticketsToIssue}
                       onChange={(e) => setTicketField(idx, 'ticketsToIssue', e.target.value)}
-                      placeholder="Same as quantity"
+                      placeholder="0"
                       style={{ background: 'var(--color-neutral-100)' }}
                     />
+                    <div
+                      style={{
+                        fontSize: 10.5,
+                        marginTop: 5,
+                        color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                      }}
+                    >
+                      Pre-generated up front. Leave blank to issue none · max{' '}
+                      {MAX_TICKETS_TO_ISSUE.toLocaleString()}
+                    </div>
                   </Field>
                   <Field label="Limit per person">
                     <input
@@ -871,7 +893,7 @@ export default function CreateEventPage() {
 
                 <div
                   className="grid gap-3 mt-3"
-                  style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}
+                  style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))' }}
                 >
                   <Field label="Ticket sales start">
                     <DateTimePicker

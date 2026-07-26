@@ -15,6 +15,8 @@ import {
   CalendarDays,
   Pencil,
   ExternalLink,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import {
   Card,
@@ -28,6 +30,7 @@ import {
   money,
   num,
 } from '@/components/ui/soa';
+import { TicketSalesTable } from '@/components/ui/ticket-sales-table';
 
 const PAGE_SIZE = 20;
 
@@ -109,6 +112,7 @@ export default function EventSalesPage() {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortKey>('revenue');
   const [currentPage, setCurrentPage] = useState(0);
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   const fetchData = useCallback(async (searchName?: string) => {
     setIsLoading(true);
@@ -167,7 +171,7 @@ export default function EventSalesPage() {
       <div className="flex flex-wrap gap-2.5 items-center justify-between">
         <div
           className="grid gap-2.5 flex-1 min-w-[260px]"
-          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}
+          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))' }}
         >
           <StatTile label="Sales revenue" value={money(totRev)} icon={DollarSign} />
           <StatTile
@@ -340,12 +344,13 @@ export default function EventSalesPage() {
             const rank = currentPage * PAGE_SIZE + i + 1;
             const pct = sellThrough(e);
             const top = rank === 1;
+            const isOpen = expanded.has(e.eventId);
             return (
-              <div
-                key={e.eventId}
-                className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5"
-                style={{ padding: '12px 16px', borderTop: '1px solid var(--color-divider)' }}
-              >
+              <div key={e.eventId} style={{ borderTop: '1px solid var(--color-divider)' }}>
+                <div
+                  className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5"
+                  style={{ padding: '14px 16px' }}
+                >
                 <span
                   className="flex-none text-center"
                   style={{
@@ -460,7 +465,61 @@ export default function EventSalesPage() {
                   >
                     <Pencil className="ic w-[14px] h-[14px]" />
                   </button>
+                  {e.ticketSummaries.length > 0 && (
+                    <button
+                      onClick={() =>
+                        setExpanded((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(e.eventId)) next.delete(e.eventId);
+                          else next.add(e.eventId);
+                          return next;
+                        })
+                      }
+                      title={isOpen ? 'Hide ticket breakdown' : 'Show ticket breakdown'}
+                      aria-expanded={isOpen}
+                      className="grid place-items-center"
+                      style={{
+                        width: 28,
+                        height: 28,
+                        border: 'none',
+                        background: 'transparent',
+                        borderRadius: 8,
+                        color: isOpen
+                          ? 'var(--color-accent-700)'
+                          : 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                      }}
+                    >
+                      {isOpen ? (
+                        <ChevronUp className="ic w-[14px] h-[14px]" />
+                      ) : (
+                        <ChevronDown className="ic w-[14px] h-[14px]" />
+                      )}
+                    </button>
+                  )}
+                  </div>
                 </div>
+
+                {isOpen && e.ticketSummaries.length > 0 && (
+                  <div
+                    className="animate-soa-fade-fast"
+                    style={{ background: 'var(--color-surface)' }}
+                  >
+                    <TicketSalesTable
+                      rows={e.ticketSummaries.map((t) => ({
+                        id: t.ticketId,
+                        name: t.ticketName,
+                        price: t.ticketPrice,
+                        status: t.ticketStatus,
+                        allocation: t.originalTicketCount ?? t.ticketCount,
+                        sold: t.ticketsSold ?? 0,
+                        revenue: t.revenue ?? 0,
+                      }))}
+                      commission={e.percentageCommission}
+                      totalRevenue={e.totalRevenue}
+                      totalSold={e.totalTicketsSold}
+                    />
+                  </div>
+                )}
               </div>
             );
           })}

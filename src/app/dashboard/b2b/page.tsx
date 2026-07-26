@@ -111,7 +111,7 @@ export default function B2BPage() {
     <div className="flex flex-col gap-3.5 animate-soa-fade">
       <div
         className="grid gap-2.5"
-        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))' }}
       >
         <StatTile
           label="Partners"

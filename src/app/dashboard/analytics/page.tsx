@@ -29,7 +29,7 @@ const SAND = { bg: 'var(--tint-sand-bg)', fg: 'var(--tint-sand-fg)' };
 const EMBER = { bg: '#f6dfce', fg: '#8c491a' };
 
 const KPI_GRID = 'grid gap-3';
-const KPI_GRID_STYLE = { gridTemplateColumns: 'repeat(auto-fit, minmax(178px, 1fr))' };
+const KPI_GRID_STYLE = { gridTemplateColumns: 'repeat(auto-fit, minmax(min(178px, 100%), 1fr))' };
 
 export default function AnalyticsPage() {
   const financial = [
@@ -180,11 +180,11 @@ export default function AnalyticsPage() {
             <thead>
               <tr>
                 <th>Month</th>
-                <th style={{ textAlign: 'right' }}>GMV</th>
-                <th style={{ textAlign: 'right' }}>Commission</th>
-                <th style={{ textAlign: 'right' }}>Direct costs</th>
-                <th style={{ textAlign: 'right' }}>Gross profit</th>
-                <th style={{ textAlign: 'right' }}>Margin</th>
+                <th className="num">GMV</th>
+                <th className="num">Commission</th>
+                <th className="num">Direct costs</th>
+                <th className="num">Gross profit</th>
+                <th className="num">Margin</th>
               </tr>
             </thead>
             <tbody>
@@ -207,63 +207,60 @@ export default function AnalyticsPage() {
                       </span>
                     )}
                   </td>
-                  <td className="tnum" style={{ textAlign: 'right' }}>{m.gmv}</td>
-                  <td className="tnum" style={{ textAlign: 'right', color: 'var(--tint-clay-strong)' }}>
+                  <td className="num">{m.gmv}</td>
+                  <td className="num" style={{ color: 'var(--tint-clay-strong)' }}>
                     {m.commission}
                   </td>
-                  <td className="tnum" style={{ textAlign: 'right', color: 'var(--color-accent-700)' }}>
+                  <td className="num" style={{ color: 'var(--color-accent-700)' }}>
                     {m.cost}
                   </td>
                   <td
-                    className="tnum"
-                    style={{ textAlign: 'right', fontWeight: 600, color: m.profitColor }}
+                    className="num"
+                    style={{ fontWeight: 600, color: m.profitColor }}
                   >
                     {m.profit}
                   </td>
                   <td
-                    className="tnum"
-                    style={{ textAlign: 'right', fontWeight: 600, color: m.marginColor }}
+                    className="num"
+                    style={{ fontWeight: 600, color: m.marginColor }}
                   >
                     {m.margin}
                   </td>
                 </tr>
               ))}
-              <tr
-                style={{
-                  borderTop: '2px solid var(--color-divider)',
-                  background: 'var(--color-surface)',
-                }}
-              >
-                <td style={{ fontWeight: 700 }}>Total</td>
-                <td className="tnum" style={{ textAlign: 'right', fontWeight: 700 }}>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>Total</td>
+                <td className="num" style={{ fontWeight: 700 }}>
                   {money(K.gmv)}
                 </td>
                 <td
-                  className="tnum"
-                  style={{ textAlign: 'right', fontWeight: 700, color: 'var(--tint-clay-strong)' }}
+                  className="num"
+                  style={{ fontWeight: 700, color: 'var(--tint-clay-strong)' }}
                 >
                   {money(K.totalIncome)}
                 </td>
                 <td
-                  className="tnum"
-                  style={{ textAlign: 'right', fontWeight: 700, color: 'var(--color-accent-700)' }}
+                  className="num"
+                  style={{ fontWeight: 700, color: 'var(--color-accent-700)' }}
                 >
                   {money(K.directCosts)}
                 </td>
                 <td
-                  className="tnum"
-                  style={{ textAlign: 'right', fontWeight: 700, color: 'var(--tint-olive-strong)' }}
+                  className="num"
+                  style={{ fontWeight: 700, color: 'var(--tint-olive-strong)' }}
                 >
                   {money(K.grossProfit)}
                 </td>
                 <td
-                  className="tnum"
-                  style={{ textAlign: 'right', fontWeight: 700, color: 'var(--tint-olive-strong)' }}
+                  className="num"
+                  style={{ fontWeight: 700, color: 'var(--tint-olive-strong)' }}
                 >
                   {K.grossMargin}%
                 </td>
               </tr>
-            </tbody>
+            </tfoot>
           </table>
         </div>
       </Card>

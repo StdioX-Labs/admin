@@ -38,19 +38,22 @@ export function DateTimePicker({
     onChange(`${d}T${String(h).padStart(2, '0')}:${String(newM).padStart(2, '0')}`);
   };
 
+  // flex-basis 0 + min-width 0 so the selects shrink instead of overflowing.
   const selectStyle: React.CSSProperties = {
-    flex: 1,
+    flex: '1 1 0',
+    minWidth: 0,
     height: 44,
     minHeight: 44,
     fontSize: 16,
     textAlign: 'center',
     background: 'var(--color-surface)',
-    paddingRight: 28,
+    paddingLeft: 8,
+    paddingRight: 26,
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="relative">
+    <div className="flex flex-col gap-2 min-w-0">
+      <div className="relative min-w-0">
         <CalendarDays
           className="ic absolute w-4 h-4 pointer-events-none"
           style={{
@@ -65,10 +68,16 @@ export function DateTimePicker({
           className="soa-input"
           value={datePart}
           onChange={(e) => emit(e.target.value, h12, m, isPM)}
-          style={{ height: 44, minHeight: 44, fontSize: 16, paddingLeft: 38 }}
+          style={{
+            height: 44,
+            minHeight: 44,
+            fontSize: 16,
+            paddingLeft: 38,
+            paddingRight: 10,
+          }}
         />
       </div>
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 min-w-0">
         <Clock
           className="ic w-4 h-4 flex-none"
           style={{ color: 'color-mix(in srgb, var(--color-text) 40%, transparent)' }}
@@ -105,7 +114,7 @@ export function DateTimePicker({
           aria-label="AM or PM"
           value={isPM ? 'PM' : 'AM'}
           onChange={(e) => emit(datePart, h12, m, e.target.value === 'PM')}
-          style={{ ...selectStyle, flex: 'none', width: 78 }}
+          style={{ ...selectStyle, flex: '0 1 72px', maxWidth: 72 }}
         >
           <option value="AM">AM</option>
           <option value="PM">PM</option>

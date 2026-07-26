@@ -159,7 +159,7 @@ export default function UsersPage() {
     <div className="flex flex-col gap-3.5 animate-soa-fade">
       <div
         className="grid gap-2.5"
-        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))' }}
       >
         <StatTile
           label="Total users"
@@ -266,8 +266,8 @@ export default function UsersPage() {
                     <th>Role</th>
                     <th>Status</th>
                     <th>Activity</th>
-                    <th style={{ textAlign: 'right' }}>Events</th>
-                    <th style={{ textAlign: 'right' }}>Spent</th>
+                    <th className="num">Events</th>
+                    <th className="num">Spent</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -321,7 +321,7 @@ export default function UsersPage() {
                           Joined {dateShort(u.join)}
                         </div>
                       </td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td className="num">
                         <div className="tnum" style={{ fontWeight: 600 }}>
                           {num(u.events)}
                         </div>
@@ -334,7 +334,7 @@ export default function UsersPage() {
                           {num(u.tickets)} tickets
                         </div>
                       </td>
-                      <td className="tnum" style={{ textAlign: 'right', fontWeight: 600 }}>
+                      <td className="num" style={{ fontWeight: 600 }}>
                         {money(u.spent)}
                       </td>
                     </tr>

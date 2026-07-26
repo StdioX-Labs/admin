@@ -321,32 +321,83 @@ img {
   color: color-mix(in srgb, var(--color-text) 48%, transparent);
 }
 
-/* Tables — uppercase micro headers over hairline rows. */
+/* ── tables ───────────────────────────────────────────────────────────────
+   Uppercase micro headers over hairline rows. Rows are given real vertical
+   room (44px min) so dense figure tables stay scannable, and the first/last
+   cells align to the card's own padding rather than the table's. */
 .soa-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13.5px;
 }
 .soa-table th {
   text-align: left;
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-text) 60%, transparent);
-  padding: var(--space-2);
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--color-text) 3.5%, transparent);
   border-bottom: 1px solid var(--color-divider);
   white-space: nowrap;
+  vertical-align: middle;
 }
 .soa-table td {
-  padding: var(--space-2);
+  padding: 13px 14px;
   border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+  vertical-align: middle;
+}
+.soa-table tbody tr {
+  transition: background 0.12s;
 }
 .soa-table tbody tr:hover {
   background: color-mix(in srgb, var(--color-text) 4%, transparent);
 }
+.soa-table tbody tr:last-child td {
+  border-bottom: none;
+}
+/* Flush the outer edges with the enclosing card. */
+.soa-table th:first-child,
+.soa-table td:first-child {
+  padding-left: 16px;
+}
+.soa-table th:last-child,
+.soa-table td:last-child {
+  padding-right: 16px;
+}
+/* Numeric columns: right-aligned, tabular, never wrapped. */
+.soa-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Summary row pinned under the body. */
+.soa-table tfoot td {
+  padding: 13px 14px;
+  border-top: 2px solid var(--color-divider);
+  border-bottom: none;
+  background: var(--color-surface);
+  font-weight: 700;
+}
+.soa-table tfoot td:first-child {
+  padding-left: 16px;
+}
+.soa-table tfoot td:last-child {
+  padding-right: 16px;
+}
+/* Horizontal scroll container for wide tables. */
+.soa-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
 .soa-input {
   width: 100%;
+  /* min-width:0 lets the control shrink inside flex/grid parents; without it
+     form controls keep their intrinsic min-content width and overflow. */
+  min-width: 0;
+  max-width: 100%;
   min-height: 36px;
   padding: 6px 14px;
   font: inherit;
@@ -382,6 +433,54 @@ select.soa-input {
   background-position: right 11px center;
   padding-right: 32px;
   cursor: pointer;
+  text-overflow: ellipsis;
+}
+
+/* ── native date inputs ───────────────────────────────────────────────────
+   WebKit gives `input[type="date"]` an intrinsic min-content width from its
+   value text plus the calendar indicator, and won't honour `width: 100%`
+   while the native appearance is on — so the control grows past its
+   container. Stripping the appearance and drawing our own chevron-free
+   affordance makes it size like any other input. */
+input[type='date'].soa-input,
+input[type='time'].soa-input,
+input[type='datetime-local'].soa-input {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+/* Safari centres and pads the value text; reset it to sit like normal text. */
+input[type='date'].soa-input::-webkit-date-and-time-value,
+input[type='time'].soa-input::-webkit-date-and-time-value,
+input[type='datetime-local'].soa-input::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+  min-height: 0;
+}
+input[type='date'].soa-input::-webkit-datetime-edit,
+input[type='time'].soa-input::-webkit-datetime-edit,
+input[type='datetime-local'].soa-input::-webkit-datetime-edit {
+  padding: 0;
+}
+/* The picker button overlays the field so it never adds to intrinsic width. */
+input[type='date'].soa-input::-webkit-calendar-picker-indicator,
+input[type='time'].soa-input::-webkit-calendar-picker-indicator,
+input[type='datetime-local'].soa-input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+/* Firefox's clear button also inflates the box. */
+input[type='date'].soa-input::-moz-calendar-clear-button {
+  display: none;
 }
 
 .field > label {

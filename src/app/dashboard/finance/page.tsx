@@ -77,6 +77,8 @@ export default function FinancePage() {
     [type, channel]
   );
 
+  const net = rows.reduce((sum, t) => sum + t.amount, 0);
+
   const kpis = [
     {
       label: 'Total GMV',
@@ -118,7 +120,7 @@ export default function FinancePage() {
     <div className="flex flex-col gap-3.5 animate-soa-fade">
       <div
         className="grid gap-3"
-        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(190px, 100%), 1fr))' }}
       >
         {kpis.map((k) => (
           <KpiCard key={k.label} {...k} />
@@ -203,8 +205,8 @@ export default function FinancePage() {
                     <th>Date</th>
                     <th>Type</th>
                     <th>Channel</th>
-                    <th style={{ textAlign: 'right' }}>Amount</th>
-                    <th style={{ textAlign: 'right' }}>Status</th>
+                    <th className="num">Amount</th>
+                    <th className="num">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -238,12 +240,11 @@ export default function FinancePage() {
                       </td>
                       <td style={{ fontSize: 12.5 }}>{t.channel}</td>
                       <td
-                        className="tnum"
-                        style={{ textAlign: 'right', fontWeight: 700, color: amountColor(t.amount) }}
+                        className="num" style={{ fontWeight: 700, color: amountColor(t.amount) }}
                       >
                         {signed(t.amount)}
                       </td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td className="num">
                         <Pill bg={STATUS_TINT[t.status].bg} fg={STATUS_TINT[t.status].fg}>
                           {t.status}
                         </Pill>
@@ -251,6 +252,30 @@ export default function FinancePage() {
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr>
+                    <td>
+                      Net
+                      <span
+                        style={{
+                          fontWeight: 400,
+                          marginLeft: 6,
+                          fontSize: 12,
+                          color: 'color-mix(in srgb, var(--color-text) 48%, transparent)',
+                        }}
+                      >
+                        {rows.length} transaction{rows.length === 1 ? '' : 's'}
+                      </span>
+                    </td>
+                    <td />
+                    <td />
+                    <td />
+                    <td className="num" style={{ color: amountColor(net) }}>
+                      {signed(net)}
+                    </td>
+                    <td />
+                  </tr>
+                </tfoot>
               </table>
             </div>
 

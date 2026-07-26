@@ -26,6 +26,12 @@ import {
 import { SuspendTicketModal } from '@/components/ui/suspend-ticket-modal';
 import { Card, ErrorNote, Pill, SuccessNote, Toggle, money, num } from '@/components/ui/soa';
 import { DateTimePicker, Field } from '@/components/ui/date-time-picker';
+import { TicketSalesTable } from '@/components/ui/ticket-sales-table';
+import {
+  MAX_TICKETS_TO_ISSUE,
+  clampTicketsToIssue,
+  validateTicketsToIssue,
+} from '@/lib/ticket-limits';
 
 const CATEGORIES = [
   { id: 1, label: 'Music' },
@@ -374,7 +380,10 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         ticketPrice: tf.isFree ? 0 : tf.ticketPrice,
         quantityAvailable: tf.quantityAvailable,
         isActive: tf.isActive,
-        ticketsToIssue: tf.ticketsToIssue,
+        ticketsToIssue: clampTicketsToIssue(
+          tf.ticketsToIssue,
+          Number(tf.quantityAvailable) || 0
+        ),
         ticketLimitPerPerson: tf.ticketLimitPerPerson,
         numberOfComplementary: tf.numberOfComplementary,
         ticketSaleStartDate: tf.ticketSaleStartDate ? toISO(tf.ticketSaleStartDate) : undefined,
@@ -400,17 +409,22 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
+    const qty = parseInt(newTicket.quantityAvailable) || 0;
+    const issueError = validateTicketsToIssue(newTicket.ticketsToIssue, qty);
+    if (issueError) {
+      setError(issueError);
+      return;
+    }
     setIsCreatingTicket(true);
     setError('');
     setSuccess('');
     try {
-      const qty = parseInt(newTicket.quantityAvailable) || 0;
       const resp = await createEventApi.createTicket({
         event: { id: parseInt(eventId) },
         ticketName: newTicket.ticketName.trim(),
         ticketPrice: newTicket.isFree ? 0 : parseFloat(newTicket.ticketPrice) || 0,
         quantityAvailable: qty,
-        ticketsToIssue: parseInt(newTicket.ticketsToIssue) || qty,
+        ticketsToIssue: clampTicketsToIssue(newTicket.ticketsToIssue, qty),
         ticketLimitPerPerson: parseInt(newTicket.ticketLimitPerPerson) || 0,
         numberOfComplementary: parseInt(newTicket.numberOfComplementary) || 0,
         ticketSaleStartDate: toISO(newTicket.ticketSaleStartDate),
@@ -606,7 +620,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
             </button>
           </div>
 
-          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))' }}>
             <Field label="Event name" required>
               <input
                 className="soa-input"
@@ -671,7 +685,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
             </div>
           </Field>
 
-          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))' }}>
             <Field label="Event starts" required>
               <DateTimePicker value={form.eventStartDate} onChange={(v) => setF('eventStartDate', v)} />
             </Field>
@@ -692,7 +706,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
             </Field>
           </div>
 
-          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))' }}>
             <Field label="Status">
               <select
                 className="soa-input"
@@ -970,7 +984,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
               New ticket
             </div>
 
-            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))' }}>
               <Field label="Name" required>
                 <input
                   className="soa-input"
@@ -1006,7 +1020,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
               </Field>
             </div>
 
-            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px, 100%), 1fr))' }}>
               <Field label="Quantity" required>
                 <input
                   className="soa-input tnum"
@@ -1023,11 +1037,21 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                   className="soa-input tnum"
                   type="number"
                   min="0"
+                  max={MAX_TICKETS_TO_ISSUE}
                   value={newTicket.ticketsToIssue}
                   onChange={(e) => setNewTicket((t) => ({ ...t, ticketsToIssue: e.target.value }))}
-                  placeholder="Same as qty"
+                  placeholder="0"
                   style={{ background: 'var(--color-neutral-100)' }}
                 />
+                <div
+                  style={{
+                    fontSize: 10.5,
+                    marginTop: 5,
+                    color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                  }}
+                >
+                  Blank issues none · max {MAX_TICKETS_TO_ISSUE.toLocaleString()}
+                </div>
               </Field>
               <Field label="Limit / person">
                 <input
@@ -1055,7 +1079,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
               </Field>
             </div>
 
-            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))' }}>
               <Field label="Sales start">
                 <DateTimePicker
                   value={newTicket.ticketSaleStartDate}
@@ -1142,6 +1166,55 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
               </button>
             </div>
           </form>
+        )}
+
+        {/* Sales to date, before the editable list. Revenue is derived from
+            price x sold — /event/get returns no per-ticket revenue field. */}
+        {tickets.length > 0 && (
+          <div
+            className="overflow-hidden"
+            style={{
+              border: '1px solid var(--color-divider)',
+              borderRadius: 12,
+              background: 'var(--color-neutral-100)',
+            }}
+          >
+            <div
+              className="flex items-baseline justify-between gap-3 flex-wrap"
+              style={{ padding: '13px 16px 11px' }}
+            >
+              <span style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 14 }}>
+                Sales to date
+              </span>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: 'color-mix(in srgb, var(--color-text) 48%, transparent)',
+                }}
+              >
+                Revenue derived from price x quantity sold
+              </span>
+            </div>
+            <TicketSalesTable
+              rows={tickets.map((t) => ({
+                id: t.ticketId,
+                name: t.ticketName,
+                price: t.ticketPrice,
+                isFree: t.isFree,
+                status: t.ticketStatus,
+                allocation: t.quantityAvailable,
+                sold: t.soldQuantity,
+                revenue: t.isFree ? 0 : t.ticketPrice * t.soldQuantity,
+                complimentary: t.numberOfComplementary,
+                limitPerPerson: t.ticketLimitPerPerson,
+              }))}
+              commission={
+                form.percentageCommission !== ''
+                  ? parseFloat(form.percentageCommission) || null
+                  : null
+              }
+            />
+          </div>
         )}
 
         {/* Existing tickets */}
@@ -1375,7 +1448,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                         <div className="flex flex-col gap-3">
                           <div
                             className="grid gap-3"
-                            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}
+                            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))' }}
                           >
                             <Field label="Ticket name">
                               <input
@@ -1419,7 +1492,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
                           <div
                             className="grid gap-3"
-                            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}
+                            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px, 100%), 1fr))' }}
                           >
                             <Field label="Quantity">
                               <input
@@ -1441,6 +1514,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                                 className="soa-input tnum"
                                 type="number"
                                 min="0"
+                                max={MAX_TICKETS_TO_ISSUE}
                                 value={String(tf.ticketsToIssue ?? '')}
                                 onChange={(e) =>
                                   updateTicketForm(
@@ -1485,7 +1559,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
                           <div
                             className="grid gap-3"
-                            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}
+                            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))' }}
                           >
                             <Field label="Sales start">
                               <DateTimePicker

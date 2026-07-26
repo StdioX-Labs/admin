@@ -37,11 +37,13 @@ import {
   dateShort,
   timeShort,
 } from '@/components/ui/soa';
+import { TicketSalesTable } from '@/components/ui/ticket-sales-table';
 
 interface TicketSummary {
   ticketId: number;
   ticketName: string;
   ticketPrice: number;
+  ticketStatus?: string;
   ticketsSold?: number;
   revenue?: number;
   ticketCount?: number;
@@ -254,7 +256,7 @@ function EventCard({
 
           <div
             className="grid gap-2 mt-2.5"
-            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(104px, 1fr))' }}
+            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(104px, 100%), 1fr))' }}
           >
             <Metric label="Revenue" value={money(event.totalRevenue)} color="var(--tint-olive-strong)" />
             <Metric
@@ -305,55 +307,26 @@ function EventCard({
 
       {expanded && event.ticketSummaries.length > 0 && (
         <div
-          className="overflow-x-auto animate-soa-fade-fast"
+          className="animate-soa-fade-fast"
           style={{
             borderTop: '1px solid var(--color-divider)',
             background: 'var(--color-surface)',
-            padding: '6px 16px 12px',
           }}
         >
-          <table className="soa-table" style={{ minWidth: 360 }}>
-            <thead>
-              <tr>
-                <th>Ticket type</th>
-                <th style={{ textAlign: 'right' }}>Price</th>
-                <th style={{ textAlign: 'right' }}>Sold</th>
-                <th style={{ textAlign: 'right' }}>Revenue</th>
-              </tr>
-            </thead>
-            <tbody>
-              {event.ticketSummaries.map((t) => (
-                <tr key={t.ticketId}>
-                  <td style={{ fontWeight: 600 }}>{t.ticketName}</td>
-                  <td className="tnum" style={{ textAlign: 'right' }}>
-                    {t.ticketPrice === 0 ? 'Free' : money(t.ticketPrice)}
-                  </td>
-                  <td className="tnum" style={{ textAlign: 'right' }}>
-                    {num(t.ticketsSold ?? 0)}
-                  </td>
-                  <td
-                    className="tnum"
-                    style={{ textAlign: 'right', fontWeight: 600, color: 'var(--tint-olive-strong)' }}
-                  >
-                    {money(t.revenue ?? 0)}
-                  </td>
-                </tr>
-              ))}
-              <tr>
-                <td style={{ fontWeight: 700 }}>Total</td>
-                <td />
-                <td className="tnum" style={{ textAlign: 'right', fontWeight: 700 }}>
-                  {num(event.totalTicketsSold)}
-                </td>
-                <td
-                  className="tnum"
-                  style={{ textAlign: 'right', fontWeight: 700, color: 'var(--tint-olive-strong)' }}
-                >
-                  {money(event.totalRevenue)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <TicketSalesTable
+            rows={event.ticketSummaries.map((t) => ({
+              id: t.ticketId,
+              name: t.ticketName,
+              price: t.ticketPrice,
+              status: t.ticketStatus,
+              allocation: t.originalTicketCount ?? t.ticketCount,
+              sold: t.ticketsSold ?? 0,
+              revenue: t.revenue ?? 0,
+            }))}
+            commission={event.percentageCommission}
+            totalRevenue={event.totalRevenue}
+            totalSold={event.totalTicketsSold}
+          />
         </div>
       )}
     </Card>

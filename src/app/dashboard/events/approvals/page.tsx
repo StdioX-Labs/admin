@@ -205,18 +205,18 @@ function ApprovalCard({
                     <thead style={{ background: 'var(--color-surface)' }}>
                       <tr>
                         <th>Type</th>
-                        <th style={{ textAlign: 'right' }}>Price</th>
-                        <th style={{ textAlign: 'right' }}>Available</th>
+                        <th className="num">Price</th>
+                        <th className="num">Available</th>
                       </tr>
                     </thead>
                     <tbody>
                       {event.ticketSummaries.map((t) => (
                         <tr key={t.ticketId}>
                           <td>{t.ticketName}</td>
-                          <td className="tnum" style={{ textAlign: 'right' }}>
+                          <td className="num">
                             {t.ticketPrice === 0 ? 'Free' : money(t.ticketPrice)}
                           </td>
-                          <td className="tnum" style={{ textAlign: 'right' }}>
+                          <td className="num">
                             {t.originalTicketCount ?? t.ticketCount ?? '—'}
                           </td>
                         </tr>
