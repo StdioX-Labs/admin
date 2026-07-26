@@ -1,58 +1,50 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
 import { Sidebar } from './sidebar';
-import { Header } from './header';
+import { Header, MobileHeader } from './header';
+import { BottomNav } from './bottom-nav';
+import { PendingCountProvider } from './pending-count';
 
+/**
+ * Console shell.
+ *
+ * Desktop: a floating sidebar card inset 14px from the viewport edges, with
+ * the header and scrolling content beside it.
+ * Mobile: no sidebar — a compact header on top and a bottom tab bar below,
+ * so every destination stays within thumb reach.
+ */
 export function DashboardShell({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const pathname = usePathname();
-
-  // Close sidebar on route change (mobile navigation)
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [pathname]);
-
-  // Prevent body scroll when mobile sidebar is open
-  useEffect(() => {
-    if (sidebarOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => { document.body.style.overflow = ''; };
-  }, [sidebarOpen]);
-
   return (
-    <div className="flex h-dvh bg-background overflow-hidden">
-      {/* Mobile backdrop */}
+    <PendingCountProvider>
       <div
-        className={`fixed inset-0 z-40 bg-background/80 backdrop-blur-sm transition-opacity duration-300 md:hidden ${
-          sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
-        onClick={() => setSidebarOpen(false)}
-        aria-hidden="true"
-      />
-
-      {/* Sidebar — fixed on all sizes, slides in/out on mobile */}
-      <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out md:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className="flex h-dvh overflow-hidden"
+        style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}
       >
-        <Sidebar onClose={() => setSidebarOpen(false)} />
-      </div>
+        {/* Sidebar — desktop only; mobile navigates via the bottom bar. */}
+        <div className="hidden md:block w-[238px] flex-none my-3.5 ml-3.5">
+          <Sidebar />
+        </div>
 
-      {/* Main content — offset by sidebar width on desktop */}
-      <div className="flex-1 flex flex-col overflow-hidden md:ml-64">
-        <Header onMenuToggle={() => setSidebarOpen(s => !s)} />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
-        </main>
+        <div className="flex-1 min-w-0 flex flex-col h-dvh">
+          <Header />
+          <MobileHeader />
+
+          <main className="flex-1 overflow-y-auto overflow-x-hidden">
+            <div
+              className="w-full mx-auto"
+              style={{
+                maxWidth: 1440,
+                padding:
+                  'clamp(16px, 2.2vw, 28px) clamp(14px, 2.2vw, 28px) 40px',
+              }}
+            >
+              {children}
+            </div>
+          </main>
+
+          <BottomNav />
+        </div>
       </div>
-    </div>
+    </PendingCountProvider>
   );
 }

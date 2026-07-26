@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Instrument_Sans, Spectral } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/providers";
 
-const geistSans = Geist({
-    variable: "--font-geist-sans",
+// Organic design system: Instrument Sans carries the UI, Spectral the display voice.
+const instrumentSans = Instrument_Sans({
+    variable: "--font-instrument-sans",
     subsets: ["latin"],
+    weight: ["400", "500", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
-    variable: "--font-geist-mono",
+const spectral = Spectral({
+    variable: "--font-spectral",
     subsets: ["latin"],
+    weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -58,9 +61,9 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en" className="dark">
+        <html lang="en">
         <body
-            className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+            className={`${instrumentSans.variable} ${spectral.variable} antialiased`}
         >
         <Providers>
             {children}

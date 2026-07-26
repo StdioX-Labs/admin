@@ -150,7 +150,13 @@ export const LoginForm = () => {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm">
+    <div
+      style={{
+        background: 'var(--color-neutral-100)',
+        borderRadius: 'var(--radius-dialog)',
+        boxShadow: 'var(--shadow-md)',
+      }}
+    >
       <div className="p-6 space-y-5">
         {/* Header */}
         <div className="space-y-1">

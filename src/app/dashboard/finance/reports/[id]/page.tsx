@@ -1,9 +1,14 @@
-export default function ReportDetailsPage({ params }: { params: { id: string } }) {
+import { ComingSoon } from '@/components/ui/coming-soon';
+
+export default async function ReportDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Report Details</h1>
-      <p className="text-muted-foreground">Report ID: {params.id}</p>
-    </div>
+    <ComingSoon
+      title="Report details"
+      description="A generated statement and its line items."
+      backHref="/dashboard/finance/reports"
+      backLabel="Reports"
+      detail={`Report #${id}`}
+    />
   );
 }
-

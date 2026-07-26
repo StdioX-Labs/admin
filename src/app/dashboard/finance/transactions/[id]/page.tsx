@@ -1,9 +1,18 @@
-export default function TransactionDetailsPage({ params }: { params: { id: string } }) {
+import { ComingSoon } from '@/components/ui/coming-soon';
+
+export default async function TransactionDetailsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Transaction Details</h1>
-      <p className="text-muted-foreground">Transaction ID: {params.id}</p>
-    </div>
+    <ComingSoon
+      title="Transaction details"
+      description="Buyer, ticket, channel and settlement status."
+      backHref="/dashboard/finance"
+      backLabel="Finance"
+      detail={`Transaction #${id}`}
+    />
   );
 }
-

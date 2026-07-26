@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { ReactNode } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import {
   AlertDialog,
@@ -12,43 +12,33 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Loader, LoadingButton } from "@/components/ui/loader";
-import { LayoutDashboard, CalendarDays, BarChart2, PlusCircle, LogOut, LineChart, Clock, Building2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { eventsApi } from '@/lib/api';
+} from '@/components/ui/alert-dialog';
+import { Loader, LoadingButton } from '@/components/ui/loader';
+import { LogOut, Plus } from 'lucide-react';
+import { NAV_ITEMS, isNavActive } from './nav-config';
+import { usePendingCount } from './pending-count';
 
 interface SidebarProps {
-  children?: ReactNode;
-  className?: string;
   onClose?: () => void;
 }
 
-export const Sidebar = ({ children, className = '', onClose }: SidebarProps) => {
-  const pathname = usePathname();
+/**
+ * Floating sidebar card — 238px wide, inset from the page edges and fully
+ * rounded, on the warm surface tone so it reads as a panel lifted off the
+ * cream ground.
+ */
+export const Sidebar = ({ onClose }: SidebarProps) => {
+  const pathname = usePathname() ?? '';
+  const router = useRouter();
   const { logout, isLoggingOut } = useAuth();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
+  const pending = usePendingCount();
 
-  useEffect(() => {
-    eventsApi.getAllEvents(0, 1, undefined, 'ONHOLD')
-      .then(res => { if (res.status) setPendingCount(res.data?.totalElements ?? 0); })
-      .catch(() => {});
-  }, []);
-
-  const userEmail = typeof window !== 'undefined' ? localStorage.getItem('userEmail') || 'user@example.com' : 'user@example.com';
-  const truncatedEmail = userEmail.length > 22 ? `${userEmail.substring(0, 19)}...` : userEmail;
-  const initials = userEmail.charAt(0).toUpperCase();
-
-  const sidebarLinks = [
-    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: 0 },
-    { href: '/dashboard/events', label: 'Events', icon: CalendarDays, badge: 0 },
-    { href: '/dashboard/events/approvals', label: 'Approvals', icon: Clock, badge: pendingCount },
-    { href: '/dashboard/events/sales', label: 'Sales', icon: BarChart2, badge: 0 },
-    { href: '/dashboard/events/create', label: 'Create Event', icon: PlusCircle, badge: 0 },
-    { href: '/dashboard/analytics', label: 'Analytics', icon: LineChart, badge: 0 },
-    { href: '/dashboard/companies', label: 'Companies', icon: Building2, badge: 0 },
-  ];
+  const userEmail =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('userEmail') || 'admin@soldout.africa'
+      : 'admin@soldout.africa';
+  const initial = userEmail.charAt(0).toUpperCase();
 
   const handleLogout = async () => {
     await logout();
@@ -57,95 +47,218 @@ export const Sidebar = ({ children, className = '', onClose }: SidebarProps) => 
 
   return (
     <>
-      <aside className={`h-full bg-background border-r border-border flex flex-col ${className}`}>
+      <aside
+        className="h-full flex flex-col overflow-hidden"
+        style={{
+          background: 'var(--color-surface)',
+          borderRadius: 28,
+          boxShadow: 'var(--shadow-md)',
+        }}
+      >
         {/* Brand */}
-        <div className="px-5 h-14 flex items-center border-b border-border flex-shrink-0">
-          <img src="/bg-dark.svg" alt="SoldOutAfrica" className="h-8 w-8" />
-          <span className="ml-2 text-[10px] font-medium bg-accent text-muted-foreground px-1.5 py-0.5 rounded">
-            Admin
-          </span>
+        <div className="flex items-center gap-2.5 px-4 pt-4 pb-3.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-tile.svg"
+            alt="SoldOutAfrica"
+            className="w-[34px] h-[34px] flex-none"
+            style={{ borderRadius: 9, boxShadow: 'var(--shadow-sm)' }}
+          />
+          <div className="min-w-0 leading-[1.05]">
+            <div className="soa-brand text-base" style={{ letterSpacing: '-.01em' }}>
+              SoldOutAfrica
+            </div>
+            <span
+              className="inline-flex items-center mt-[3px]"
+              style={{
+                fontSize: 9,
+                padding: '1px 8px',
+                borderRadius: 'var(--radius-tag)',
+                background: 'var(--color-accent-100)',
+                color: 'var(--color-accent-800)',
+              }}
+            >
+              ADMIN CONSOLE
+            </span>
+          </div>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-          <p className="px-3 pt-3 pb-1 text-[10px] font-semibold tracking-widest uppercase text-muted-foreground/60">
+        <nav className="flex-1 overflow-y-auto px-3 py-1.5 flex flex-col gap-[5px]">
+          <p
+            className="mx-2 mt-2.5 mb-1"
+            style={{
+              fontSize: 10,
+              letterSpacing: '.14em',
+              textTransform: 'uppercase',
+              color: 'color-mix(in srgb, var(--color-text) 42%, transparent)',
+            }}
+          >
             Menu
           </p>
-          {sidebarLinks.map((link) => {
-            const isActive = pathname === link.href;
-            const Icon = link.icon;
+          {NAV_ITEMS.map((item) => {
+            const active = isNavActive(item.href, pathname);
+            const Icon = item.icon;
+            const badge = item.showsPending ? pending : 0;
+            const idle = active
+              ? { bg: 'var(--color-accent-100)', fg: 'var(--color-accent-800)' }
+              : { bg: 'transparent', fg: 'color-mix(in srgb, var(--color-text) 62%, transparent)' };
+            const hover = active
+              ? { bg: 'var(--color-accent-200)', fg: 'var(--color-accent-800)' }
+              : {
+                  bg: 'color-mix(in srgb, var(--color-text) 7%, transparent)',
+                  fg: 'var(--color-text)',
+                };
             return (
               <Link
-                key={link.href}
-                href={link.href}
+                key={item.key}
+                href={item.href}
                 onClick={onClose}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-                  isActive
-                    ? 'bg-accent text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
-                }`}
+                aria-current={active ? 'page' : undefined}
+                className="flex items-center gap-[11px] w-full px-[15px] py-2.5 rounded-full transition-colors"
+                style={{
+                  font: '600 13.5px var(--font-body)',
+                  background: idle.bg,
+                  color: idle.fg,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = hover.bg;
+                  e.currentTarget.style.color = hover.fg;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = idle.bg;
+                  e.currentTarget.style.color = idle.fg;
+                }}
               >
-                <Icon
-                  className={`h-4 w-4 flex-shrink-0 transition-colors ${
-                    isActive ? 'text-foreground' : 'text-muted-foreground'
-                  }`}
-                />
-                {link.label}
-                <span className="ml-auto flex items-center gap-1">
-                  {link.badge > 0 && (
-                    <span className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-amber-500/20 text-[10px] font-bold text-amber-400 tabular-nums">
-                      {link.badge}
-                    </span>
-                  )}
-                  {isActive && <span className="h-1.5 w-1.5 rounded-full bg-foreground" />}
-                </span>
+                <Icon className="ic w-[18px] h-[18px]" />
+                <span className="flex-1 text-left">{item.label}</span>
+                {badge > 0 && (
+                  <span
+                    className="grid place-items-center tnum"
+                    style={{
+                      minWidth: 19,
+                      height: 19,
+                      padding: '0 5px',
+                      borderRadius: 999,
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      background: 'var(--color-accent)',
+                      color: '#fff',
+                    }}
+                  >
+                    {badge}
+                  </span>
+                )}
               </Link>
             );
           })}
-          {children}
         </nav>
 
-        {/* User / Logout */}
-        <div className="p-2 border-t border-border flex-shrink-0">
+        {/* Primary action */}
+        <div className="px-3 py-2.5">
           <button
+            onClick={() => {
+              onClose?.();
+              router.push('/dashboard/events/create');
+            }}
+            className="w-full flex items-center justify-center gap-1.5 transition-colors"
+            style={{
+              background: 'var(--color-accent)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 999,
+              padding: '11px 12px',
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: 'var(--font-body)',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-accent-600)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-accent)')}
+          >
+            <Plus className="ic w-4 h-4" />
+            New event
+          </button>
+        </div>
+
+        {/* Account */}
+        <div
+          className="flex items-center gap-2.5 px-3 pt-2.5 pb-3.5"
+          style={{ borderTop: '1px solid var(--color-divider)' }}
+        >
+          <div
+            className="grid place-items-center flex-none"
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              background: 'var(--color-accent-2)',
+              color: 'var(--color-bg)',
+              fontFamily: 'var(--font-body)',
+              fontWeight: 700,
+              fontSize: 14,
+            }}
+          >
+            {initial}
+          </div>
+          <div className="min-w-0 flex-1 leading-tight">
+            <div className="truncate" style={{ fontSize: 12.5, fontWeight: 600 }} title={userEmail}>
+              {userEmail}
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: 'color-mix(in srgb, var(--color-text) 50%, transparent)',
+              }}
+            >
+              Super Admin
+            </div>
+          </div>
+          <button
+            title="Sign out"
             onClick={() => setShowLogoutModal(true)}
             disabled={isLoggingOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed group"
+            className="grid place-items-center transition-colors"
+            style={{
+              width: 30,
+              height: 30,
+              border: 'none',
+              background: 'transparent',
+              borderRadius: 9,
+              color: 'color-mix(in srgb, var(--color-text) 55%, transparent)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background =
+                'color-mix(in srgb, var(--color-text) 8%, transparent)';
+              e.currentTarget.style.color = 'var(--color-text)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = 'color-mix(in srgb, var(--color-text) 55%, transparent)';
+            }}
           >
-            {/* Avatar */}
-            <div className="h-7 w-7 rounded-full bg-accent border border-border flex items-center justify-center flex-shrink-0">
-              <span className="text-xs font-semibold text-foreground">{initials}</span>
-            </div>
-            <div className="flex-1 text-left min-w-0">
-              <p className="text-xs font-medium text-foreground truncate">{truncatedEmail}</p>
-              <p className="text-[10px] text-muted-foreground">Super Admin</p>
-            </div>
             {isLoggingOut ? (
               <Loader size="sm" variant="spinner" />
             ) : (
-              <LogOut className="h-3.5 w-3.5 flex-shrink-0 opacity-0 group-hover:opacity-100 group-hover:text-destructive transition-all duration-150" />
+              <LogOut className="ic w-4 h-4" />
             )}
           </button>
         </div>
       </aside>
 
-      {/* Logout Modal */}
       <AlertDialog open={showLogoutModal} onOpenChange={setShowLogoutModal}>
-        <AlertDialogContent className="sm:max-w-sm bg-card border-border">
+        <AlertDialogContent className="sm:max-w-sm">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground flex items-center gap-2 text-base">
-              <LogOut className="h-4 w-4 text-muted-foreground" />
+            <AlertDialogTitle className="flex items-center gap-2 text-base">
+              <LogOut className="ic h-4 w-4 text-muted-foreground" />
               Sign out
             </AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground text-sm">
-              You will need to sign in again to access the dashboard.
+              You will need to sign in again to access the console.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel
-              disabled={isLoggingOut}
-              className="bg-transparent border-border text-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50 text-sm"
-            >
+            <AlertDialogCancel disabled={isLoggingOut} className="text-sm">
               Cancel
             </AlertDialogCancel>
             <LoadingButton

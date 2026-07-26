@@ -3,30 +3,25 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createEventApi, companyApi } from '@/lib/api';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
-  AlertCircle,
-  CheckCircle2,
-  ChevronRight,
-  ChevronLeft,
-  Plus,
-  Trash2,
-  Ticket,
-  Calendar,
-  Clock,
-  MapPin,
-  Tag,
-  Link as LinkIcon,
-  Loader2,
   Building2,
   Search,
-  Upload,
+  MapPin,
+  ExternalLink,
+  Ticket,
+  Plus,
   X,
+  Upload,
+  Loader2,
+  Check,
+  CheckCircle2,
+  XCircle,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
 } from 'lucide-react';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
+import { Card, Toggle, money } from '@/components/ui/soa';
+import { DateTimePicker, Field } from '@/components/ui/date-time-picker';
 
 const CATEGORIES = [
   { id: 1, label: 'Music' },
@@ -42,8 +37,6 @@ const CATEGORIES = [
 
 const CURRENCIES = ['KES', 'USD', 'UGX', 'TZS', 'RWF', 'ZAR', 'GHS', 'NGN', 'MWK', 'AUD', 'CAD'];
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
 interface TicketForm {
   key: string;
   ticketName: string;
@@ -55,6 +48,8 @@ interface TicketForm {
   ticketSaleStartDate: string;
   ticketSaleEndDate: string;
   isFree: boolean;
+  sms: string;
+  email: string;
 }
 
 interface EventForm {
@@ -73,10 +68,11 @@ interface EventForm {
   companyId: string;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 function slugify(str: string) {
-  return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return str
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
 }
 
 function toIso(local: string) {
@@ -96,105 +92,70 @@ function emptyTicket(): TicketForm {
     ticketSaleStartDate: '',
     ticketSaleEndDate: '',
     isFree: false,
+    sms: '',
+    email: '',
   };
 }
-
-// ─── Field wrapper ────────────────────────────────────────────────────────────
-
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <label className="text-xs font-medium text-muted-foreground">
-        {label}{required && <span className="text-destructive ml-0.5">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-// ─── Date + Time picker ───────────────────────────────────────────────────────
-
-const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
-const HOURS12 = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-
-function DateTimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const datePart = value ? value.split('T')[0] : '';
-  const rawTime = value && value.includes('T') ? value.split('T')[1].slice(0, 5) : '12:00';
-  const h24 = parseInt(rawTime.split(':')[0]) || 0;
-  const rawMin = parseInt(rawTime.split(':')[1]) || 0;
-  const m = Math.round(rawMin / 5) * 5 % 60;
-  const isPM = h24 >= 12;
-  const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
-
-  const emit = (d: string, newH12: number, newM: number, newIsPM: boolean) => {
-    if (!d) { onChange(''); return; }
-    const h = (newH12 % 12) + (newIsPM ? 12 : 0);
-    onChange(`${d}T${String(h).padStart(2, '0')}:${String(newM).padStart(2, '0')}`);
-  };
-
-  const sel = 'flex-1 h-11 text-base rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center';
-
-  return (
-    <div className="space-y-2">
-      <div className="relative">
-        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50 pointer-events-none" />
-        <input
-          type="date"
-          value={datePart}
-          onChange={e => emit(e.target.value, h12, m, isPM)}
-          className="w-full h-11 text-base rounded-md border border-border bg-background pl-9 pr-3 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </div>
-      <div className="flex items-center gap-1.5">
-        <Clock className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" />
-        <select value={h12} onChange={e => emit(datePart, Number(e.target.value), m, isPM)} className={sel}>
-          {HOURS12.map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}</option>)}
-        </select>
-        <span className="text-muted-foreground font-bold">:</span>
-        <select value={m} onChange={e => emit(datePart, h12, Number(e.target.value), isPM)} className={sel}>
-          {MINUTES.map(min => <option key={min} value={min}>{String(min).padStart(2, '0')}</option>)}
-        </select>
-        <select value={isPM ? 'PM' : 'AM'} onChange={e => emit(datePart, h12, m, e.target.value === 'PM')} className="w-16 h-11 text-base rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center">
-          <option value="AM">AM</option>
-          <option value="PM">PM</option>
-        </select>
-      </div>
-    </div>
-  );
-}
-
-// ─── Step indicators ──────────────────────────────────────────────────────────
 
 function Steps({ current }: { current: number }) {
-  const steps = ['Event Details', 'Tickets', 'Review'];
+  const labels = ['Event details', 'Tickets', 'Review'];
   return (
-    <div className="flex items-center gap-2 mb-6">
-      {steps.map((label, i) => {
-        const idx = i + 1;
-        const done = idx < current;
-        const active = idx === current;
+    <div className="flex items-center gap-2.5 flex-wrap">
+      {labels.map((label, i) => {
+        const n = i + 1;
+        const done = n < current;
+        const active = n === current;
         return (
-          <div key={idx} className="flex items-center gap-2">
-            {i > 0 && <div className={`h-px w-8 flex-shrink-0 ${done ? 'bg-foreground/40' : 'bg-border'}`} />}
-            <div className="flex items-center gap-1.5">
-              <div className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0
-                ${done ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                  active ? 'bg-foreground text-background' :
-                  'bg-accent text-muted-foreground border border-border'}`}>
-                {done ? <CheckCircle2 className="h-3 w-3" /> : idx}
-              </div>
-              <span className={`text-xs font-medium hidden sm:block ${active ? 'text-foreground' : 'text-muted-foreground/60'}`}>
+          <div key={label} className="flex items-center gap-2.5">
+            {i > 0 && (
+              <span
+                style={{
+                  height: 1,
+                  width: 26,
+                  background: done ? 'var(--color-accent-2-300)' : 'var(--color-divider)',
+                }}
+              />
+            )}
+            <span className="inline-flex items-center gap-2">
+              <span
+                className="grid place-items-center flex-none"
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 999,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-body)',
+                  background: done
+                    ? 'var(--tint-olive-bg)'
+                    : active
+                      ? 'var(--color-accent)'
+                      : 'var(--color-surface)',
+                  color: done ? 'var(--tint-olive-strong)' : active ? '#fff' : 'var(--color-text)',
+                  border: done || active ? 'none' : '1px solid var(--color-divider)',
+                }}
+              >
+                {done ? <Check className="ic w-3 h-3" /> : n}
+              </span>
+              <span
+                className="hidden sm:block"
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  color: active
+                    ? 'var(--color-text)'
+                    : 'color-mix(in srgb, var(--color-text) 55%, transparent)',
+                }}
+              >
                 {label}
               </span>
-            </div>
+            </span>
           </div>
         );
       })}
     </div>
   );
 }
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CreateEventPage() {
   const router = useRouter();
@@ -203,8 +164,8 @@ export default function CreateEventPage() {
   const [submitError, setSubmitError] = useState('');
   const [successEventId, setSuccessEventId] = useState<number | null>(null);
   const [companyName, setCompanyName] = useState('');
-  const [companyLookupLoading, setCompanyLookupLoading] = useState(false);
-  const [companyLookupError, setCompanyLookupError] = useState('');
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
 
@@ -226,51 +187,37 @@ export default function CreateEventPage() {
 
   const [tickets, setTickets] = useState<TicketForm[]>([emptyTicket()]);
 
-  // ── Form helpers ──────────────────────────────────────────────────────────
-
   const setField = (key: keyof EventForm, value: string) => {
-    setForm(f => {
+    setForm((f) => {
       const next = { ...f, [key]: value };
-      if (key === 'eventName' && !f.slug) {
-        next.slug = slugify(value);
-      }
+      if (key === 'eventName' && !f.slug) next.slug = slugify(value);
       return next;
     });
   };
 
   const setTicketField = (idx: number, key: keyof TicketForm, value: string | boolean) => {
-    setTickets(prev => prev.map((t, i) => i !== idx ? t : { ...t, [key]: value }));
+    setTickets((prev) => prev.map((t, i) => (i !== idx ? t : { ...t, [key]: value })));
   };
-
-  const addTicket = () => setTickets(prev => [...prev, emptyTicket()]);
-  const removeTicket = (idx: number) => setTickets(prev => prev.filter((_, i) => i !== idx));
-
-  // ── Company lookup ────────────────────────────────────────────────────────
 
   const lookupCompany = async () => {
     const id = form.companyId.trim();
     if (!id || isNaN(Number(id))) {
-      setCompanyLookupError('Enter a valid numeric company ID');
+      setLookupError('Enter a valid numeric company ID');
       return;
     }
-    setCompanyLookupLoading(true);
-    setCompanyLookupError('');
+    setLookupLoading(true);
+    setLookupError('');
     setCompanyName('');
     try {
       const resp = await companyApi.getById(id);
-      if (resp.status && resp.company?.companyName) {
-        setCompanyName(resp.company.companyName);
-      } else {
-        setCompanyLookupError(resp.message || 'Company not found');
-      }
+      if (resp.status && resp.company?.companyName) setCompanyName(resp.company.companyName);
+      else setLookupError(resp.message || 'Company not found');
     } catch {
-      setCompanyLookupError('Failed to look up company');
+      setLookupError('Failed to look up company');
     } finally {
-      setCompanyLookupLoading(false);
+      setLookupLoading(false);
     }
   };
-
-  // ── Poster upload ─────────────────────────────────────────────────────────
 
   const handlePosterUpload = async (file: File) => {
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
@@ -298,8 +245,7 @@ export default function CreateEventPage() {
     }
   };
 
-  // ── Validation ────────────────────────────────────────────────────────────
-
+  // ── validation ──────────────────────────────────────────────────────────
   const step1Errors: string[] = [];
   if (!form.companyId.trim() || isNaN(Number(form.companyId))) step1Errors.push('Company ID is required');
   if (!form.eventName.trim()) step1Errors.push('Event name is required');
@@ -316,11 +262,11 @@ export default function CreateEventPage() {
   if (tickets.length === 0) step2Errors.push('At least one ticket type is required');
   tickets.forEach((t, i) => {
     if (!t.ticketName.trim()) step2Errors.push(`Ticket ${i + 1}: name is required`);
-    if (!t.isFree && (!t.ticketPrice || isNaN(Number(t.ticketPrice)))) step2Errors.push(`Ticket ${i + 1}: price is required`);
-    if (!t.quantityAvailable || isNaN(Number(t.quantityAvailable))) step2Errors.push(`Ticket ${i + 1}: quantity is required`);
+    if (!t.isFree && (!t.ticketPrice || isNaN(Number(t.ticketPrice))))
+      step2Errors.push(`Ticket ${i + 1}: price is required`);
+    if (!t.quantityAvailable || isNaN(Number(t.quantityAvailable)))
+      step2Errors.push(`Ticket ${i + 1}: quantity is required`);
   });
-
-  // ── Submit ────────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -346,9 +292,7 @@ export default function CreateEventPage() {
         currency: form.currency,
       });
 
-      if (!eventResp.status) {
-        throw new Error(eventResp.message || 'Failed to create event');
-      }
+      if (!eventResp.status) throw new Error(eventResp.message || 'Failed to create event');
 
       const eventId = eventResp.event_id ?? eventResp.event?.id;
       if (!eventId) throw new Error('Event created but ID not returned');
@@ -366,10 +310,10 @@ export default function CreateEventPage() {
           ticketSaleStartDate: toIso(t.ticketSaleStartDate || form.ticketSaleStartDate),
           ticketSaleEndDate: toIso(t.ticketSaleEndDate || form.ticketSaleEndDate),
           isFree: t.isFree,
+          smsPurchaseMessageTemplate: t.sms || undefined,
+          emailPurchaseMessageTemplate: t.email || undefined,
         });
-        if (!ticketResp.status) {
-          throw new Error(`Ticket "${t.ticketName}" failed: ${ticketResp.message}`);
-        }
+        if (!ticketResp.status) throw new Error(`Ticket "${t.ticketName}" failed: ${ticketResp.message}`);
       }
 
       setSuccessEventId(eventId);
@@ -380,515 +324,949 @@ export default function CreateEventPage() {
     }
   };
 
-  // ── Success screen ─────────────────────────────────────────────────────────
-
+  // ── success ─────────────────────────────────────────────────────────────
   if (successEventId) {
     return (
-      <div className="max-w-lg mx-auto py-16 text-center space-y-4">
-        <div className="h-14 w-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto">
-          <CheckCircle2 className="h-7 w-7 text-emerald-400" />
+      <div className="max-w-lg mx-auto py-16 text-center flex flex-col items-center gap-4 animate-soa-fade">
+        <div
+          className="grid place-items-center"
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 999,
+            background: 'var(--tint-olive-bg)',
+            color: 'var(--tint-olive-strong)',
+          }}
+        >
+          <CheckCircle2 className="ic w-7 h-7" />
         </div>
-        <h2 className="text-lg font-semibold text-foreground">Event created!</h2>
-        <p className="text-sm text-muted-foreground">
-          Event ID <span className="font-mono text-foreground">#{successEventId}</span> for{' '}
-          <span className="text-foreground font-medium">{companyName || `Company #${form.companyId}`}</span>{' '}
-          with {tickets.length} ticket type{tickets.length !== 1 ? 's' : ''} has been created successfully.
+        <h2 className="m-0" style={{ fontSize: 20 }}>
+          Event created
+        </h2>
+        <p className="m-0 text-sm text-muted-foreground">
+          Event <span className="tnum font-semibold text-foreground">#{successEventId}</span> for{' '}
+          <span className="font-semibold text-foreground">
+            {companyName || `Company #${form.companyId}`}
+          </span>{' '}
+          with {tickets.length} ticket type{tickets.length === 1 ? '' : 's'} is ready.
         </p>
-        <div className="flex justify-center gap-2 pt-2">
-          <Button variant="outline" size="sm" className="border-border bg-transparent text-xs" onClick={() => router.push('/dashboard/events')}>
+        <div className="flex justify-center gap-2 pt-1">
+          <button
+            onClick={() => router.push('/dashboard/events')}
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: 'var(--font-body)',
+              padding: '9px 16px',
+              borderRadius: 'var(--radius-control)',
+              border: '1px solid var(--color-divider)',
+              background: 'transparent',
+            }}
+          >
             View all events
-          </Button>
-          <Button size="sm" className="text-xs" onClick={() => {
-            setSuccessEventId(null);
-            setStep(1);
-            setCompanyName('');
-            setForm({ eventName: '', eventDescription: '', eventPosterUrl: '', eventCategoryId: '', eventLocation: '', eventStartDate: '', eventEndDate: '', ticketSaleStartDate: '', ticketSaleEndDate: '', percentageCommission: '5', currency: 'KES', slug: '', companyId: '' });
-            setTickets([emptyTicket()]);
-          }}>
+          </button>
+          <button
+            onClick={() => {
+              setSuccessEventId(null);
+              setStep(1);
+              setCompanyName('');
+              setForm({
+                eventName: '',
+                eventDescription: '',
+                eventPosterUrl: '',
+                eventCategoryId: '',
+                eventLocation: '',
+                eventStartDate: '',
+                eventEndDate: '',
+                ticketSaleStartDate: '',
+                ticketSaleEndDate: '',
+                percentageCommission: '5',
+                currency: 'KES',
+                slug: '',
+                companyId: '',
+              });
+              setTickets([emptyTicket()]);
+            }}
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: 'var(--font-body)',
+              padding: '9px 16px',
+              borderRadius: 'var(--radius-control)',
+              border: 'none',
+              background: 'var(--color-accent)',
+              color: '#fff',
+            }}
+          >
             Create another
-          </Button>
+          </button>
         </div>
       </div>
     );
   }
 
-  // ── Step 1: Event Details ──────────────────────────────────────────────────
-
-  const renderStep1 = () => (
-    <div className="space-y-4">
-      {/* Company selector */}
-      <div className="rounded-lg border border-border bg-background/50 p-4 space-y-3">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Company</p>
-        <div className="flex items-end gap-2">
-          <Field label="Company ID" required>
-            <div className="relative flex-1">
-              <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
-              <Input
-                type="number"
-                value={form.companyId}
-                onChange={e => { setField('companyId', e.target.value); setCompanyName(''); setCompanyLookupError(''); }}
-                placeholder="Enter company ID"
-                className="h-9 text-sm border-border bg-background pl-8 w-full"
-              />
-            </div>
-          </Field>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={lookupCompany}
-            disabled={companyLookupLoading || !form.companyId.trim()}
-            className="h-9 border-border bg-transparent text-xs gap-1.5 flex-shrink-0 mb-0"
-          >
-            {companyLookupLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
-            Lookup
-          </Button>
-        </div>
-        {companyName && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-emerald-500/5 border border-emerald-500/20">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
-            <span className="text-xs text-emerald-400 font-medium">{companyName}</span>
-            <span className="text-[10px] text-muted-foreground/50 font-mono ml-auto">#{form.companyId}</span>
-          </div>
-        )}
-        {companyLookupError && (
-          <p className="text-xs text-destructive flex items-center gap-1.5">
-            <AlertCircle className="h-3 w-3 flex-shrink-0" />{companyLookupError}
-          </p>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field label="Event Name" required>
-          <Input
-            value={form.eventName}
-            onChange={e => setField('eventName', e.target.value)}
-            placeholder="e.g. Nairobi Jazz Night"
-            className="h-10 text-sm border-border bg-background"
-          />
-        </Field>
-        <Field label="Category" required>
-          <select
-            value={form.eventCategoryId}
-            onChange={e => setField('eventCategoryId', e.target.value)}
-            className="w-full h-10 text-sm rounded-md border border-border bg-background px-3 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            <option value="">Select category</option>
-            {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-          </select>
-        </Field>
-      </div>
-
-      <Field label="Description" required>
-        <textarea
-          value={form.eventDescription}
-          onChange={e => setField('eventDescription', e.target.value)}
-          placeholder="Describe your event..."
-          rows={4}
-          className="w-full text-sm rounded-md border border-border bg-background px-3 py-2.5 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring resize-none leading-relaxed"
-        />
-      </Field>
-
-      <Field label="Location" required>
-        <div className="relative">
-          <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
-          <Input
-            value={form.eventLocation}
-            onChange={e => setField('eventLocation', e.target.value)}
-            placeholder="e.g. KICC, Nairobi"
-            className="h-10 text-sm border-border bg-background pl-8"
-          />
-        </div>
-      </Field>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field label="Event Start Date & Time" required>
-          <DateTimePicker value={form.eventStartDate} onChange={v => setField('eventStartDate', v)} />
-        </Field>
-        <Field label="Event End Date & Time" required>
-          <DateTimePicker value={form.eventEndDate} onChange={v => setField('eventEndDate', v)} />
-        </Field>
-        <Field label="Ticket Sale Start" required>
-          <DateTimePicker value={form.ticketSaleStartDate} onChange={v => setField('ticketSaleStartDate', v)} />
-        </Field>
-        <Field label="Ticket Sale End" required>
-          <DateTimePicker value={form.ticketSaleEndDate} onChange={v => setField('ticketSaleEndDate', v)} />
-        </Field>
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <Field label="Commission %" required>
-          <Input
-            type="number"
-            min="0"
-            max="100"
-            step="0.1"
-            value={form.percentageCommission}
-            onChange={e => setField('percentageCommission', e.target.value)}
-            className="h-10 text-sm border-border bg-background"
-          />
-        </Field>
-        <Field label="Currency" required>
-          <select
-            value={form.currency}
-            onChange={e => setField('currency', e.target.value)}
-            className="w-full h-10 text-sm rounded-md border border-border bg-background px-3 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </Field>
-        <Field label="URL Slug" required>
-          <div className="relative col-span-2 sm:col-span-1">
-            <LinkIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
-            <Input
-              value={form.slug}
-              onChange={e => setField('slug', slugify(e.target.value))}
-              placeholder="my-event-name"
-              className="h-10 text-sm border-border bg-background pl-8 font-mono w-full"
-            />
-          </div>
-        </Field>
-      </div>
-
-      <Field label="Poster Image">
-        <div className="space-y-2">
-          {/* File upload area */}
-          <label className={`flex flex-col items-center justify-center gap-2 h-24 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
-            isUploading ? 'border-border bg-accent/20 pointer-events-none' : 'border-border hover:border-foreground/30 hover:bg-accent/20'
-          }`}>
-            <input
-              type="file"
-              accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-              className="sr-only"
-              disabled={isUploading}
-              onChange={e => { const f = e.target.files?.[0]; if (f) handlePosterUpload(f); e.target.value = ''; }}
-            />
-            {isUploading ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Uploading...</span>
-              </>
-            ) : (
-              <>
-                <Upload className="h-5 w-5 text-muted-foreground/50" />
-                <span className="text-xs text-muted-foreground/70">Click to upload poster <span className="text-muted-foreground/40">· JPEG, PNG, WebP · max 10MB</span></span>
-              </>
-            )}
-          </label>
-
-          {/* URL fallback */}
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <LinkIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
-              <Input
-                value={form.eventPosterUrl}
-                onChange={e => { setField('eventPosterUrl', e.target.value); setUploadError(''); }}
-                placeholder="or paste image URL"
-                className="h-9 text-sm border-border bg-background pl-8"
-              />
-            </div>
-            {form.eventPosterUrl && (
-              <button type="button" onClick={() => setField('eventPosterUrl', '')} className="h-9 w-9 flex items-center justify-center rounded-md text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-
-          {uploadError && (
-            <p className="text-xs text-destructive flex items-center gap-1.5">
-              <AlertCircle className="h-3 w-3 flex-shrink-0" />{uploadError}
-            </p>
-          )}
-
-          {form.eventPosterUrl && (
-            <div className="rounded-md overflow-hidden border border-border w-32 h-20">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={form.eventPosterUrl} alt="poster preview" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-            </div>
-          )}
-        </div>
-      </Field>
-    </div>
-  );
-
-  // ── Step 2: Tickets ────────────────────────────────────────────────────────
-
-  const renderStep2 = () => (
-    <div className="space-y-4">
-      {tickets.map((t, idx) => (
-        <div key={t.key} className="rounded-lg border border-border bg-background/30 p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Ticket className="h-3.5 w-3.5 text-muted-foreground/60" />
-              <span className="text-xs font-semibold text-foreground">Ticket Type {idx + 1}</span>
-            </div>
-            {tickets.length > 1 && (
-              <button
-                onClick={() => removeTicket(idx)}
-                className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Ticket Name" required>
-              <Input
-                value={t.ticketName}
-                onChange={e => setTicketField(idx, 'ticketName', e.target.value)}
-                placeholder="e.g. VIP, General, Early Bird"
-                className="h-10 text-sm border-border bg-background"
-              />
-            </Field>
-            <Field label="Price">
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  min="0"
-                  value={t.isFree ? '' : t.ticketPrice}
-                  onChange={e => setTicketField(idx, 'ticketPrice', e.target.value)}
-                  placeholder={t.isFree ? 'Free' : '0.00'}
-                  disabled={t.isFree}
-                  className="h-10 text-sm border-border bg-background disabled:opacity-40"
-                />
-                <label className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap cursor-pointer select-none flex-shrink-0">
-                  <input
-                    type="checkbox"
-                    checked={t.isFree}
-                    onChange={e => {
-                      setTicketField(idx, 'isFree', e.target.checked);
-                      if (e.target.checked) setTicketField(idx, 'ticketPrice', '0');
-                    }}
-                    className="rounded border-border"
-                  />
-                  Free
-                </label>
-              </div>
-            </Field>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <Field label="Quantity Available" required>
-              <Input
-                type="number"
-                min="1"
-                value={t.quantityAvailable}
-                onChange={e => setTicketField(idx, 'quantityAvailable', e.target.value)}
-                placeholder="100"
-                className="h-10 text-sm border-border bg-background"
-              />
-            </Field>
-            <Field label="Tickets to Issue">
-              <Input
-                type="number"
-                min="0"
-                value={t.ticketsToIssue}
-                onChange={e => setTicketField(idx, 'ticketsToIssue', e.target.value)}
-                placeholder="Same as quantity"
-                className="h-10 text-sm border-border bg-background"
-              />
-            </Field>
-            <Field label="Limit per Person">
-              <Input
-                type="number"
-                min="0"
-                value={t.ticketLimitPerPerson}
-                onChange={e => setTicketField(idx, 'ticketLimitPerPerson', e.target.value)}
-                className="h-10 text-sm border-border bg-background"
-              />
-            </Field>
-          </div>
-
-          <Field label="Complementary Tickets">
-            <Input
-              type="number"
-              min="0"
-              value={t.numberOfComplementary}
-              onChange={e => setTicketField(idx, 'numberOfComplementary', e.target.value)}
-              className="h-10 text-sm border-border bg-background"
-            />
-          </Field>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Sale Start">
-              <DateTimePicker
-                value={t.ticketSaleStartDate || form.ticketSaleStartDate}
-                onChange={v => setTicketField(idx, 'ticketSaleStartDate', v)}
-              />
-            </Field>
-            <Field label="Sale End">
-              <DateTimePicker
-                value={t.ticketSaleEndDate || form.ticketSaleEndDate}
-                onChange={v => setTicketField(idx, 'ticketSaleEndDate', v)}
-              />
-            </Field>
-          </div>
-        </div>
-      ))}
-
-      <button
-        onClick={addTicket}
-        className="w-full h-10 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:text-foreground hover:border-foreground/30 hover:bg-accent/30 transition-colors flex items-center justify-center gap-2"
-      >
-        <Plus className="h-3.5 w-3.5" />
-        Add ticket type
-      </button>
-    </div>
-  );
-
-  // ── Step 3: Review ─────────────────────────────────────────────────────────
-
-  const renderStep3 = () => {
-    const cat = CATEGORIES.find(c => c.id === parseInt(form.eventCategoryId));
-    return (
-      <div className="space-y-4">
-        <div className="rounded-lg border border-border bg-background/30 p-4 space-y-3">
-          <div className="flex items-center gap-2 pb-2 border-b border-border/60">
-            <Building2 className="h-3.5 w-3.5 text-muted-foreground/60" />
-            <span className="text-xs text-muted-foreground">
-              {companyName ? (
-                <><span className="text-foreground font-medium">{companyName}</span> <span className="text-muted-foreground/40 font-mono">#{form.companyId}</span></>
-              ) : (
-                <span className="font-mono text-foreground">Company #{form.companyId}</span>
-              )}
-            </span>
-          </div>
-          <div className="flex items-start gap-3">
-            {form.eventPosterUrl && (
-              <div className="w-16 h-16 rounded-md overflow-hidden flex-shrink-0 border border-border">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={form.eventPosterUrl} alt="" className="w-full h-full object-cover" />
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-semibold text-foreground">{form.eventName}</h3>
-              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{form.eventDescription}</p>
-              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70"><MapPin className="h-2.5 w-2.5" />{form.eventLocation}</span>
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70"><Tag className="h-2.5 w-2.5" />{cat?.label}</span>
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70"><Calendar className="h-2.5 w-2.5" />{form.eventStartDate?.replace('T', ' ')}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/60">
-            <div>
-              <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">Commission</p>
-              <p className="text-xs font-medium text-foreground mt-0.5">{form.percentageCommission}%</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">Currency</p>
-              <p className="text-xs font-medium text-foreground mt-0.5">{form.currency}</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">Slug</p>
-              <p className="text-xs font-mono text-foreground mt-0.5 truncate">{form.slug}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{tickets.length} Ticket Type{tickets.length !== 1 ? 's' : ''}</p>
-          {tickets.map((t, i) => {
-            const qty = parseInt(t.quantityAvailable) || 0;
-            const price = t.isFree ? 0 : parseFloat(t.ticketPrice) || 0;
-            return (
-              <div key={t.key} className="rounded-lg border border-border bg-background/30 px-3 py-2.5 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-foreground">{t.ticketName || `Ticket ${i + 1}`}</p>
-                  <p className="text-[11px] text-muted-foreground/60 mt-0.5">
-                    {qty} tickets · limit {t.ticketLimitPerPerson}/person
-                  </p>
-                </div>
-                <p className="text-sm font-bold text-foreground">
-                  {t.isFree ? 'Free' : `${form.currency} ${price.toLocaleString()}`}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-
-        {submitError && (
-          <Alert variant="destructive" className="border-destructive/30 bg-destructive/5 py-2.5">
-            <AlertDescription className="flex items-center gap-2">
-              <AlertCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
-              <span className="text-sm text-destructive">{submitError}</span>
-            </AlertDescription>
-          </Alert>
-        )}
-      </div>
-    );
-  };
-
-  // ── Navigation ────────────────────────────────────────────────────────────
-
-  const canNext = step === 1 ? step1Errors.length === 0 : step === 2 ? step2Errors.length === 0 : true;
   const currentErrors = step === 1 ? step1Errors : step === 2 ? step2Errors : [];
+  const canContinue = currentErrors.length === 0;
+  const cat = CATEGORIES.find((c) => c.id === parseInt(form.eventCategoryId));
 
   return (
-    <div className="max-w-2xl mx-auto pb-10">
-      <div className="mb-5">
-        <h1 className="text-xl font-semibold text-foreground tracking-tight">Create Event</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">Fill in the event details and add ticket types</p>
-      </div>
-
+    <div className="max-w-[780px] mx-auto flex flex-col gap-4 animate-soa-fade pb-6">
       <Steps current={step} />
 
-      <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
-        {step === 1 && renderStep1()}
-        {step === 2 && renderStep2()}
-        {step === 3 && renderStep3()}
-      </div>
+      <Card padded={false} style={{ padding: '20px 22px' }}>
+        {/* ── Step 1 ───────────────────────────────────────────────────── */}
+        {step === 1 && (
+          <div className="flex flex-col gap-4 animate-soa-fade-fast">
+            <div
+              style={{
+                border: '1px solid var(--color-divider)',
+                borderRadius: 12,
+                padding: '14px 15px',
+                background: 'var(--color-surface)',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 10,
+                  letterSpacing: '.1em',
+                  textTransform: 'uppercase',
+                  fontWeight: 700,
+                  marginBottom: 10,
+                  color: 'color-mix(in srgb, var(--color-text) 55%, transparent)',
+                }}
+              >
+                Organizing company
+              </div>
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <Field label="Company ID" required>
+                    <div className="relative">
+                      <Building2
+                        className="ic absolute w-[15px] h-[15px] pointer-events-none"
+                        style={{
+                          left: 12,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: 'color-mix(in srgb, var(--color-text) 42%, transparent)',
+                        }}
+                      />
+                      <input
+                        className="soa-input"
+                        inputMode="numeric"
+                        value={form.companyId}
+                        onChange={(e) => {
+                          setField('companyId', e.target.value);
+                          setCompanyName('');
+                          setLookupError('');
+                        }}
+                        placeholder="e.g. 12"
+                        style={{ paddingLeft: 36, background: 'var(--color-neutral-100)' }}
+                      />
+                    </div>
+                  </Field>
+                </div>
+                <button
+                  type="button"
+                  onClick={lookupCompany}
+                  disabled={lookupLoading || !form.companyId.trim()}
+                  className="flex items-center gap-1.5 flex-none disabled:opacity-50"
+                  style={{
+                    height: 36,
+                    padding: '0 15px',
+                    borderRadius: 'var(--radius-control)',
+                    border: '1px solid var(--color-divider)',
+                    background: 'var(--color-neutral-100)',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-body)',
+                  }}
+                >
+                  {lookupLoading ? (
+                    <Loader2 className="ic w-[15px] h-[15px] animate-spin" />
+                  ) : (
+                    <Search className="ic w-[15px] h-[15px]" />
+                  )}
+                  Lookup
+                </button>
+              </div>
+              {companyName && (
+                <div
+                  className="flex items-center gap-2 mt-2.5"
+                  style={{
+                    padding: '8px 11px',
+                    borderRadius: 9,
+                    background: 'var(--tint-olive-bg)',
+                  }}
+                >
+                  <CheckCircle2
+                    className="ic w-[15px] h-[15px]"
+                    style={{ color: 'var(--tint-olive-strong)' }}
+                  />
+                  <span
+                    style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tint-olive-fg)' }}
+                  >
+                    {companyName}
+                  </span>
+                </div>
+              )}
+              {lookupError && (
+                <div
+                  className="flex items-center gap-1.5 mt-2.5"
+                  style={{ fontSize: 12, color: 'var(--tint-danger-fg)' }}
+                >
+                  <XCircle className="ic w-3.5 h-3.5" />
+                  {lookupError}
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+              <Field label="Event name" required>
+                <input
+                  className="soa-input"
+                  value={form.eventName}
+                  onChange={(e) => setField('eventName', e.target.value)}
+                  placeholder="e.g. Nairobi Jazz Festival"
+                />
+              </Field>
+              <Field label="Category" required>
+                <select
+                  className="soa-input"
+                  value={form.eventCategoryId}
+                  onChange={(e) => setField('eventCategoryId', e.target.value)}
+                >
+                  <option value="">Select category</option>
+                  {CATEGORIES.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
+            <Field label="Description" required>
+              <textarea
+                className="soa-input"
+                rows={4}
+                value={form.eventDescription}
+                onChange={(e) => setField('eventDescription', e.target.value)}
+                placeholder="Tell attendees what to expect…"
+                style={{ minHeight: 88 }}
+              />
+            </Field>
+
+            <Field label="Location" required>
+              <div className="relative">
+                <MapPin
+                  className="ic absolute w-[15px] h-[15px] pointer-events-none"
+                  style={{
+                    left: 12,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'color-mix(in srgb, var(--color-text) 42%, transparent)',
+                  }}
+                />
+                <input
+                  className="soa-input"
+                  value={form.eventLocation}
+                  onChange={(e) => setField('eventLocation', e.target.value)}
+                  placeholder="e.g. KICC, Nairobi"
+                  style={{ paddingLeft: 36 }}
+                />
+              </div>
+            </Field>
+
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+              <Field label="Event starts" required>
+                <DateTimePicker value={form.eventStartDate} onChange={(v) => setField('eventStartDate', v)} />
+              </Field>
+              <Field label="Event ends" required>
+                <DateTimePicker value={form.eventEndDate} onChange={(v) => setField('eventEndDate', v)} />
+              </Field>
+              <Field label="Ticket sales start" required>
+                <DateTimePicker
+                  value={form.ticketSaleStartDate}
+                  onChange={(v) => setField('ticketSaleStartDate', v)}
+                />
+              </Field>
+              <Field label="Ticket sales end" required>
+                <DateTimePicker
+                  value={form.ticketSaleEndDate}
+                  onChange={(v) => setField('ticketSaleEndDate', v)}
+                />
+              </Field>
+            </div>
+
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+              <Field label="Commission %">
+                <input
+                  className="soa-input tnum"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={form.percentageCommission}
+                  onChange={(e) => setField('percentageCommission', e.target.value)}
+                  placeholder="5"
+                />
+              </Field>
+              <Field label="Currency">
+                <select
+                  className="soa-input"
+                  value={form.currency}
+                  onChange={(e) => setField('currency', e.target.value)}
+                >
+                  {CURRENCIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="URL slug" required>
+                <div className="relative">
+                  <ExternalLink
+                    className="ic absolute w-[15px] h-[15px] pointer-events-none"
+                    style={{
+                      left: 12,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'color-mix(in srgb, var(--color-text) 42%, transparent)',
+                    }}
+                  />
+                  <input
+                    className="soa-input tnum"
+                    value={form.slug}
+                    onChange={(e) => setField('slug', slugify(e.target.value))}
+                    placeholder="my-event"
+                    style={{ paddingLeft: 36 }}
+                  />
+                </div>
+              </Field>
+            </div>
+
+            <Field label="Event poster">
+              <div className="flex gap-3.5 items-start flex-wrap">
+                <label
+                  className="grid place-items-center cursor-pointer flex-none"
+                  style={{
+                    width: 120,
+                    height: 160,
+                    borderRadius: 10,
+                    border: '1px dashed var(--color-divider)',
+                    background: form.eventPosterUrl
+                      ? `url('${form.eventPosterUrl}') center/cover`
+                      : 'var(--color-surface)',
+                  }}
+                >
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                    className="sr-only"
+                    disabled={isUploading}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handlePosterUpload(f);
+                      e.target.value = '';
+                    }}
+                  />
+                  {isUploading ? (
+                    <Loader2 className="ic w-5 h-5 animate-spin text-muted-foreground" />
+                  ) : !form.eventPosterUrl ? (
+                    <span className="flex flex-col items-center gap-1.5 text-muted-foreground">
+                      <Upload className="ic w-5 h-5" />
+                      <span style={{ fontSize: 11 }}>Drop poster</span>
+                    </span>
+                  ) : null}
+                </label>
+                <div className="flex-1 min-w-[200px] flex flex-col gap-2">
+                  <p
+                    className="m-0"
+                    style={{
+                      fontSize: 12,
+                      lineHeight: 1.5,
+                      color: 'color-mix(in srgb, var(--color-text) 55%, transparent)',
+                    }}
+                  >
+                    Portrait artwork works best (3:4).
+                    <br />
+                    JPEG, PNG or WebP · up to 10&nbsp;MB.
+                  </p>
+                  <div className="relative">
+                    <input
+                      className="soa-input"
+                      value={form.eventPosterUrl}
+                      onChange={(e) => {
+                        setField('eventPosterUrl', e.target.value);
+                        setUploadError('');
+                      }}
+                      placeholder="or paste an image URL"
+                      style={{ paddingRight: 34 }}
+                    />
+                    {form.eventPosterUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setField('eventPosterUrl', '')}
+                        aria-label="Clear poster"
+                        className="grid place-items-center"
+                        style={{
+                          position: 'absolute',
+                          right: 8,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          width: 22,
+                          height: 22,
+                          border: 'none',
+                          background: 'transparent',
+                          color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                        }}
+                      >
+                        <X className="ic w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  {uploadError && (
+                    <p
+                      className="m-0 flex items-center gap-1.5"
+                      style={{ fontSize: 12, color: 'var(--tint-danger-fg)' }}
+                    >
+                      <XCircle className="ic w-3.5 h-3.5" />
+                      {uploadError}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Field>
+          </div>
+        )}
+
+        {/* ── Step 2 ───────────────────────────────────────────────────── */}
+        {step === 2 && (
+          <div className="flex flex-col gap-3 animate-soa-fade-fast">
+            {tickets.map((t, idx) => (
+              <div
+                key={t.key}
+                style={{
+                  border: '1px solid var(--color-divider)',
+                  borderRadius: 12,
+                  padding: '14px 15px',
+                  background: 'var(--color-surface)',
+                }}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span
+                    className="inline-flex items-center gap-2"
+                    style={{ fontSize: 13, fontWeight: 700 }}
+                  >
+                    <Ticket className="ic w-[15px] h-[15px]" style={{ color: 'var(--color-accent)' }} />
+                    Ticket type {idx + 1}
+                  </span>
+                  {tickets.length > 1 && (
+                    <button
+                      onClick={() => setTickets((prev) => prev.filter((_, i) => i !== idx))}
+                      aria-label={`Remove ticket type ${idx + 1}`}
+                      className="grid place-items-center"
+                      style={{
+                        width: 28,
+                        height: 28,
+                        border: 'none',
+                        background: 'transparent',
+                        borderRadius: 8,
+                        color: 'var(--tint-danger-fg)',
+                      }}
+                    >
+                      <X className="ic w-[15px] h-[15px]" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+                  <Field label="Ticket name" required>
+                    <input
+                      className="soa-input"
+                      value={t.ticketName}
+                      onChange={(e) => setTicketField(idx, 'ticketName', e.target.value)}
+                      placeholder="e.g. VIP, Regular, Early Bird"
+                      style={{ background: 'var(--color-neutral-100)' }}
+                    />
+                  </Field>
+                  <Field label={`Price (${form.currency})`}>
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        className="soa-input tnum"
+                        type="number"
+                        min="0"
+                        value={t.isFree ? '' : t.ticketPrice}
+                        onChange={(e) => setTicketField(idx, 'ticketPrice', e.target.value)}
+                        disabled={t.isFree}
+                        placeholder={t.isFree ? 'Free' : '0'}
+                        style={{ background: 'var(--color-neutral-100)' }}
+                      />
+                      <Toggle
+                        checked={t.isFree}
+                        onChange={(v) => {
+                          setTicketField(idx, 'isFree', v);
+                          if (v) setTicketField(idx, 'ticketPrice', '0');
+                        }}
+                        label="Free ticket"
+                      />
+                      <span
+                        className="text-muted-foreground flex-none"
+                        style={{ fontSize: 12 }}
+                      >
+                        Free
+                      </span>
+                    </div>
+                  </Field>
+                </div>
+
+                <div
+                  className="grid gap-3 mt-3"
+                  style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}
+                >
+                  <Field label="Quantity available" required>
+                    <input
+                      className="soa-input tnum"
+                      type="number"
+                      min="1"
+                      value={t.quantityAvailable}
+                      onChange={(e) => setTicketField(idx, 'quantityAvailable', e.target.value)}
+                      placeholder="100"
+                      style={{ background: 'var(--color-neutral-100)' }}
+                    />
+                  </Field>
+                  <Field label="Tickets to issue">
+                    <input
+                      className="soa-input tnum"
+                      type="number"
+                      min="0"
+                      value={t.ticketsToIssue}
+                      onChange={(e) => setTicketField(idx, 'ticketsToIssue', e.target.value)}
+                      placeholder="Same as quantity"
+                      style={{ background: 'var(--color-neutral-100)' }}
+                    />
+                  </Field>
+                  <Field label="Limit per person">
+                    <input
+                      className="soa-input tnum"
+                      type="number"
+                      min="0"
+                      value={t.ticketLimitPerPerson}
+                      onChange={(e) => setTicketField(idx, 'ticketLimitPerPerson', e.target.value)}
+                      style={{ background: 'var(--color-neutral-100)' }}
+                    />
+                  </Field>
+                  <Field label="Complementary">
+                    <input
+                      className="soa-input tnum"
+                      type="number"
+                      min="0"
+                      value={t.numberOfComplementary}
+                      onChange={(e) => setTicketField(idx, 'numberOfComplementary', e.target.value)}
+                      style={{ background: 'var(--color-neutral-100)' }}
+                    />
+                  </Field>
+                </div>
+
+                <div
+                  className="grid gap-3 mt-3"
+                  style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}
+                >
+                  <Field label="Ticket sales start">
+                    <DateTimePicker
+                      value={t.ticketSaleStartDate || form.ticketSaleStartDate}
+                      onChange={(v) => setTicketField(idx, 'ticketSaleStartDate', v)}
+                    />
+                  </Field>
+                  <Field label="Ticket sales end">
+                    <DateTimePicker
+                      value={t.ticketSaleEndDate || form.ticketSaleEndDate}
+                      onChange={(v) => setTicketField(idx, 'ticketSaleEndDate', v)}
+                    />
+                  </Field>
+                </div>
+
+                <div
+                  className="mt-3.5 pt-3"
+                  style={{ borderTop: '1px solid var(--color-divider)' }}
+                >
+                  <div
+                    style={{
+                      fontSize: 10,
+                      letterSpacing: '.08em',
+                      textTransform: 'uppercase',
+                      fontWeight: 700,
+                      marginBottom: 10,
+                      color: 'color-mix(in srgb, var(--color-text) 48%, transparent)',
+                    }}
+                  >
+                    Notification templates
+                  </div>
+                  <Field label="SMS on purchase">
+                    <textarea
+                      className="soa-input"
+                      rows={3}
+                      value={t.sms}
+                      onChange={(e) => setTicketField(idx, 'sms', e.target.value)}
+                      placeholder="Hi {first_name}, your {ticket_name} ticket for {event_name} is confirmed. Access: {ticket_link}"
+                      style={{ minHeight: 64, fontSize: 12.5, background: 'var(--color-neutral-100)' }}
+                    />
+                    <div
+                      style={{
+                        fontSize: 10.5,
+                        marginTop: 5,
+                        color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                      }}
+                    >
+                      Placeholders: {'{first_name}'} · {'{event_name}'} · {'{ticket_name}'} ·{' '}
+                      {'{ticket_link}'}
+                    </div>
+                  </Field>
+                  <div className="mt-3">
+                    <Field label="Email on purchase">
+                      <textarea
+                        className="soa-input"
+                        rows={4}
+                        value={t.email}
+                        onChange={(e) => setTicketField(idx, 'email', e.target.value)}
+                        placeholder="Dear {first_name}, thank you for purchasing your {ticket_name} ticket for {event_name}. We look forward to seeing you!"
+                        style={{ minHeight: 80, fontSize: 12.5, background: 'var(--color-neutral-100)' }}
+                      />
+                      <div
+                        style={{
+                          fontSize: 10.5,
+                          marginTop: 5,
+                          color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                        }}
+                      >
+                        Placeholders: {'{first_name}'} · {'{event_name}'} · {'{ticket_name}'}
+                      </div>
+                    </Field>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <button
+              onClick={() => setTickets((prev) => [...prev, emptyTicket()])}
+              className="w-full flex items-center justify-center gap-2"
+              style={{
+                padding: 11,
+                border: '1px dashed var(--color-divider)',
+                borderRadius: 12,
+                background: 'transparent',
+                fontSize: 13,
+                fontWeight: 600,
+                fontFamily: 'var(--font-body)',
+                color: 'var(--color-accent-700)',
+              }}
+            >
+              <Plus className="ic w-4 h-4" />
+              Add another ticket type
+            </button>
+          </div>
+        )}
+
+        {/* ── Step 3 ───────────────────────────────────────────────────── */}
+        {step === 3 && (
+          <div className="flex flex-col gap-3.5 animate-soa-fade-fast">
+            <div className="flex gap-3.5 items-start">
+              <div
+                className="flex-none"
+                style={{
+                  width: 76,
+                  height: 100,
+                  borderRadius: 9,
+                  border: '1px solid var(--color-divider)',
+                  background: form.eventPosterUrl
+                    ? `url('${form.eventPosterUrl}') center/cover`
+                    : 'var(--color-surface)',
+                }}
+              />
+              <div className="flex-1 min-w-0">
+                <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.15 }}>
+                  {form.eventName}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12.5,
+                    marginTop: 4,
+                    lineHeight: 1.5,
+                    color: 'color-mix(in srgb, var(--color-text) 62%, transparent)',
+                  }}
+                >
+                  {form.eventDescription}
+                </div>
+                <div className="flex flex-wrap gap-x-3.5 gap-y-1 mt-2">
+                  <span
+                    className="inline-flex items-center gap-1.5"
+                    style={{
+                      fontSize: 12,
+                      color: 'color-mix(in srgb, var(--color-text) 58%, transparent)',
+                    }}
+                  >
+                    <Building2 className="ic w-3 h-3" />
+                    {companyName || `Company #${form.companyId}`}
+                  </span>
+                  <span
+                    className="inline-flex items-center gap-1.5"
+                    style={{
+                      fontSize: 12,
+                      color: 'color-mix(in srgb, var(--color-text) 58%, transparent)',
+                    }}
+                  >
+                    <MapPin className="ic w-3 h-3" />
+                    {form.eventLocation}
+                  </span>
+                  <span
+                    className="inline-flex items-center gap-1.5"
+                    style={{
+                      fontSize: 12,
+                      color: 'color-mix(in srgb, var(--color-text) 58%, transparent)',
+                    }}
+                  >
+                    <Clock className="ic w-3 h-3" />
+                    {cat?.label}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              className="grid grid-cols-3 gap-2.5 py-3"
+              style={{
+                borderTop: '1px solid var(--color-divider)',
+                borderBottom: '1px solid var(--color-divider)',
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: 9.5,
+                    letterSpacing: '.06em',
+                    textTransform: 'uppercase',
+                    color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                  }}
+                >
+                  Commission
+                </div>
+                <div className="tnum" style={{ fontSize: 13.5, fontWeight: 700, marginTop: 2 }}>
+                  {form.percentageCommission}%
+                </div>
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: 9.5,
+                    letterSpacing: '.06em',
+                    textTransform: 'uppercase',
+                    color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                  }}
+                >
+                  Currency
+                </div>
+                <div style={{ fontSize: 13.5, fontWeight: 700, marginTop: 2 }}>{form.currency}</div>
+              </div>
+              <div className="min-w-0">
+                <div
+                  style={{
+                    fontSize: 9.5,
+                    letterSpacing: '.06em',
+                    textTransform: 'uppercase',
+                    color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                  }}
+                >
+                  Slug
+                </div>
+                <div
+                  className="tnum truncate"
+                  style={{
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    marginTop: 3,
+                    color: 'var(--color-accent-700)',
+                  }}
+                >
+                  {form.slug}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div
+                style={{
+                  fontSize: 10,
+                  letterSpacing: '.09em',
+                  textTransform: 'uppercase',
+                  fontWeight: 700,
+                  marginBottom: 8,
+                  color: 'color-mix(in srgb, var(--color-text) 52%, transparent)',
+                }}
+              >
+                {tickets.length} ticket type{tickets.length === 1 ? '' : 's'}
+              </div>
+              <div className="flex flex-col gap-2">
+                {tickets.map((t, i) => {
+                  const qty = parseInt(t.quantityAvailable) || 0;
+                  const price = t.isFree ? 0 : parseFloat(t.ticketPrice) || 0;
+                  return (
+                    <div
+                      key={t.key}
+                      className="flex items-center justify-between gap-2.5"
+                      style={{
+                        padding: '11px 13px',
+                        border: '1px solid var(--color-divider)',
+                        borderRadius: 10,
+                        background: 'var(--color-surface)',
+                      }}
+                    >
+                      <div className="min-w-0">
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>
+                          {t.ticketName || `Ticket ${i + 1}`}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 11.5,
+                            marginTop: 1,
+                            color: 'color-mix(in srgb, var(--color-text) 50%, transparent)',
+                          }}
+                        >
+                          {qty} available · limit {t.ticketLimitPerPerson || 0}/person
+                        </div>
+                      </div>
+                      <div className="tnum flex-none" style={{ fontSize: 14, fontWeight: 700 }}>
+                        {t.isFree ? 'Free' : money(price)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {submitError && (
+              <div
+                className="flex items-center gap-2"
+                style={{
+                  border: '1px solid color-mix(in srgb, var(--tint-danger-strong) 35%, transparent)',
+                  background: 'var(--tint-danger-bg)',
+                  borderRadius: 12,
+                  padding: '11px 14px',
+                  fontSize: 12.5,
+                  color: 'var(--tint-danger-fg)',
+                }}
+              >
+                <XCircle className="ic w-4 h-4 flex-none" />
+                {submitError}
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
 
       {/* Validation hints */}
       {currentErrors.length > 0 && (
-        <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 space-y-0.5">
-          {currentErrors.slice(0, 3).map((e, i) => (
-            <p key={i} className="text-xs text-amber-400 flex items-center gap-1.5">
-              <AlertCircle className="h-3 w-3 flex-shrink-0" />{e}
-            </p>
+        <div
+          className="flex flex-col gap-1"
+          style={{
+            border: '1px solid #e8c9a0',
+            background: '#fff6ec',
+            borderRadius: 12,
+            padding: '11px 14px',
+          }}
+        >
+          {currentErrors.slice(0, 3).map((e) => (
+            <div
+              key={e}
+              className="flex items-center gap-2"
+              style={{ fontSize: 12, color: 'var(--color-accent-700)' }}
+            >
+              <Clock className="ic w-3 h-3 flex-none" />
+              {e}
+            </div>
           ))}
           {currentErrors.length > 3 && (
-            <p className="text-xs text-amber-400/70">+{currentErrors.length - 3} more</p>
+            <div
+              style={{
+                fontSize: 11.5,
+                paddingLeft: 20,
+                color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+              }}
+            >
+              +{currentErrors.length - 3} more
+            </div>
           )}
         </div>
       )}
 
-      {/* Nav buttons */}
-      <div className="mt-4 flex items-center justify-between">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => step > 1 ? setStep(s => s - 1) : router.push('/dashboard/events')}
-          className="border-border bg-transparent text-xs gap-1.5"
+      {/* Nav */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => (step > 1 ? setStep((s) => s - 1) : router.push('/dashboard/events'))}
+          className="flex items-center gap-1.5"
+          style={{
+            fontSize: 13,
+            fontWeight: 700,
+            fontFamily: 'var(--font-body)',
+            padding: '9px 16px',
+            borderRadius: 'var(--radius-control)',
+            border: '1px solid var(--color-divider)',
+            background: 'var(--color-neutral-100)',
+          }}
         >
-          <ChevronLeft className="h-3 w-3" />
+          <ChevronLeft className="ic w-[15px] h-[15px]" />
           {step === 1 ? 'Cancel' : 'Back'}
-        </Button>
+        </button>
 
         {step < 3 ? (
-          <Button
-            size="sm"
-            onClick={() => setStep(s => s + 1)}
-            disabled={!canNext}
-            className="text-xs gap-1.5"
+          <button
+            onClick={() => setStep((s) => s + 1)}
+            disabled={!canContinue}
+            className="flex items-center gap-1.5 disabled:opacity-45"
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: 'var(--font-body)',
+              padding: '9px 18px',
+              borderRadius: 'var(--radius-control)',
+              border: 'none',
+              background: 'var(--color-accent)',
+              color: '#fff',
+            }}
           >
             Continue
-            <ChevronRight className="h-3 w-3" />
-          </Button>
+            <ChevronRight className="ic w-[15px] h-[15px]" />
+          </button>
         ) : (
-          <Button
-            size="sm"
+          <button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="text-xs gap-1.5 min-w-[120px]"
+            className="flex items-center gap-1.5 disabled:opacity-45"
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: 'var(--font-body)',
+              padding: '9px 18px',
+              borderRadius: 'var(--radius-control)',
+              border: 'none',
+              background: 'var(--color-accent)',
+              color: '#fff',
+              minWidth: 140,
+              justifyContent: 'center',
+            }}
           >
             {isSubmitting ? (
-              <><Loader2 className="h-3 w-3 animate-spin" />Creating...</>
+              <>
+                <Loader2 className="ic w-[15px] h-[15px] animate-spin" />
+                Creating…
+              </>
             ) : (
-              <>Create Event<CheckCircle2 className="h-3 w-3" /></>
+              <>
+                <Check className="ic w-[15px] h-[15px]" />
+                Create event
+              </>
             )}
-          </Button>
+          </button>
         )}
       </div>
     </div>

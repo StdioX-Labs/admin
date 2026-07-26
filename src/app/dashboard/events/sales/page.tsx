@@ -1,41 +1,50 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { eventsApi, type AdminEvent } from '@/lib/api';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import {
-  AlertCircle,
-  RotateCcw,
   DollarSign,
   Ticket,
-  TrendingUp,
-  Building2,
-  Calendar,
-  MapPin,
+  Percent,
+  Trophy,
   Search,
-  ChevronDown,
-  ChevronUp,
-  Tag,
+  X,
   Download,
-  ChevronLeft,
-  ChevronRight,
+  RotateCcw,
+  CalendarDays,
   Pencil,
   ExternalLink,
 } from 'lucide-react';
+import {
+  Card,
+  EmptyState,
+  ErrorNote,
+  Pager,
+  Poster,
+  ProgressBar,
+  SkeletonCard,
+  StatTile,
+  money,
+  num,
+} from '@/components/ui/soa';
 
-// ─── Formatters ───────────────────────────────────────────────────────────────
+const PAGE_SIZE = 20;
 
-function fmt(n: number) {
-  return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(n);
+type SortKey = 'revenue' | 'tickets' | 'sellthrough';
+
+/** Capacity is the sum of each ticket type's original allocation. */
+function capacityOf(e: AdminEvent): number {
+  return e.ticketSummaries.reduce(
+    (s, t) => s + (t.originalTicketCount ?? t.ticketCount ?? 0),
+    0
+  );
 }
-function fmtNum(n: number) {
-  return new Intl.NumberFormat('en-KE').format(n);
-}
 
-// ─── CSV export ───────────────────────────────────────────────────────────────
+function sellThrough(e: AdminEvent): number {
+  const cap = capacityOf(e);
+  return cap > 0 ? Math.min(100, Math.round((e.totalTicketsSold / cap) * 100)) : 0;
+}
 
 function downloadCSV(events: AdminEvent[]) {
   const ts = new Date().toISOString().slice(0, 10);
@@ -45,7 +54,7 @@ function downloadCSV(events: AdminEvent[]) {
   rows.push([]);
   rows.push([
     'Event Name', 'Company', 'Category', 'Location', 'Start Date',
-    'Tickets Sold', 'Gross Revenue (KES)', 'Platform Fee (KES)', 'This Week Sales', 'Status',
+    'Tickets Sold', 'Gross Revenue (KES)', 'Platform Fee (KES)', 'This Week Sales', 'Sell-through %', 'Status',
   ]);
 
   for (const e of events) {
@@ -56,6 +65,7 @@ function downloadCSV(events: AdminEvent[]) {
       e.totalRevenue.toString(),
       e.totalPlatformFee.toString(),
       e.analytics.currentWeekSales.toString(),
+      sellThrough(e).toString(),
       e.status,
     ]);
   }
@@ -63,7 +73,7 @@ function downloadCSV(events: AdminEvent[]) {
   const totRev = events.reduce((s, e) => s + e.totalRevenue, 0);
   const totFee = events.reduce((s, e) => s + e.totalPlatformFee, 0);
   const totSold = events.reduce((s, e) => s + e.totalTicketsSold, 0);
-  rows.push(['TOTAL', '', '', '', '', totSold.toString(), totRev.toString(), totFee.toString(), '', '']);
+  rows.push(['TOTAL', '', '', '', '', totSold.toString(), totRev.toString(), totFee.toString(), '', '', '']);
 
   rows.push([]);
   rows.push(['── PER-TICKET BREAKDOWN ──']);
@@ -78,9 +88,9 @@ function downloadCSV(events: AdminEvent[]) {
     }
   }
 
-  const csv = rows.map(row =>
-    row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
-  ).join('\r\n');
+  const csv = rows
+    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\r\n');
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -91,182 +101,25 @@ function downloadCSV(events: AdminEvent[]) {
   URL.revokeObjectURL(url);
 }
 
-// ─── SalesCard ────────────────────────────────────────────────────────────────
-
-function SalesCard({ event, onEdit }: { event: AdminEvent; onEdit: (id: number) => void }) {
-  const [expanded, setExpanded] = useState(false);
-
-  const startDate = new Date(event.eventStartDate);
-  const dateStr = startDate.toLocaleDateString('en-KE', { month: 'short', day: 'numeric', year: 'numeric' });
-  const timeStr = startDate.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' });
-
-  return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
-      <div className="flex">
-        {/* Poster */}
-        <div className="w-20 sm:w-28 flex-shrink-0 self-stretch">
-          {event.eventPosterUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={event.eventPosterUrl} alt={event.eventName} className="w-full h-full object-cover" style={{ minHeight: '120px' }} />
-          ) : (
-            <div className="w-full h-full bg-accent flex items-center justify-center" style={{ minHeight: '120px' }}>
-              <Calendar className="h-6 w-6 text-muted-foreground/30" />
-            </div>
-          )}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-semibold text-foreground truncate">{event.eventName}</h3>
-              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
-                  <Building2 className="h-2.5 w-2.5" />{event.companyName}
-                  <span className="text-muted-foreground/40 font-mono">#{event.companyId}</span>
-                </span>
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
-                  <MapPin className="h-2.5 w-2.5" />{event.eventLocation}
-                </span>
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
-                  <Calendar className="h-2.5 w-2.5" />{dateStr} · {timeStr}
-                </span>
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
-                  <Tag className="h-2.5 w-2.5" />{event.eventCategory}
-                </span>
-              </div>
-            </div>
-            <div className="flex-shrink-0 text-right">
-              <p className="text-base font-bold text-emerald-400 tabular-nums">{fmt(event.totalRevenue)}</p>
-              <p className="text-[10px] text-muted-foreground/50">gross revenue</p>
-            </div>
-          </div>
-
-          {/* Metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
-            <div className="rounded-md bg-background/50 border border-border/60 px-2.5 py-2">
-              <p className="text-[10px] text-muted-foreground/60 mb-0.5">Tickets Sold</p>
-              <p className="text-sm font-bold text-foreground tabular-nums">{fmtNum(event.totalTicketsSold)}</p>
-              <p className="text-[10px] text-muted-foreground/40 mt-0.5">{event.analytics.totalTicketTypes} type{event.analytics.totalTicketTypes !== 1 ? 's' : ''}</p>
-            </div>
-            <div className="rounded-md bg-background/50 border border-border/60 px-2.5 py-2">
-              <p className="text-[10px] text-muted-foreground/60 mb-0.5">Platform Fee</p>
-              <p className="text-sm font-bold text-blue-400 tabular-nums">{fmt(event.totalPlatformFee)}</p>
-              {event.percentageCommission != null && (
-                <p className="text-[10px] text-blue-400/60 mt-0.5">{event.percentageCommission}% commission</p>
-              )}
-            </div>
-            <div className="rounded-md bg-background/50 border border-border/60 px-2.5 py-2">
-              <p className="text-[10px] text-muted-foreground/60 mb-0.5">This Week</p>
-              <p className="text-sm font-bold text-violet-400 tabular-nums">{fmtNum(event.analytics.currentWeekSales)} sales</p>
-            </div>
-            <div className="rounded-md bg-background/50 border border-border/60 px-2.5 py-2">
-              <p className="text-[10px] text-muted-foreground/60 mb-0.5">Attendees</p>
-              <p className="text-sm font-bold text-foreground tabular-nums">{fmtNum(event.analytics.totalAttendees)}</p>
-            </div>
-          </div>
-
-          {/* Actions + expand toggle */}
-          <div className="flex items-center justify-between mt-3">
-            {event.ticketSummaries.length > 0 ? (
-              <button
-                onClick={() => setExpanded(e => !e)}
-                className="flex items-center gap-1 text-[11px] text-muted-foreground/50 hover:text-foreground transition-colors"
-              >
-                {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                {expanded ? 'Hide' : 'Show'} ticket breakdown
-              </button>
-            ) : <span />}
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => window.open(`https://soldoutafrica.com/${event.slug}`, '_blank')}
-                className="flex items-center gap-1 text-[11px] text-muted-foreground/50 hover:text-foreground border border-border/50 hover:border-border rounded px-2 py-1 transition-colors"
-              >
-                <ExternalLink className="h-3 w-3" />
-                View
-              </button>
-              <button
-                onClick={() => onEdit(event.eventId)}
-                className="flex items-center gap-1 text-[11px] text-muted-foreground/50 hover:text-foreground border border-border/50 hover:border-border rounded px-2 py-1 transition-colors"
-              >
-                <Pencil className="h-3 w-3" />
-                Edit
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Ticket breakdown */}
-      {expanded && event.ticketSummaries.length > 0 && (
-        <div className="border-t border-border bg-background/30 px-4 py-3 overflow-x-auto">
-          <table className="w-full text-xs min-w-[380px]">
-            <thead>
-              <tr className="border-b border-border/60">
-                <th className="text-left text-[10px] text-muted-foreground/50 uppercase tracking-wider pb-2 font-medium">Ticket Type</th>
-                <th className="text-right text-[10px] text-muted-foreground/50 uppercase tracking-wider pb-2 font-medium">Price</th>
-                <th className="text-right text-[10px] text-muted-foreground/50 uppercase tracking-wider pb-2 font-medium">Sold</th>
-                <th className="text-right text-[10px] text-muted-foreground/50 uppercase tracking-wider pb-2 font-medium">Revenue</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/40">
-              {event.ticketSummaries.map((t) => (
-                <tr key={t.ticketId} className="hover:bg-accent/10 transition-colors">
-                  <td className="py-2 text-foreground/80">{t.ticketName}</td>
-                  <td className="py-2 text-right tabular-nums text-foreground/70">
-                    {t.ticketPrice === 0 ? 'Free' : fmt(t.ticketPrice)}
-                  </td>
-                  <td className="py-2 text-right tabular-nums text-foreground/90 font-medium">{fmtNum(t.ticketsSold ?? 0)}</td>
-                  <td className="py-2 text-right tabular-nums font-medium text-emerald-400">{fmt(t.revenue ?? 0)}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t border-border/60">
-                <td colSpan={2} className="pt-2 text-[10px] text-muted-foreground/50 uppercase tracking-wider font-medium">Total</td>
-                <td className="pt-2 text-right tabular-nums font-bold text-foreground">{fmtNum(event.totalTicketsSold)}</td>
-                <td className="pt-2 text-right tabular-nums font-bold text-emerald-400">{fmt(event.totalRevenue)}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
-const PAGE_SIZE = 20;
-
 export default function EventSalesPage() {
   const router = useRouter();
   const [allEvents, setAllEvents] = useState<AdminEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<SortKey>('revenue');
   const [currentPage, setCurrentPage] = useState(0);
-
-  // Derived pagination — always accurate to the filtered set
-  const totalElements = allEvents.length;
-  const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
-  const hasNext = currentPage < totalPages - 1;
-  const hasPrevious = currentPage > 0;
-  const events = allEvents.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
 
   const fetchData = useCallback(async (searchName?: string) => {
     setIsLoading(true);
     setCurrentPage(0);
     setError('');
     try {
-      // Fetch all active events at once so client-side filtering + pagination is accurate
+      // One large page: the date filter below would make server-side counts wrong.
       const resp = await eventsApi.getAllEvents(0, 500, searchName, 'ACTIVE');
       if (resp.status && resp.data?.data) {
         const now = new Date();
-        const filtered = (resp.data.data as AdminEvent[]).filter(
-          e => new Date(e.eventEndDate) >= now
-        );
-        setAllEvents(filtered);
+        setAllEvents((resp.data.data as AdminEvent[]).filter((e) => new Date(e.eventEndDate) >= now));
       } else {
         setError(resp.message || 'Failed to load events');
       }
@@ -277,188 +130,353 @@ export default function EventSalesPage() {
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  const handleSearch = () => {
-    fetchData(search || undefined);
-  };
+  const sorted = useMemo(() => {
+    const copy = [...allEvents];
+    copy.sort((a, b) => {
+      if (sort === 'tickets') return b.totalTicketsSold - a.totalTicketsSold;
+      if (sort === 'sellthrough') return sellThrough(b) - sellThrough(a);
+      return b.totalRevenue - a.totalRevenue;
+    });
+    return copy;
+  }, [allEvents, sort]);
 
-  const handlePageChange = (p: number) => {
-    setCurrentPage(p);
-  };
+  const totalElements = sorted.length;
+  const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
+  const rows = sorted.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
 
-  // Totals for current page
-  const totRevenue = events.reduce((s, e) => s + e.totalRevenue, 0);
-  const totFees = events.reduce((s, e) => s + e.totalPlatformFee, 0);
-  const totSold = events.reduce((s, e) => s + e.totalTicketsSold, 0);
+  const totRev = allEvents.reduce((s, e) => s + e.totalRevenue, 0);
+  const totSold = allEvents.reduce((s, e) => s + e.totalTicketsSold, 0);
+  const avgPct = allEvents.length
+    ? Math.round(allEvents.reduce((s, e) => s + sellThrough(e), 0) / allEvents.length)
+    : 0;
+  const maxRev = Math.max(...allEvents.map((e) => e.totalRevenue), 1);
+
+  const segments: { key: SortKey; label: string }[] = [
+    { key: 'revenue', label: 'Revenue' },
+    { key: 'tickets', label: 'Tickets' },
+    { key: 'sellthrough', label: 'Sell-through' },
+  ];
 
   return (
-    <div className="space-y-4 pb-8">
-
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground tracking-tight">Event Sales</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {isLoading ? 'Loading...' : `${totalElements} upcoming & ongoing events`}
-          </p>
-        </div>
-        <div className="flex gap-2 flex-shrink-0">
-          <Button
-            onClick={() => fetchData(search || undefined)}
-            variant="outline"
-            size="sm"
-            className="border-border bg-transparent text-muted-foreground hover:text-foreground gap-1.5 text-xs h-8"
-            disabled={isLoading}
-          >
-            <RotateCcw className="h-3 w-3" />
-            <span className="hidden sm:inline">Refresh</span>
-          </Button>
-          <Button
-            onClick={() => downloadCSV(allEvents)}
-            size="sm"
-            variant="outline"
-            className="border-border bg-transparent text-muted-foreground hover:text-foreground gap-1.5 text-xs h-8"
-            disabled={isLoading || allEvents.length === 0}
-          >
-            <Download className="h-3 w-3" />
-            <span className="hidden sm:inline">Export CSV</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Error */}
-      {error && (
-        <Alert variant="destructive" className="border-destructive/30 bg-destructive/5 py-2.5">
-          <AlertDescription className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
-              <span className="text-sm text-destructive">{error}</span>
-            </div>
-            <Button onClick={() => fetchData()} variant="outline" size="sm" className="border-destructive/30 text-destructive hover:bg-destructive/10 bg-transparent h-7 text-xs gap-1 flex-shrink-0">
-              <RotateCcw className="h-3 w-3" /> Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Summary stats — page totals */}
-      {!isLoading && events.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <div className="rounded-lg border border-border bg-card px-3 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between sm:block">
-            <div className="flex items-center gap-1.5 sm:mb-1">
-              <DollarSign className="h-3 w-3 text-emerald-400 flex-shrink-0" />
-              <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Page Revenue</span>
-            </div>
-            <p className="text-sm sm:text-lg font-bold tabular-nums text-emerald-400">{fmt(totRevenue)}</p>
-          </div>
-          <div className="rounded-lg border border-border bg-card px-3 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between sm:block">
-            <div className="flex items-center gap-1.5 sm:mb-1">
-              <TrendingUp className="h-3 w-3 text-blue-400 flex-shrink-0" />
-              <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Platform Fees</span>
-            </div>
-            <p className="text-sm sm:text-lg font-bold tabular-nums text-blue-400">{fmt(totFees)}</p>
-          </div>
-          <div className="rounded-lg border border-border bg-card px-3 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between sm:block">
-            <div className="flex items-center gap-1.5 sm:mb-1">
-              <Ticket className="h-3 w-3 text-violet-400 flex-shrink-0" />
-              <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Tickets Sold</span>
-            </div>
-            <p className="text-sm sm:text-lg font-bold tabular-nums text-violet-400">{fmtNum(totSold)}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Search */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
-          <Input
-            placeholder="Search events..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            className="h-8 pl-8 text-xs border-border bg-background"
+    <div className="flex flex-col gap-3.5 animate-soa-fade">
+      {/* Totals + sort */}
+      <div className="flex flex-wrap gap-2.5 items-center justify-between">
+        <div
+          className="grid gap-2.5 flex-1 min-w-[260px]"
+          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}
+        >
+          <StatTile label="Sales revenue" value={money(totRev)} icon={DollarSign} />
+          <StatTile
+            label="Tickets sold"
+            value={num(totSold)}
+            icon={Ticket}
+            bg="var(--tint-clay-bg)"
+            fg="var(--tint-clay-strong)"
+          />
+          <StatTile
+            label="Avg sell-through"
+            value={`${avgPct}%`}
+            icon={Percent}
+            bg="var(--tint-sand-bg)"
+            fg="var(--tint-sand-fg)"
           />
         </div>
-        <Button
-          onClick={handleSearch}
-          variant="outline"
-          size="sm"
-          className="h-8 text-xs border-border bg-transparent text-muted-foreground hover:text-foreground"
-          disabled={isLoading}
+
+        <div
+          className="inline-flex self-start overflow-hidden"
+          style={{
+            border: '1px solid var(--color-divider)',
+            borderRadius: 'var(--radius-control)',
+            background: 'var(--color-neutral-100)',
+          }}
         >
-          Search
-        </Button>
-        {search && (
-          <button
-            onClick={() => { setSearch(''); fetchData(); }}
-            className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground border border-border rounded-md bg-transparent transition-colors"
-          >
-            Clear
-          </button>
-        )}
+          {segments.map((seg, i) => {
+            const active = sort === seg.key;
+            return (
+              <button
+                key={seg.key}
+                onClick={() => {
+                  setSort(seg.key);
+                  setCurrentPage(0);
+                }}
+                style={{
+                  padding: '7px 14px',
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-body)',
+                  border: 'none',
+                  borderLeft: i > 0 ? '1px solid var(--color-divider)' : undefined,
+                  background: active ? 'var(--color-accent)' : 'transparent',
+                  color: active
+                    ? '#fff'
+                    : 'color-mix(in srgb, var(--color-text) 60%, transparent)',
+                }}
+              >
+                {seg.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Cards */}
-      <div className="relative">
-        {isLoading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-xl border border-border bg-card overflow-hidden animate-pulse flex">
-                <div className="w-20 sm:w-28 bg-accent flex-shrink-0" style={{ minHeight: '120px' }} />
-                <div className="flex-1 p-4 space-y-2.5">
-                  <div className="h-3.5 w-48 rounded bg-accent" />
-                  <div className="h-2.5 w-64 rounded bg-accent" />
-                  <div className="grid grid-cols-4 gap-2 mt-3">
-                    {Array.from({ length: 4 }).map((__, j) => <div key={j} className="h-14 rounded bg-accent" />)}
+      {error && <ErrorNote message={error} onRetry={() => fetchData(search || undefined)} />}
+
+      {/* Search + actions */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="relative flex-1 min-w-[220px] max-w-[360px]">
+          <Search
+            className="ic absolute w-4 h-4 pointer-events-none"
+            style={{
+              left: 14,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'color-mix(in srgb, var(--color-text) 42%, transparent)',
+            }}
+          />
+          <input
+            className="soa-input"
+            style={{ paddingLeft: 40, background: 'var(--color-neutral-100)' }}
+            placeholder="Search events…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && fetchData(search || undefined)}
+          />
+          {search && (
+            <button
+              onClick={() => {
+                setSearch('');
+                fetchData();
+              }}
+              aria-label="Clear search"
+              className="grid place-items-center"
+              style={{
+                position: 'absolute',
+                right: 8,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 26,
+                height: 26,
+                border: 'none',
+                background: 'transparent',
+                borderRadius: 999,
+                color: 'color-mix(in srgb, var(--color-text) 50%, transparent)',
+              }}
+            >
+              <X className="ic w-[15px] h-[15px]" />
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => fetchData(search || undefined)}
+          disabled={isLoading}
+          className="flex items-center gap-1.5 disabled:opacity-50"
+          style={{
+            height: 36,
+            padding: '0 14px',
+            borderRadius: 'var(--radius-control)',
+            border: '1px solid var(--color-divider)',
+            background: 'var(--color-neutral-100)',
+            fontSize: 12.5,
+            fontWeight: 600,
+            fontFamily: 'var(--font-body)',
+            color: 'var(--color-text)',
+          }}
+        >
+          <RotateCcw className="ic w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Refresh</span>
+        </button>
+        <button
+          onClick={() => downloadCSV(sorted)}
+          disabled={isLoading || allEvents.length === 0}
+          className="flex items-center gap-1.5 disabled:opacity-50"
+          style={{
+            height: 36,
+            padding: '0 14px',
+            borderRadius: 'var(--radius-control)',
+            border: '1px solid var(--color-divider)',
+            background: 'var(--color-neutral-100)',
+            fontSize: 12.5,
+            fontWeight: 600,
+            fontFamily: 'var(--font-body)',
+            color: 'var(--color-text)',
+          }}
+        >
+          <Download className="ic w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Export CSV</span>
+        </button>
+      </div>
+
+      {/* Leaderboard */}
+      {isLoading ? (
+        <SkeletonCard height={420} />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          icon={CalendarDays}
+          title={search ? 'No events match your search' : 'No active events'}
+        />
+      ) : (
+        <Card padded={false} className="overflow-hidden">
+          <div className="flex items-center gap-2" style={{ padding: '14px 16px 11px' }}>
+            <Trophy className="ic w-[18px] h-[18px]" style={{ color: 'var(--color-accent)' }} />
+            <span style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 16 }}>
+              Event leaderboard
+            </span>
+            <span
+              className="ml-auto"
+              style={{
+                fontSize: 11.5,
+                color: 'color-mix(in srgb, var(--color-text) 50%, transparent)',
+              }}
+            >
+              {totalElements} upcoming &amp; ongoing
+            </span>
+          </div>
+
+          {rows.map((e, i) => {
+            const rank = currentPage * PAGE_SIZE + i + 1;
+            const pct = sellThrough(e);
+            const top = rank === 1;
+            return (
+              <div
+                key={e.eventId}
+                className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5"
+                style={{ padding: '12px 16px', borderTop: '1px solid var(--color-divider)' }}
+              >
+                <span
+                  className="flex-none text-center"
+                  style={{
+                    width: 22,
+                    fontFamily: 'var(--font-body)',
+                    fontWeight: 700,
+                    fontSize: 14,
+                    color: top
+                      ? 'var(--color-accent)'
+                      : 'color-mix(in srgb, var(--color-text) 40%, transparent)',
+                  }}
+                >
+                  {rank}
+                </span>
+
+                <Poster
+                  url={e.eventPosterUrl}
+                  name={e.eventName}
+                  seed={e.eventId}
+                  style={{ width: 40, height: 52, borderRadius: 8 }}
+                />
+
+                <div className="flex-1 min-w-[150px]">
+                  <div style={{ fontWeight: 600, fontSize: 13.5, lineHeight: 1.2 }}>
+                    {e.eventName}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: 'color-mix(in srgb, var(--color-text) 50%, transparent)',
+                    }}
+                  >
+                    {e.companyName}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : events.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card py-16 text-center">
-            <Calendar className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
-            <p className="text-sm font-medium text-muted-foreground">
-              {search ? 'No events match your search' : 'No active events'}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {events.map(event => <SalesCard key={event.eventId} event={event} onEdit={(id) => router.push(`/dashboard/events/${id}/edit`)} />)}
-          </div>
-        )}
-      </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-[11px] text-muted-foreground/60">
-            Page {currentPage + 1} of {totalPages} · {totalElements} events
-          </p>
-          <div className="flex items-center gap-1">
-            <Button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={!hasPrevious}
-              variant="outline"
-              size="sm"
-              className="h-7 w-7 p-0 border-border bg-transparent text-muted-foreground hover:text-foreground disabled:opacity-30"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={!hasNext}
-              variant="outline"
-              size="sm"
-              className="h-7 w-7 p-0 border-border bg-transparent text-muted-foreground hover:text-foreground disabled:opacity-30"
-            >
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
+                <div className="w-[160px] flex-none">
+                  <div className="flex justify-between mb-1" style={{ fontSize: 10.5 }}>
+                    <span
+                      style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}
+                    >
+                      Revenue
+                    </span>
+                    <span
+                      className="tnum font-bold"
+                      style={{ color: 'var(--tint-olive-strong)' }}
+                    >
+                      {money(e.totalRevenue)}
+                    </span>
+                  </div>
+                  <ProgressBar
+                    pct={(e.totalRevenue / maxRev) * 100}
+                    height={6}
+                    color={top ? 'var(--color-accent)' : '#c3d0a6'}
+                  />
+                </div>
+
+                <div className="w-16 flex-none text-right">
+                  <div className="tnum" style={{ fontWeight: 700, fontSize: 13.5 }}>
+                    {num(e.totalTicketsSold)}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      color: 'color-mix(in srgb, var(--color-text) 42%, transparent)',
+                    }}
+                  >
+                    sold
+                  </div>
+                </div>
+
+                <div className="w-[120px] flex-none">
+                  <div className="flex justify-between mb-1" style={{ fontSize: 10.5 }}>
+                    <span
+                      style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}
+                    >
+                      Sell-through
+                    </span>
+                    <span className="tnum font-bold">{pct}%</span>
+                  </div>
+                  <ProgressBar pct={pct} height={6} />
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-none">
+                  <button
+                    onClick={() => window.open(`https://soldoutafrica.com/${e.slug}`, '_blank')}
+                    title="View live"
+                    className="grid place-items-center"
+                    style={{
+                      width: 28,
+                      height: 28,
+                      border: 'none',
+                      background: 'transparent',
+                      borderRadius: 8,
+                      color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                    }}
+                  >
+                    <ExternalLink className="ic w-[14px] h-[14px]" />
+                  </button>
+                  <button
+                    onClick={() => router.push(`/dashboard/events/${e.eventId}/edit`)}
+                    title="Edit"
+                    className="grid place-items-center"
+                    style={{
+                      width: 28,
+                      height: 28,
+                      border: 'none',
+                      background: 'transparent',
+                      borderRadius: 8,
+                      color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                    }}
+                  >
+                    <Pencil className="ic w-[14px] h-[14px]" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </Card>
       )}
+
+      <Pager
+        page={currentPage}
+        totalPages={totalPages}
+        totalElements={totalElements}
+        noun="events"
+        hasPrevious={currentPage > 0}
+        hasNext={currentPage < totalPages - 1}
+        onPrev={() => setCurrentPage((p) => p - 1)}
+        onNext={() => setCurrentPage((p) => p + 1)}
+      />
     </div>
   );
 }

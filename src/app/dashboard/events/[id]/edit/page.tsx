@@ -1,22 +1,16 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { eventsApi, createEventApi } from '@/lib/api';
 import {
   ArrowLeft,
   Plus,
   Loader2,
-  CheckCircle2,
-  AlertCircle,
+  Check,
   Pencil,
   X,
   Ticket,
-  Calendar,
-  Clock,
   MapPin,
   Building2,
   Globe,
@@ -27,10 +21,11 @@ import {
   Upload,
   PauseCircle,
   PlayCircle,
+  XCircle,
 } from 'lucide-react';
 import { SuspendTicketModal } from '@/components/ui/suspend-ticket-modal';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
+import { Card, ErrorNote, Pill, SuccessNote, Toggle, money, num } from '@/components/ui/soa';
+import { DateTimePicker, Field } from '@/components/ui/date-time-picker';
 
 const CATEGORIES = [
   { id: 1, label: 'Music' },
@@ -45,10 +40,7 @@ const CATEGORIES = [
 ];
 
 const CURRENCIES = ['KES', 'USD', 'UGX', 'TZS', 'RWF', 'ZAR', 'GHS', 'NGN', 'MWK', 'AUD', 'CAD'];
-
 const STATUSES = ['ACTIVE', 'CLOSED', 'SOLDOUT', 'PENDING', 'ONHOLD', 'FLASHSALE', 'POSTPONED'];
-
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface ApiTicket {
   id: number;
@@ -65,7 +57,6 @@ interface ApiTicket {
   ticketSaleEndDate: string;
   isFree: boolean;
   ticketStatus: string;
-  createAt: string;
   smsPurchaseMessageTemplate?: string | null;
   emailPurchaseMessageTemplate?: string | null;
 }
@@ -76,7 +67,6 @@ interface ApiEvent {
   slug: string;
   eventDescription: string;
   eventPosterUrl: string;
-  category: string;
   eventLocation: string;
   ticketSaleStartDate: string;
   ticketSaleEndDate: string;
@@ -94,7 +84,7 @@ interface ApiEvent {
   tickets: ApiTicket[];
 }
 
-interface Ticket {
+interface TicketRow {
   ticketId: number;
   ticketName: string;
   ticketPrice: number;
@@ -142,20 +132,24 @@ interface NewTicketForm {
   ticketSaleStartDate: string;
   ticketSaleEndDate: string;
   isFree: boolean;
-  smsPurchaseMessageTemplate: string;
-  emailPurchaseMessageTemplate: string;
+  sms: string;
+  email: string;
 }
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function toLocalDt(s: string | null | undefined): string {
   if (!s) return '';
   try {
     const d = new Date(s);
-    const Y = d.getFullYear(), M = String(d.getMonth() + 1).padStart(2, '0'), D = String(d.getDate()).padStart(2, '0');
-    const h = String(d.getHours()).padStart(2, '0'), m = String(d.getMinutes()).padStart(2, '0');
+    if (isNaN(d.getTime())) return '';
+    const Y = d.getFullYear();
+    const M = String(d.getMonth() + 1).padStart(2, '0');
+    const D = String(d.getDate()).padStart(2, '0');
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
     return `${Y}-${M}-${D}T${h}:${m}`;
-  } catch { return ''; }
+  } catch {
+    return '';
+  }
 }
 
 function toISO(s: string): string {
@@ -163,77 +157,29 @@ function toISO(s: string): string {
   return new Date(s).toISOString();
 }
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5 min-w-0">
-      <label className="text-xs font-medium text-muted-foreground">
-        {label}{required && <span className="text-destructive ml-0.5">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
-
 function emptyNewTicket(): NewTicketForm {
-  return { ticketName: '', ticketPrice: '', quantityAvailable: '', ticketsToIssue: '', ticketLimitPerPerson: '1', numberOfComplementary: '0', ticketSaleStartDate: '', ticketSaleEndDate: '', isFree: false, smsPurchaseMessageTemplate: '', emailPurchaseMessageTemplate: '' };
-}
-
-const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
-const HOURS12 = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-
-function DateTimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const datePart = value ? value.split('T')[0] : '';
-  const rawTime = value && value.includes('T') ? value.split('T')[1].slice(0, 5) : '12:00';
-  const h24 = parseInt(rawTime.split(':')[0]) || 0;
-  const rawMin = parseInt(rawTime.split(':')[1]) || 0;
-  const m = Math.round(rawMin / 5) * 5 % 60;
-  const isPM = h24 >= 12;
-  const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
-
-  const emit = (d: string, newH12: number, newM: number, newIsPM: boolean) => {
-    if (!d) { onChange(''); return; }
-    const h = (newH12 % 12) + (newIsPM ? 12 : 0);
-    onChange(`${d}T${String(h).padStart(2, '0')}:${String(newM).padStart(2, '0')}`);
+  return {
+    ticketName: '',
+    ticketPrice: '',
+    quantityAvailable: '',
+    ticketsToIssue: '',
+    ticketLimitPerPerson: '1',
+    numberOfComplementary: '0',
+    ticketSaleStartDate: '',
+    ticketSaleEndDate: '',
+    isFree: false,
+    sms: '',
+    email: '',
   };
-
-  const sel = 'flex-1 h-11 text-base rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center';
-
-  return (
-    <div className="space-y-2">
-      <div className="relative">
-        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50 pointer-events-none" />
-        <input
-          type="date"
-          value={datePart}
-          onChange={e => emit(e.target.value, h12, m, isPM)}
-          className="w-full h-11 text-base rounded-md border border-border bg-background pl-9 pr-3 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </div>
-      <div className="flex items-center gap-1.5">
-        <Clock className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" />
-        <select value={h12} onChange={e => emit(datePart, Number(e.target.value), m, isPM)} className={sel}>
-          {HOURS12.map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}</option>)}
-        </select>
-        <span className="text-muted-foreground font-bold">:</span>
-        <select value={m} onChange={e => emit(datePart, h12, Number(e.target.value), isPM)} className={sel}>
-          {MINUTES.map(min => <option key={min} value={min}>{String(min).padStart(2, '0')}</option>)}
-        </select>
-        <select value={isPM ? 'PM' : 'AM'} onChange={e => emit(datePart, h12, m, e.target.value === 'PM')} className="w-16 h-11 text-base rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center">
-          <option value="AM">AM</option>
-          <option value="PM">PM</option>
-        </select>
-      </div>
-    </div>
-  );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+const PLACEHOLDER_HINT = 'Placeholders: {first_name} · {event_name} · {ticket_name}';
 
 export default function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { id: eventId } = use(params);
 
-  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [tickets, setTickets] = useState<TicketRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [savingTicketId, setSavingTicketId] = useState<number | null>(null);
@@ -272,13 +218,10 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
     companyName: '',
   });
 
-  const [ticketForms, setTicketForms] = useState<Record<number, Partial<Ticket>>>({});
+  const [ticketForms, setTicketForms] = useState<Record<number, Partial<TicketRow>>>({});
   const [newTicket, setNewTicket] = useState<NewTicketForm>(emptyNewTicket());
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchEvent(); }, [eventId]);
-
-  const fetchEvent = async () => {
+  const fetchEvent = useCallback(async () => {
     setIsLoading(true);
     setError('');
     try {
@@ -304,7 +247,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
           companyName: e.companyName || '',
         });
 
-        const mapped: Ticket[] = (e.tickets || []).map((t: ApiTicket) => ({
+        const mapped: TicketRow[] = (e.tickets || []).map((t) => ({
           ticketId: t.id,
           ticketName: t.ticketName,
           ticketPrice: t.ticketPrice,
@@ -324,22 +267,12 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         }));
         setTickets(mapped);
 
-        const forms: Record<number, Partial<Ticket>> = {};
-        mapped.forEach(t => {
+        const forms: Record<number, Partial<TicketRow>> = {};
+        mapped.forEach((t) => {
           forms[t.ticketId] = {
-            ticketName: t.ticketName,
-            ticketPrice: t.ticketPrice,
-            quantityAvailable: t.quantityAvailable,
-            isActive: t.isActive,
-            ticketsToIssue: t.ticketsToIssue,
-            ticketLimitPerPerson: t.ticketLimitPerPerson,
-            numberOfComplementary: t.numberOfComplementary,
+            ...t,
             ticketSaleStartDate: toLocalDt(t.ticketSaleStartDate),
             ticketSaleEndDate: toLocalDt(t.ticketSaleEndDate),
-            isFree: t.isFree,
-            ticketStatus: t.ticketStatus,
-            smsPurchaseMessageTemplate: t.smsPurchaseMessageTemplate,
-            emailPurchaseMessageTemplate: t.emailPurchaseMessageTemplate,
           };
         });
         setTicketForms(forms);
@@ -351,16 +284,28 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [eventId]);
 
-  const setF = (key: keyof EventForm, value: string | boolean | number) => {
-    setForm(f => ({ ...f, [key]: value }));
-  };
+  useEffect(() => {
+    fetchEvent();
+  }, [fetchEvent]);
+
+  const setF = (key: keyof EventForm, value: string | boolean | number) =>
+    setForm((f) => ({ ...f, [key]: value }));
+
+  const updateTicketForm = (id: number, key: string, value: string | number | boolean) =>
+    setTicketForms((prev) => ({ ...prev, [id]: { ...prev[id], [key]: value } }));
 
   const handlePosterUpload = async (file: File) => {
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    if (!validTypes.includes(file.type)) { setUploadError('Invalid file type. Use JPEG, PNG, GIF, or WebP.'); return; }
-    if (file.size > 10 * 1024 * 1024) { setUploadError('File too large. Maximum size is 10MB.'); return; }
+    if (!validTypes.includes(file.type)) {
+      setUploadError('Invalid file type. Use JPEG, PNG, GIF, or WebP.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError('File too large. Maximum size is 10MB.');
+      return;
+    }
     setIsUploading(true);
     setUploadError('');
     try {
@@ -377,14 +322,11 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
     }
   };
 
-  const updateTicketForm = (id: number, key: string, value: string | number | boolean) => {
-    setTicketForms(prev => ({ ...prev, [id]: { ...prev[id], [key]: value } }));
-  };
-
   const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    setError(''); setSuccess('');
+    setError('');
+    setSuccess('');
     try {
       const payload: Record<string, unknown> = {
         eventName: form.eventName,
@@ -398,8 +340,10 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         published: form.published,
         slug: form.slug,
       };
+      // Blank fields mean "leave unchanged", so they're omitted entirely.
       if (form.status) payload.status = form.status;
-      if (form.percentageCommission !== '') payload.percentageCommission = parseFloat(form.percentageCommission) || 0;
+      if (form.percentageCommission !== '')
+        payload.percentageCommission = parseFloat(form.percentageCommission) || 0;
       if (form.currency) payload.currency = form.currency;
       if (form.eventCategoryId) payload.eventCategoryId = parseInt(form.eventCategoryId);
 
@@ -420,7 +364,8 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
   const handleSaveTicket = async (ticketId: number) => {
     setSavingTicketId(ticketId);
-    setError(''); setSuccess('');
+    setError('');
+    setSuccess('');
     try {
       const tf = ticketForms[ticketId];
       if (!tf) return;
@@ -456,7 +401,8 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsCreatingTicket(true);
-    setError(''); setSuccess('');
+    setError('');
+    setSuccess('');
     try {
       const qty = parseInt(newTicket.quantityAvailable) || 0;
       const resp = await createEventApi.createTicket({
@@ -470,8 +416,8 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         ticketSaleStartDate: toISO(newTicket.ticketSaleStartDate),
         ticketSaleEndDate: toISO(newTicket.ticketSaleEndDate),
         isFree: newTicket.isFree,
-        smsPurchaseMessageTemplate: newTicket.smsPurchaseMessageTemplate || undefined,
-        emailPurchaseMessageTemplate: newTicket.emailPurchaseMessageTemplate || undefined,
+        smsPurchaseMessageTemplate: newTicket.sms || undefined,
+        emailPurchaseMessageTemplate: newTicket.email || undefined,
       });
       if (resp.status === true) {
         setSuccess(`Ticket "${newTicket.ticketName}" created`);
@@ -489,25 +435,12 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
     }
   };
 
-  const handleSuspendClick = (ticketId: number, ticketName: string) => {
-    setSuspendTicketId(ticketId);
-    setSuspendTicketName(ticketName);
-    setSuspendActionType('suspend');
+  const openSuspendModal = (id: number, name: string, action: 'suspend' | 'activate') => {
+    setSuspendTicketId(id);
+    setSuspendTicketName(name);
+    setSuspendActionType(action);
     setSuspendError('');
     setShowSuspendModal(true);
-  };
-
-  const handleActivateClick = (ticketId: number, ticketName: string) => {
-    setSuspendTicketId(ticketId);
-    setSuspendTicketName(ticketName);
-    setSuspendActionType('activate');
-    setSuspendError('');
-    setShowSuspendModal(true);
-  };
-
-  const handleSuspendRequestOtp = async () => {
-    setSuspendError('');
-    await eventsApi.requestChallenge();
   };
 
   const handleSuspendConfirm = async (otp: string) => {
@@ -518,7 +451,9 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
       const ticketStatus = suspendActionType === 'suspend' ? 'ONHOLD' : 'ACTIVE';
       const resp = await eventsApi.toggleTicketStatus(suspendTicketId, { otp, ticketStatus });
       if (resp.status === true) {
-        setSuccess(`Ticket sales ${suspendActionType === 'suspend' ? 'suspended' : 'activated'} successfully`);
+        setSuccess(
+          `Ticket sales ${suspendActionType === 'suspend' ? 'suspended' : 'activated'} successfully`
+        );
         setShowSuspendModal(false);
         await fetchEvent();
         setTimeout(() => setSuccess(''), 4000);
@@ -526,584 +461,1161 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         setSuspendError(resp.message || `Failed to ${suspendActionType} ticket sales`);
       }
     } catch (err) {
-      setSuspendError(err instanceof Error ? err.message : `Failed to ${suspendActionType} ticket sales`);
+      setSuspendError(
+        err instanceof Error ? err.message : `Failed to ${suspendActionType} ticket sales`
+      );
     } finally {
       setIsSuspending(false);
     }
   };
 
-  const handleSuspendModalClose = () => {
-    if (isSuspending) return;
-    setShowSuspendModal(false);
-    setSuspendError('');
-  };
-
-  const toggleTicketExpand = (id: number) => {
-    setExpandedTickets(prev => {
+  const toggleTicketExpand = (id: number) =>
+    setExpandedTickets((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) { next.delete(id); } else { next.add(id); }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
-  };
-
-  // ── Loading / error states ─────────────────────────────────────────────────
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loader2 className="ic w-6 h-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  if (!form.eventName && !isLoading) {
+  if (!form.eventName) {
     return (
       <div className="py-16 text-center">
-        <AlertCircle className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
+        <XCircle
+          className="ic w-10 h-10 mx-auto mb-3"
+          style={{ color: 'color-mix(in srgb, var(--color-text) 22%, transparent)' }}
+        />
         <p className="text-sm text-muted-foreground">Event not found</p>
-        <Button onClick={() => router.push('/dashboard/events')} variant="outline" size="sm" className="mt-4 border-border bg-transparent text-xs">
-          Back to Events
-        </Button>
+        <button
+          onClick={() => router.push('/dashboard/events')}
+          className="mt-4"
+          style={{
+            fontSize: 13,
+            fontWeight: 700,
+            fontFamily: 'var(--font-body)',
+            padding: '9px 16px',
+            borderRadius: 'var(--radius-control)',
+            border: '1px solid var(--color-divider)',
+            background: 'transparent',
+          }}
+        >
+          Back to events
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto pb-12 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
+    <div className="max-w-[780px] mx-auto flex flex-col gap-4 animate-soa-fade pb-8">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2.5 flex-wrap">
         <button
-          type="button"
           onClick={() => router.push('/dashboard/events')}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors min-h-[36px]"
+          className="flex items-center gap-1.5"
+          style={{
+            fontSize: 12.5,
+            border: 'none',
+            background: 'transparent',
+            color: 'color-mix(in srgb, var(--color-text) 55%, transparent)',
+            minHeight: 36,
+          }}
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
+          <ArrowLeft className="ic w-3.5 h-3.5" />
           Events
         </button>
-        <span className="text-muted-foreground/30">/</span>
-        <span className="text-xs text-foreground font-medium truncate max-w-[200px]">{form.eventName}</span>
-        <span className="text-[10px] font-mono text-muted-foreground/40 ml-auto">#{eventId}</span>
+        <span style={{ color: 'color-mix(in srgb, var(--color-text) 30%, transparent)' }}>/</span>
+        <span className="truncate max-w-[240px]" style={{ fontSize: 12.5, fontWeight: 600 }}>
+          {form.eventName}
+        </span>
+        <span
+          className="tnum ml-auto"
+          style={{ fontSize: 10, color: 'color-mix(in srgb, var(--color-text) 40%, transparent)' }}
+        >
+          #{eventId}
+        </span>
       </div>
 
-      {/* Company badge */}
       {(form.companyName || form.companyId > 0) && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card">
-          <Building2 className="h-3.5 w-3.5 text-muted-foreground/60 flex-shrink-0" />
-          <span className="text-xs text-foreground font-medium">{form.companyName || 'Unknown Company'}</span>
-          <span className="text-[10px] font-mono text-muted-foreground/40">#{form.companyId}</span>
-        </div>
-      )}
-
-      {/* Alerts */}
-      {error && (
-        <Alert variant="destructive" className="border-destructive/30 bg-destructive/5 py-2.5">
-          <AlertDescription className="flex items-center gap-2">
-            <AlertCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
-            <span className="text-sm text-destructive">{error}</span>
-          </AlertDescription>
-        </Alert>
-      )}
-      {success && (
-        <Alert className="border-emerald-500/20 bg-emerald-500/5 py-2.5">
-          <AlertDescription className="flex items-center gap-2">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
-            <span className="text-sm text-emerald-400">{success}</span>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* ── Event Details Form ─────────────────────────────────────────────── */}
-      <form onSubmit={handleSaveEvent} className="rounded-xl border border-border bg-card p-5 space-y-4 overflow-x-hidden">
-        <div className="flex items-center justify-between pb-3 border-b border-border">
-          <h2 className="text-sm font-semibold text-foreground">Event Details</h2>
-          <Button type="submit" disabled={isSaving} size="sm" className="h-7 text-xs gap-1.5">
-            {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
-            {isSaving ? 'Saving...' : 'Save'}
-          </Button>
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-4">
-          <Field label="Event Name" required>
-            <Input value={form.eventName} onChange={e => setF('eventName', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
-          </Field>
-          <Field label="Category">
-            <div className="relative min-w-0 w-full">
-              <Tag className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
-              <select
-                value={form.eventCategoryId}
-                onChange={e => setF('eventCategoryId', e.target.value)}
-                className="w-full h-9 text-xs sm:text-sm rounded-md border border-border bg-background min-w-0 pl-8 pr-3 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="">Select category</option>
-                {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-              </select>
-            </div>
-          </Field>
-        </div>
-
-        <Field label="Description" required>
-          <textarea
-            value={form.eventDescription}
-            onChange={e => setF('eventDescription', e.target.value)}
-            rows={3}
-            className="w-full text-sm rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+        <div
+          className="flex items-center gap-2"
+          style={{
+            padding: '9px 13px',
+            borderRadius: 'var(--radius-card)',
+            background: 'var(--color-neutral-100)',
+            boxShadow: 'var(--shadow-sm)',
+          }}
+        >
+          <Building2
+            className="ic w-3.5 h-3.5 flex-none"
+            style={{ color: 'color-mix(in srgb, var(--color-text) 55%, transparent)' }}
           />
-        </Field>
-
-        <Field label="Location" required>
-          <div className="relative min-w-0 w-full">
-            <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
-            <Input value={form.eventLocation} onChange={e => setF('eventLocation', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background pl-8 min-w-0" />
-          </div>
-        </Field>
-
-        <div className="grid sm:grid-cols-2 gap-4">
-          <Field label="Event Start" required>
-            <DateTimePicker value={form.eventStartDate} onChange={v => setF('eventStartDate', v)} />
-          </Field>
-          <Field label="Event End" required>
-            <DateTimePicker value={form.eventEndDate} onChange={v => setF('eventEndDate', v)} />
-          </Field>
-          <Field label="Ticket Sale Start">
-            <DateTimePicker value={form.ticketSaleStartDate} onChange={v => setF('ticketSaleStartDate', v)} />
-          </Field>
-          <Field label="Ticket Sale End">
-            <DateTimePicker value={form.ticketSaleEndDate} onChange={v => setF('ticketSaleEndDate', v)} />
-          </Field>
+          <span style={{ fontSize: 12.5, fontWeight: 600 }}>
+            {form.companyName || 'Unknown company'}
+          </span>
+          <span
+            className="tnum"
+            style={{ fontSize: 10, color: 'color-mix(in srgb, var(--color-text) 40%, transparent)' }}
+          >
+            #{form.companyId}
+          </span>
         </div>
+      )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          <Field label="Status">
-            <select
-              value={form.status}
-              onChange={e => setF('status', e.target.value)}
-              className="w-full h-9 text-xs sm:text-sm rounded-md border border-border bg-background min-w-0 px-3 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      {error && <ErrorNote message={error} />}
+      {success && <SuccessNote message={success} />}
+
+      {/* ── Event details ────────────────────────────────────────────── */}
+      <form onSubmit={handleSaveEvent}>
+        <Card padded={false} style={{ padding: 20, gap: 16 }}>
+          <div
+            className="flex items-center justify-between pb-3"
+            style={{ borderBottom: '1px solid var(--color-divider)' }}
+          >
+            <h2 className="m-0" style={{ fontSize: 15 }}>
+              Event details
+            </h2>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="flex items-center gap-1.5 disabled:opacity-50"
+              style={{
+                height: 32,
+                padding: '0 14px',
+                borderRadius: 'var(--radius-control)',
+                border: 'none',
+                background: 'var(--color-accent)',
+                color: '#fff',
+                fontSize: 12.5,
+                fontWeight: 700,
+                fontFamily: 'var(--font-body)',
+              }}
             >
-              <option value="">— no change —</option>
-              {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </Field>
-          <Field label="Commission %">
-            <Input
-              type="number"
-              min="0"
-              max="100"
-              step="0.1"
-              value={form.percentageCommission}
-              onChange={e => setF('percentageCommission', e.target.value)}
-              placeholder="e.g. 5"
-              className="h-9 text-sm border-border bg-background"
+              {isSaving ? (
+                <Loader2 className="ic w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Check className="ic w-3.5 h-3.5" />
+              )}
+              {isSaving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+            <Field label="Event name" required>
+              <input
+                className="soa-input"
+                value={form.eventName}
+                onChange={(e) => setF('eventName', e.target.value)}
+              />
+            </Field>
+            <Field label="Category">
+              <div className="relative">
+                <Tag
+                  className="ic absolute w-3.5 h-3.5 pointer-events-none"
+                  style={{
+                    left: 12,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'color-mix(in srgb, var(--color-text) 42%, transparent)',
+                  }}
+                />
+                <select
+                  className="soa-input"
+                  value={form.eventCategoryId}
+                  onChange={(e) => setF('eventCategoryId', e.target.value)}
+                  style={{ paddingLeft: 36 }}
+                >
+                  <option value="">Select category</option>
+                  {CATEGORIES.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </Field>
+          </div>
+
+          <Field label="Description" required>
+            <textarea
+              className="soa-input"
+              rows={3}
+              value={form.eventDescription}
+              onChange={(e) => setF('eventDescription', e.target.value)}
             />
           </Field>
-          <Field label="Currency">
-            <select
-              value={form.currency}
-              onChange={e => setF('currency', e.target.value)}
-              className="w-full h-9 text-xs sm:text-sm rounded-md border border-border bg-background min-w-0 px-3 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </Field>
-        </div>
 
-        <Field label="URL Slug">
-          <Input value={form.slug} onChange={e => setF('slug', e.target.value)} className="h-9 text-sm border-border bg-background font-mono" />
-        </Field>
-
-        <Field label="Poster Image">
-          <div className="space-y-2">
-            <label className={`flex flex-col items-center justify-center gap-2 h-20 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
-              isUploading ? 'border-border bg-accent/20 pointer-events-none' : 'border-border hover:border-foreground/30 hover:bg-accent/20'
-            }`}>
-              <input
-                type="file"
-                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                className="sr-only"
-                disabled={isUploading}
-                onChange={e => { const f = e.target.files?.[0]; if (f) handlePosterUpload(f); e.target.value = ''; }}
+          <Field label="Location" required>
+            <div className="relative">
+              <MapPin
+                className="ic absolute w-3.5 h-3.5 pointer-events-none"
+                style={{
+                  left: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'color-mix(in srgb, var(--color-text) 42%, transparent)',
+                }}
               />
-              {isUploading ? (
-                <><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /><span className="text-xs text-muted-foreground">Uploading...</span></>
-              ) : (
-                <><Upload className="h-4 w-4 text-muted-foreground/50" /><span className="text-xs text-muted-foreground/70">Click to upload <span className="text-muted-foreground/40">· JPEG, PNG, WebP · max 10MB</span></span></>
-              )}
-            </label>
-            <div className="relative min-w-0 w-full">
-              <Input value={form.eventPosterUrl} onChange={e => { setF('eventPosterUrl', e.target.value); setUploadError(''); }} placeholder="or paste image URL" className="h-9 text-sm border-border bg-background pr-8" />
-              {form.eventPosterUrl && (
-                <button type="button" onClick={() => setF('eventPosterUrl', '')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-destructive transition-colors">
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
+              <input
+                className="soa-input"
+                value={form.eventLocation}
+                onChange={(e) => setF('eventLocation', e.target.value)}
+                style={{ paddingLeft: 36 }}
+              />
             </div>
-            {uploadError && <p className="text-xs text-destructive flex items-center gap-1.5"><AlertCircle className="h-3 w-3 flex-shrink-0" />{uploadError}</p>}
-            {form.eventPosterUrl && (
-              <div className="w-28 h-18 rounded-md overflow-hidden border border-border">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={form.eventPosterUrl} alt="poster" className="w-full h-full object-cover" style={{ height: '72px' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-              </div>
-            )}
-          </div>
-        </Field>
+          </Field>
 
-        {/* Published toggle */}
-        <div className="flex items-center justify-between pt-2 border-t border-border/60">
-          <div>
-            <p className="text-xs font-medium text-foreground">Published</p>
-            <p className="text-[10px] text-muted-foreground/60 mt-0.5">Visible to the public on soldoutafrica.com</p>
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+            <Field label="Event starts" required>
+              <DateTimePicker value={form.eventStartDate} onChange={(v) => setF('eventStartDate', v)} />
+            </Field>
+            <Field label="Event ends" required>
+              <DateTimePicker value={form.eventEndDate} onChange={(v) => setF('eventEndDate', v)} />
+            </Field>
+            <Field label="Ticket sales start">
+              <DateTimePicker
+                value={form.ticketSaleStartDate}
+                onChange={(v) => setF('ticketSaleStartDate', v)}
+              />
+            </Field>
+            <Field label="Ticket sales end">
+              <DateTimePicker
+                value={form.ticketSaleEndDate}
+                onChange={(v) => setF('ticketSaleEndDate', v)}
+              />
+            </Field>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setF('published', !form.published)}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${form.published ? 'bg-emerald-500/80' : 'bg-muted-foreground/20'}`}
-              role="switch"
-              aria-checked={form.published}
-            >
-              <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${form.published ? 'translate-x-4' : 'translate-x-1'}`} />
-            </button>
-            <span className={`flex items-center gap-1 text-[10px] ${form.published ? 'text-emerald-400' : 'text-muted-foreground/50'}`}>
-              {form.published ? <><Globe className="h-2.5 w-2.5" />Live</> : <><EyeOff className="h-2.5 w-2.5" />Hidden</>}
-            </span>
+
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+            <Field label="Status">
+              <select
+                className="soa-input"
+                value={form.status}
+                onChange={(e) => setF('status', e.target.value)}
+              >
+                <option value="">— no change —</option>
+                {STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Commission %">
+              <input
+                className="soa-input tnum"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={form.percentageCommission}
+                onChange={(e) => setF('percentageCommission', e.target.value)}
+                placeholder="e.g. 5"
+              />
+            </Field>
+            <Field label="Currency">
+              <select
+                className="soa-input"
+                value={form.currency}
+                onChange={(e) => setF('currency', e.target.value)}
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </Field>
           </div>
-        </div>
+
+          <Field label="URL slug">
+            <input
+              className="soa-input tnum"
+              value={form.slug}
+              onChange={(e) => setF('slug', e.target.value)}
+            />
+          </Field>
+
+          <Field label="Poster image">
+            <div className="flex gap-3.5 items-start flex-wrap">
+              <label
+                className="grid place-items-center cursor-pointer flex-none"
+                style={{
+                  width: 96,
+                  height: 128,
+                  borderRadius: 10,
+                  border: '1px dashed var(--color-divider)',
+                  background: form.eventPosterUrl
+                    ? `url('${form.eventPosterUrl}') center/cover`
+                    : 'var(--color-surface)',
+                }}
+              >
+                <input
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                  className="sr-only"
+                  disabled={isUploading}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handlePosterUpload(f);
+                    e.target.value = '';
+                  }}
+                />
+                {isUploading ? (
+                  <Loader2 className="ic w-5 h-5 animate-spin text-muted-foreground" />
+                ) : !form.eventPosterUrl ? (
+                  <span className="flex flex-col items-center gap-1.5 text-muted-foreground">
+                    <Upload className="ic w-4 h-4" />
+                    <span style={{ fontSize: 10.5 }}>Upload</span>
+                  </span>
+                ) : null}
+              </label>
+              <div className="flex-1 min-w-[200px] flex flex-col gap-2">
+                <div className="relative">
+                  <input
+                    className="soa-input"
+                    value={form.eventPosterUrl}
+                    onChange={(e) => {
+                      setF('eventPosterUrl', e.target.value);
+                      setUploadError('');
+                    }}
+                    placeholder="or paste an image URL"
+                    style={{ paddingRight: 34 }}
+                  />
+                  {form.eventPosterUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setF('eventPosterUrl', '')}
+                      aria-label="Clear poster"
+                      className="grid place-items-center"
+                      style={{
+                        position: 'absolute',
+                        right: 8,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 22,
+                        height: 22,
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                      }}
+                    >
+                      <X className="ic w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                <p
+                  className="m-0"
+                  style={{
+                    fontSize: 11.5,
+                    color: 'color-mix(in srgb, var(--color-text) 50%, transparent)',
+                  }}
+                >
+                  JPEG, PNG or WebP · up to 10&nbsp;MB.
+                </p>
+                {uploadError && (
+                  <p
+                    className="m-0 flex items-center gap-1.5"
+                    style={{ fontSize: 12, color: 'var(--tint-danger-fg)' }}
+                  >
+                    <XCircle className="ic w-3.5 h-3.5" />
+                    {uploadError}
+                  </p>
+                )}
+              </div>
+            </div>
+          </Field>
+
+          <div
+            className="flex items-center justify-between pt-3"
+            style={{ borderTop: '1px solid var(--color-divider)' }}
+          >
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>Published</div>
+              <div
+                style={{
+                  fontSize: 11.5,
+                  color: 'color-mix(in srgb, var(--color-text) 52%, transparent)',
+                }}
+              >
+                Visible to buyers on soldoutafrica.com
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Toggle
+                checked={form.published}
+                onChange={(v) => setF('published', v)}
+                label="Published"
+              />
+              <span
+                className="inline-flex items-center gap-1"
+                style={{
+                  fontSize: 10,
+                  color: form.published
+                    ? 'var(--color-accent-2-700)'
+                    : 'color-mix(in srgb, var(--color-text) 50%, transparent)',
+                }}
+              >
+                {form.published ? (
+                  <>
+                    <Globe className="ic w-2.5 h-2.5" />
+                    Live
+                  </>
+                ) : (
+                  <>
+                    <EyeOff className="ic w-2.5 h-2.5" />
+                    Hidden
+                  </>
+                )}
+              </span>
+            </div>
+          </div>
+        </Card>
       </form>
 
       <SuspendTicketModal
         isOpen={showSuspendModal}
-        onClose={handleSuspendModalClose}
+        onClose={() => {
+          if (!isSuspending) {
+            setShowSuspendModal(false);
+            setSuspendError('');
+          }
+        }}
         actionType={suspendActionType}
         ticketName={suspendTicketName}
         error={suspendError}
         isLoading={isSuspending}
-        onRequestOtp={handleSuspendRequestOtp}
+        onRequestOtp={async () => {
+          setSuspendError('');
+          await eventsApi.requestChallenge();
+        }}
         onConfirm={handleSuspendConfirm}
       />
 
-      {/* ── Tickets ────────────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-border bg-card p-5 space-y-4 overflow-x-hidden">
-        <div className="flex items-center justify-between pb-3 border-b border-border">
+      {/* ── Tickets ──────────────────────────────────────────────────── */}
+      <Card padded={false} style={{ padding: 20, gap: 16 }}>
+        <div
+          className="flex items-center justify-between pb-3"
+          style={{ borderBottom: '1px solid var(--color-divider)' }}
+        >
           <div className="flex items-center gap-2">
-            <Ticket className="h-3.5 w-3.5 text-muted-foreground/60" />
-            <h2 className="text-sm font-semibold text-foreground">Tickets <span className="text-muted-foreground/50">({tickets.length})</span></h2>
+            <Ticket
+              className="ic w-3.5 h-3.5"
+              style={{ color: 'color-mix(in srgb, var(--color-text) 55%, transparent)' }}
+            />
+            <h2 className="m-0" style={{ fontSize: 15 }}>
+              Tickets{' '}
+              <span style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}>
+                ({tickets.length})
+              </span>
+            </h2>
           </div>
-          <Button
+          <button
             type="button"
-            onClick={() => setShowNewTicket(v => !v)}
-            size="sm"
-            variant={showNewTicket ? 'outline' : 'default'}
-            className="h-7 text-xs gap-1.5 border-border"
+            onClick={() => setShowNewTicket((v) => !v)}
+            className="flex items-center gap-1.5"
+            style={{
+              height: 32,
+              padding: '0 14px',
+              borderRadius: 'var(--radius-control)',
+              border: showNewTicket ? '1px solid var(--color-divider)' : 'none',
+              background: showNewTicket ? 'transparent' : 'var(--color-accent)',
+              color: showNewTicket ? 'var(--color-text)' : '#fff',
+              fontSize: 12.5,
+              fontWeight: 700,
+              fontFamily: 'var(--font-body)',
+            }}
           >
-            {showNewTicket ? <><X className="h-3 w-3" />Cancel</> : <><Plus className="h-3 w-3" />Add Ticket</>}
-          </Button>
+            {showNewTicket ? (
+              <>
+                <X className="ic w-3.5 h-3.5" />
+                Cancel
+              </>
+            ) : (
+              <>
+                <Plus className="ic w-3.5 h-3.5" />
+                Add ticket
+              </>
+            )}
+          </button>
         </div>
 
-        {/* New ticket form */}
+        {/* New ticket */}
         {showNewTicket && (
-          <form onSubmit={handleCreateTicket} className="rounded-lg border border-border bg-background/50 p-4 space-y-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">New Ticket</p>
+          <form
+            onSubmit={handleCreateTicket}
+            className="flex flex-col gap-3 animate-soa-fade-fast"
+            style={{
+              border: '1px solid var(--color-divider)',
+              borderRadius: 12,
+              padding: 15,
+              background: 'var(--color-surface)',
+            }}
+          >
+            <div
+              style={{
+                fontSize: 10,
+                letterSpacing: '.1em',
+                textTransform: 'uppercase',
+                fontWeight: 700,
+                color: 'color-mix(in srgb, var(--color-text) 55%, transparent)',
+              }}
+            >
+              New ticket
+            </div>
 
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
               <Field label="Name" required>
-                <Input value={newTicket.ticketName} onChange={e => setNewTicket(t => ({ ...t, ticketName: e.target.value }))} placeholder="e.g. VIP" className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
+                <input
+                  className="soa-input"
+                  value={newTicket.ticketName}
+                  onChange={(e) => setNewTicket((t) => ({ ...t, ticketName: e.target.value }))}
+                  placeholder="e.g. VIP"
+                  style={{ background: 'var(--color-neutral-100)' }}
+                />
               </Field>
-              <Field label="Price">
-                <div className="flex items-center gap-2">
-                  <Input
+              <Field label={`Price (${form.currency})`}>
+                <div className="flex items-center gap-2.5">
+                  <input
+                    className="soa-input tnum"
                     type="number"
                     min="0"
                     value={newTicket.isFree ? '' : newTicket.ticketPrice}
-                    onChange={e => setNewTicket(t => ({ ...t, ticketPrice: e.target.value }))}
-                    placeholder={newTicket.isFree ? 'Free' : '0.00'}
+                    onChange={(e) => setNewTicket((t) => ({ ...t, ticketPrice: e.target.value }))}
                     disabled={newTicket.isFree}
-                    className="h-9 text-sm border-border bg-background disabled:opacity-40"
+                    placeholder={newTicket.isFree ? 'Free' : '0'}
+                    style={{ background: 'var(--color-neutral-100)' }}
                   />
-                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap cursor-pointer">
-                    <input type="checkbox" checked={newTicket.isFree} onChange={e => setNewTicket(t => ({ ...t, isFree: e.target.checked, ticketPrice: e.target.checked ? '0' : t.ticketPrice }))} className="rounded border-border" />
+                  <Toggle
+                    checked={newTicket.isFree}
+                    onChange={(v) =>
+                      setNewTicket((t) => ({ ...t, isFree: v, ticketPrice: v ? '0' : t.ticketPrice }))
+                    }
+                    label="Free ticket"
+                  />
+                  <span className="text-muted-foreground flex-none" style={{ fontSize: 12 }}>
                     Free
-                  </label>
+                  </span>
                 </div>
               </Field>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
               <Field label="Quantity" required>
-                <Input type="number" min="1" value={newTicket.quantityAvailable} onChange={e => setNewTicket(t => ({ ...t, quantityAvailable: e.target.value }))} placeholder="100" className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
+                <input
+                  className="soa-input tnum"
+                  type="number"
+                  min="1"
+                  value={newTicket.quantityAvailable}
+                  onChange={(e) => setNewTicket((t) => ({ ...t, quantityAvailable: e.target.value }))}
+                  placeholder="100"
+                  style={{ background: 'var(--color-neutral-100)' }}
+                />
               </Field>
-              <Field label="To Issue">
-                <Input type="number" min="0" value={newTicket.ticketsToIssue} onChange={e => setNewTicket(t => ({ ...t, ticketsToIssue: e.target.value }))} placeholder="Same as qty" className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
+              <Field label="To issue">
+                <input
+                  className="soa-input tnum"
+                  type="number"
+                  min="0"
+                  value={newTicket.ticketsToIssue}
+                  onChange={(e) => setNewTicket((t) => ({ ...t, ticketsToIssue: e.target.value }))}
+                  placeholder="Same as qty"
+                  style={{ background: 'var(--color-neutral-100)' }}
+                />
               </Field>
-              <Field label="Limit / Person">
-                <Input type="number" min="0" value={newTicket.ticketLimitPerPerson} onChange={e => setNewTicket(t => ({ ...t, ticketLimitPerPerson: e.target.value }))} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
+              <Field label="Limit / person">
+                <input
+                  className="soa-input tnum"
+                  type="number"
+                  min="0"
+                  value={newTicket.ticketLimitPerPerson}
+                  onChange={(e) =>
+                    setNewTicket((t) => ({ ...t, ticketLimitPerPerson: e.target.value }))
+                  }
+                  style={{ background: 'var(--color-neutral-100)' }}
+                />
+              </Field>
+              <Field label="Complementary">
+                <input
+                  className="soa-input tnum"
+                  type="number"
+                  min="0"
+                  value={newTicket.numberOfComplementary}
+                  onChange={(e) =>
+                    setNewTicket((t) => ({ ...t, numberOfComplementary: e.target.value }))
+                  }
+                  style={{ background: 'var(--color-neutral-100)' }}
+                />
               </Field>
             </div>
 
-            <Field label="Complementary">
-              <Input type="number" min="0" value={newTicket.numberOfComplementary} onChange={e => setNewTicket(t => ({ ...t, numberOfComplementary: e.target.value }))} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
-            </Field>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="Sale Start">
-                <DateTimePicker value={newTicket.ticketSaleStartDate} onChange={v => setNewTicket(t => ({ ...t, ticketSaleStartDate: v }))} />
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+              <Field label="Sales start">
+                <DateTimePicker
+                  value={newTicket.ticketSaleStartDate}
+                  onChange={(v) => setNewTicket((t) => ({ ...t, ticketSaleStartDate: v }))}
+                />
               </Field>
-              <Field label="Sale End">
-                <DateTimePicker value={newTicket.ticketSaleEndDate} onChange={v => setNewTicket(t => ({ ...t, ticketSaleEndDate: v }))} />
+              <Field label="Sales end">
+                <DateTimePicker
+                  value={newTicket.ticketSaleEndDate}
+                  onChange={(v) => setNewTicket((t) => ({ ...t, ticketSaleEndDate: v }))}
+                />
               </Field>
             </div>
 
-            <div className="space-y-3 pt-1 border-t border-border/60">
-              <p className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider pt-1">Notification Templates</p>
-              <Field label="SMS Template">
+            <div className="pt-3" style={{ borderTop: '1px solid var(--color-divider)' }}>
+              <div
+                style={{
+                  fontSize: 10,
+                  letterSpacing: '.08em',
+                  textTransform: 'uppercase',
+                  fontWeight: 700,
+                  marginBottom: 10,
+                  color: 'color-mix(in srgb, var(--color-text) 48%, transparent)',
+                }}
+              >
+                Notification templates
+              </div>
+              <Field label="SMS on purchase">
                 <textarea
-                  value={newTicket.smsPurchaseMessageTemplate}
-                  onChange={e => setNewTicket(t => ({ ...t, smsPurchaseMessageTemplate: e.target.value }))}
+                  className="soa-input"
                   rows={3}
+                  value={newTicket.sms}
+                  onChange={(e) => setNewTicket((t) => ({ ...t, sms: e.target.value }))}
                   placeholder="Hi {first_name}, your {ticket_name} ticket for {event_name} is confirmed. Access: {ticket_link}"
-                  className="w-full text-sm rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring resize-none font-mono"
+                  style={{ minHeight: 64, fontSize: 12.5, background: 'var(--color-neutral-100)' }}
                 />
-                <p className="text-[10px] text-muted-foreground/40 mt-1">Placeholders: <span className="font-mono">{'{first_name}'} {'{event_name}'} {'{ticket_name}'} {'{ticket_link}'}</span></p>
               </Field>
-              <Field label="Email Template">
-                <textarea
-                  value={newTicket.emailPurchaseMessageTemplate}
-                  onChange={e => setNewTicket(t => ({ ...t, emailPurchaseMessageTemplate: e.target.value }))}
-                  rows={4}
-                  placeholder="Dear {first_name},&#10;&#10;Thank you for purchasing your {ticket_name} ticket for {event_name}. We look forward to seeing you!"
-                  className="w-full text-sm rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-                />
-                <p className="text-[10px] text-muted-foreground/40 mt-1">Placeholders: <span className="font-mono">{'{first_name}'} {'{event_name}'} {'{ticket_name}'}</span></p>
-              </Field>
+              <div className="mt-3">
+                <Field label="Email on purchase">
+                  <textarea
+                    className="soa-input"
+                    rows={4}
+                    value={newTicket.email}
+                    onChange={(e) => setNewTicket((t) => ({ ...t, email: e.target.value }))}
+                    placeholder="Dear {first_name}, thank you for purchasing your {ticket_name} ticket for {event_name}."
+                    style={{ minHeight: 76, fontSize: 12.5, background: 'var(--color-neutral-100)' }}
+                  />
+                  <div
+                    style={{
+                      fontSize: 10.5,
+                      marginTop: 5,
+                      color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                    }}
+                  >
+                    {PLACEHOLDER_HINT}
+                  </div>
+                </Field>
+              </div>
             </div>
 
-            <div className="flex justify-end pt-1">
-              <Button type="submit" disabled={isCreatingTicket} size="sm" className="h-7 text-xs gap-1.5">
-                {isCreatingTicket ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-                {isCreatingTicket ? 'Creating...' : 'Create Ticket'}
-              </Button>
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={isCreatingTicket}
+                className="flex items-center gap-1.5 disabled:opacity-50"
+                style={{
+                  height: 32,
+                  padding: '0 14px',
+                  borderRadius: 'var(--radius-control)',
+                  border: 'none',
+                  background: 'var(--color-accent)',
+                  color: '#fff',
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-body)',
+                }}
+              >
+                {isCreatingTicket ? (
+                  <Loader2 className="ic w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Plus className="ic w-3.5 h-3.5" />
+                )}
+                {isCreatingTicket ? 'Creating…' : 'Create ticket'}
+              </button>
             </div>
           </form>
         )}
 
         {/* Existing tickets */}
         {tickets.length === 0 ? (
-          <div className="py-12 text-center rounded-lg border border-dashed border-border">
-            <Ticket className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" />
-            <p className="text-xs text-muted-foreground">No tickets yet</p>
+          <div
+            className="py-12 text-center"
+            style={{ border: '1px dashed var(--color-divider)', borderRadius: 12 }}
+          >
+            <Ticket
+              className="ic w-8 h-8 mx-auto mb-2"
+              style={{ color: 'color-mix(in srgb, var(--color-text) 22%, transparent)' }}
+            />
+            <p className="m-0 text-xs text-muted-foreground">No tickets yet</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {tickets.map(ticket => {
+          <div className="flex flex-col gap-3">
+            {tickets.map((ticket) => {
               const tf = ticketForms[ticket.ticketId] || {};
               const isEditing = editingTicketId === ticket.ticketId;
               const isExpanded = expandedTickets.has(ticket.ticketId);
               const remaining = ticket.quantityAvailable - ticket.soldQuantity;
+              const status = ticket.ticketStatus || (ticket.isActive ? 'ACTIVE' : 'INACTIVE');
+              const statusTint =
+                status === 'ACTIVE'
+                  ? { bg: 'var(--tint-olive-bg)', fg: 'var(--tint-olive-fg)' }
+                  : status === 'ONHOLD'
+                    ? { bg: 'var(--tint-clay-bg)', fg: 'var(--tint-clay-fg)' }
+                    : { bg: 'var(--tint-stone-bg)', fg: 'var(--tint-stone-fg)' };
 
               return (
-                <div key={ticket.ticketId} className="rounded-lg border border-border bg-background/30 overflow-hidden">
-                  {/* Ticket header */}
-                  <div className="flex items-center gap-2 px-3 py-3 sm:px-4">
+                <div
+                  key={ticket.ticketId}
+                  className="overflow-hidden"
+                  style={{
+                    border: '1px solid var(--color-divider)',
+                    borderRadius: 12,
+                    background: 'var(--color-surface)',
+                  }}
+                >
+                  <div className="flex items-center gap-2 px-4 py-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-sm font-medium text-foreground truncate">{ticket.ticketName}</span>
-                        <span className={`inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border flex-shrink-0 ${
-                          ticket.ticketStatus === 'ACTIVE' || ticket.isActive
-                            ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                            : ticket.ticketStatus === 'ONHOLD'
-                            ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
-                            : 'text-muted-foreground bg-accent border-border'
-                        }`}>
-                          {ticket.ticketStatus || (ticket.isActive ? 'ACTIVE' : 'INACTIVE')}
+                        <span className="truncate" style={{ fontSize: 14, fontWeight: 600 }}>
+                          {ticket.ticketName}
                         </span>
+                        <Pill bg={statusTint.bg} fg={statusTint.fg}>
+                          {status.toLowerCase()}
+                        </Pill>
                         {ticket.isFree && (
-                          <span className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border text-blue-400 bg-blue-500/10 border-blue-500/20">Free</span>
+                          <Pill bg="var(--color-accent-2-100)" fg="var(--color-accent-2-800)">
+                            free
+                          </Pill>
                         )}
                         {ticket.isSoldOut && (
-                          <span className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border text-amber-400 bg-amber-500/10 border-amber-500/20">Sold Out</span>
+                          <Pill bg="var(--tint-sand-bg)" fg="var(--tint-sand-fg)">
+                            sold out
+                          </Pill>
                         )}
                       </div>
-                      <div className="flex gap-3 mt-0.5">
-                        <span className="text-[11px] text-muted-foreground/60 tabular-nums">
-                          {ticket.isFree ? 'Free' : `KES ${ticket.ticketPrice.toLocaleString()}`}
+                      <div className="flex gap-3 mt-0.5 flex-wrap">
+                        <span
+                          className="tnum"
+                          style={{
+                            fontSize: 11.5,
+                            color: 'color-mix(in srgb, var(--color-text) 60%, transparent)',
+                          }}
+                        >
+                          {ticket.isFree ? 'Free' : money(ticket.ticketPrice)}
                         </span>
-                        <span className="text-[11px] text-muted-foreground/60 tabular-nums">
-                          {ticket.soldQuantity}/{ticket.quantityAvailable} sold · <span className={remaining <= 0 ? 'text-amber-400' : 'text-emerald-400'}>{remaining} left</span>
+                        <span
+                          className="tnum"
+                          style={{
+                            fontSize: 11.5,
+                            color: 'color-mix(in srgb, var(--color-text) 60%, transparent)',
+                          }}
+                        >
+                          {num(ticket.soldQuantity)}/{num(ticket.quantityAvailable)} sold ·{' '}
+                          <span
+                            style={{
+                              color:
+                                remaining <= 0
+                                  ? 'var(--tint-sand-fg)'
+                                  : 'var(--tint-olive-strong)',
+                            }}
+                          >
+                            {num(remaining)} left
+                          </span>
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-0.5 flex-shrink-0">
+
+                    <div className="flex items-center gap-0.5 flex-none">
                       <button
                         type="button"
                         onClick={() => toggleTicketExpand(ticket.ticketId)}
-                        className="h-8 w-8 flex items-center justify-center rounded text-muted-foreground/50 hover:text-foreground hover:bg-accent/50 transition-colors"
+                        aria-label={isExpanded ? 'Collapse' : 'Expand'}
+                        className="grid place-items-center"
+                        style={{
+                          width: 32,
+                          height: 32,
+                          border: 'none',
+                          background: 'transparent',
+                          borderRadius: 8,
+                          color: 'color-mix(in srgb, var(--color-text) 50%, transparent)',
+                        }}
                       >
-                        {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        {isExpanded ? (
+                          <ChevronUp className="ic w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronDown className="ic w-3.5 h-3.5" />
+                        )}
                       </button>
+
                       {!isEditing ? (
                         <>
                           {ticket.ticketStatus === 'ONHOLD' ? (
-                            <Button
-                              onClick={() => handleActivateClick(ticket.ticketId, ticket.ticketName)}
-                              variant="ghost"
-                              size="sm"
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openSuspendModal(ticket.ticketId, ticket.ticketName, 'activate')
+                              }
                               title="Activate ticket sales"
-                              className="h-8 w-8 p-0 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                              className="grid place-items-center"
+                              style={{
+                                width: 32,
+                                height: 32,
+                                border: 'none',
+                                background: 'transparent',
+                                borderRadius: 8,
+                                color: 'var(--tint-olive-strong)',
+                              }}
                             >
-                              <PlayCircle className="h-3.5 w-3.5" />
-                            </Button>
+                              <PlayCircle className="ic w-3.5 h-3.5" />
+                            </button>
                           ) : !ticket.isSoldOut ? (
-                            <Button
-                              onClick={() => handleSuspendClick(ticket.ticketId, ticket.ticketName)}
-                              variant="ghost"
-                              size="sm"
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openSuspendModal(ticket.ticketId, ticket.ticketName, 'suspend')
+                              }
                               title="Suspend ticket sales"
-                              className="h-8 w-8 p-0 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                              className="grid place-items-center"
+                              style={{
+                                width: 32,
+                                height: 32,
+                                border: 'none',
+                                background: 'transparent',
+                                borderRadius: 8,
+                                color: 'var(--tint-clay-strong)',
+                              }}
                             >
-                              <PauseCircle className="h-3.5 w-3.5" />
-                            </Button>
+                              <PauseCircle className="ic w-3.5 h-3.5" />
+                            </button>
                           ) : null}
-                          <Button
-                            onClick={() => { setEditingTicketId(ticket.ticketId); setExpandedTickets(p => new Set([...p, ticket.ticketId])); }}
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-muted-foreground/50 hover:text-foreground transition-colors"
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingTicketId(ticket.ticketId);
+                              setExpandedTickets((p) => new Set([...p, ticket.ticketId]));
+                            }}
+                            title="Edit ticket"
+                            className="grid place-items-center"
+                            style={{
+                              width: 32,
+                              height: 32,
+                              border: 'none',
+                              background: 'transparent',
+                              borderRadius: 8,
+                              color: 'color-mix(in srgb, var(--color-text) 50%, transparent)',
+                            }}
                           >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
+                            <Pencil className="ic w-3.5 h-3.5" />
+                          </button>
                         </>
                       ) : (
                         <>
-                          <Button
+                          <button
+                            type="button"
                             onClick={() => handleSaveTicket(ticket.ticketId)}
                             disabled={savingTicketId === ticket.ticketId}
-                            size="sm"
-                            className="h-7 text-xs gap-1"
+                            className="flex items-center gap-1 disabled:opacity-50"
+                            style={{
+                              height: 30,
+                              padding: '0 12px',
+                              borderRadius: 'var(--radius-control)',
+                              border: 'none',
+                              background: 'var(--color-accent)',
+                              color: '#fff',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-body)',
+                            }}
                           >
-                            {savingTicketId === ticket.ticketId ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                            {savingTicketId === ticket.ticketId ? (
+                              <Loader2 className="ic w-3 h-3 animate-spin" />
+                            ) : (
+                              <Check className="ic w-3 h-3" />
+                            )}
                             Save
-                          </Button>
-                          <Button
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => setEditingTicketId(null)}
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0 text-muted-foreground/50 hover:text-foreground"
+                            aria-label="Cancel edit"
+                            className="grid place-items-center"
+                            style={{
+                              width: 30,
+                              height: 30,
+                              border: 'none',
+                              background: 'transparent',
+                              borderRadius: 8,
+                              color: 'color-mix(in srgb, var(--color-text) 50%, transparent)',
+                            }}
                           >
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
+                            <X className="ic w-3.5 h-3.5" />
+                          </button>
                         </>
                       )}
                     </div>
                   </div>
 
-                  {/* Expanded details / edit form */}
                   {isExpanded && (
-                    <div className="border-t border-border/60 px-3 py-3 sm:px-4 bg-background/20">
+                    <div
+                      className="px-4 py-3 animate-soa-fade-fast"
+                      style={{
+                        borderTop: '1px solid var(--color-divider)',
+                        background: 'var(--color-neutral-100)',
+                      }}
+                    >
                       {isEditing ? (
-                        <div className="space-y-3">
-                          <div className="grid sm:grid-cols-2 gap-3">
-                            <Field label="Ticket Name">
-                              <Input value={String(tf.ticketName ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'ticketName', e.target.value)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
+                        <div className="flex flex-col gap-3">
+                          <div
+                            className="grid gap-3"
+                            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}
+                          >
+                            <Field label="Ticket name">
+                              <input
+                                className="soa-input"
+                                value={String(tf.ticketName ?? '')}
+                                onChange={(e) =>
+                                  updateTicketForm(ticket.ticketId, 'ticketName', e.target.value)
+                                }
+                              />
                             </Field>
                             <Field label="Price">
-                              <div className="flex items-center gap-2">
-                                <Input
+                              <div className="flex items-center gap-2.5">
+                                <input
+                                  className="soa-input tnum"
                                   type="number"
                                   min="0"
                                   value={tf.isFree ? '' : String(tf.ticketPrice ?? '')}
-                                  onChange={e => updateTicketForm(ticket.ticketId, 'ticketPrice', parseFloat(e.target.value) || 0)}
+                                  onChange={(e) =>
+                                    updateTicketForm(
+                                      ticket.ticketId,
+                                      'ticketPrice',
+                                      parseFloat(e.target.value) || 0
+                                    )
+                                  }
                                   disabled={!!tf.isFree}
-                                  className="h-9 text-sm border-border bg-background disabled:opacity-40"
                                 />
-                                <label className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap cursor-pointer">
-                                  <input type="checkbox" checked={!!tf.isFree} onChange={e => updateTicketForm(ticket.ticketId, 'isFree', e.target.checked)} className="rounded border-border" />
+                                <Toggle
+                                  checked={!!tf.isFree}
+                                  onChange={(v) => updateTicketForm(ticket.ticketId, 'isFree', v)}
+                                  label="Free ticket"
+                                />
+                                <span
+                                  className="text-muted-foreground flex-none"
+                                  style={{ fontSize: 12 }}
+                                >
                                   Free
-                                </label>
+                                </span>
                               </div>
                             </Field>
                           </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+
+                          <div
+                            className="grid gap-3"
+                            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}
+                          >
                             <Field label="Quantity">
-                              <Input type="number" min="0" value={String(tf.quantityAvailable ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'quantityAvailable', parseInt(e.target.value) || 0)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
-                            </Field>
-                            <Field label="To Issue">
-                              <Input type="number" min="0" value={String(tf.ticketsToIssue ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'ticketsToIssue', parseInt(e.target.value) || 0)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
-                            </Field>
-                            <Field label="Limit / Person">
-                              <Input type="number" min="0" value={String(tf.ticketLimitPerPerson ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'ticketLimitPerPerson', parseInt(e.target.value) || 0)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
-                            </Field>
-                          </div>
-                          <Field label="Complementary">
-                            <Input type="number" min="0" value={String(tf.numberOfComplementary ?? '')} onChange={e => updateTicketForm(ticket.ticketId, 'numberOfComplementary', parseInt(e.target.value) || 0)} className="h-9 text-xs sm:text-sm border-border bg-background min-w-0" />
-                          </Field>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <Field label="Sale Start">
-                              <DateTimePicker value={String(tf.ticketSaleStartDate ?? '')} onChange={v => updateTicketForm(ticket.ticketId, 'ticketSaleStartDate', v)} />
-                            </Field>
-                            <Field label="Sale End">
-                              <DateTimePicker value={String(tf.ticketSaleEndDate ?? '')} onChange={v => updateTicketForm(ticket.ticketId, 'ticketSaleEndDate', v)} />
-                            </Field>
-                          </div>
-                          <div className="flex items-center gap-3 pt-1">
-                            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
                               <input
-                                type="checkbox"
-                                checked={!!tf.isActive}
-                                onChange={e => updateTicketForm(ticket.ticketId, 'isActive', e.target.checked)}
-                                className="rounded border-border"
+                                className="soa-input tnum"
+                                type="number"
+                                min="0"
+                                value={String(tf.quantityAvailable ?? '')}
+                                onChange={(e) =>
+                                  updateTicketForm(
+                                    ticket.ticketId,
+                                    'quantityAvailable',
+                                    parseInt(e.target.value) || 0
+                                  )
+                                }
                               />
-                              Active
-                            </label>
+                            </Field>
+                            <Field label="To issue">
+                              <input
+                                className="soa-input tnum"
+                                type="number"
+                                min="0"
+                                value={String(tf.ticketsToIssue ?? '')}
+                                onChange={(e) =>
+                                  updateTicketForm(
+                                    ticket.ticketId,
+                                    'ticketsToIssue',
+                                    parseInt(e.target.value) || 0
+                                  )
+                                }
+                              />
+                            </Field>
+                            <Field label="Limit / person">
+                              <input
+                                className="soa-input tnum"
+                                type="number"
+                                min="0"
+                                value={String(tf.ticketLimitPerPerson ?? '')}
+                                onChange={(e) =>
+                                  updateTicketForm(
+                                    ticket.ticketId,
+                                    'ticketLimitPerPerson',
+                                    parseInt(e.target.value) || 0
+                                  )
+                                }
+                              />
+                            </Field>
+                            <Field label="Complementary">
+                              <input
+                                className="soa-input tnum"
+                                type="number"
+                                min="0"
+                                value={String(tf.numberOfComplementary ?? '')}
+                                onChange={(e) =>
+                                  updateTicketForm(
+                                    ticket.ticketId,
+                                    'numberOfComplementary',
+                                    parseInt(e.target.value) || 0
+                                  )
+                                }
+                              />
+                            </Field>
                           </div>
 
-                          <div className="space-y-3 pt-2 border-t border-border/60">
-                            <p className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider">Notification Templates</p>
-                            <Field label="SMS Template">
+                          <div
+                            className="grid gap-3"
+                            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}
+                          >
+                            <Field label="Sales start">
+                              <DateTimePicker
+                                value={String(tf.ticketSaleStartDate ?? '')}
+                                onChange={(v) =>
+                                  updateTicketForm(ticket.ticketId, 'ticketSaleStartDate', v)
+                                }
+                              />
+                            </Field>
+                            <Field label="Sales end">
+                              <DateTimePicker
+                                value={String(tf.ticketSaleEndDate ?? '')}
+                                onChange={(v) =>
+                                  updateTicketForm(ticket.ticketId, 'ticketSaleEndDate', v)
+                                }
+                              />
+                            </Field>
+                          </div>
+
+                          <label className="flex items-center gap-2 cursor-pointer" style={{ fontSize: 12.5 }}>
+                            <input
+                              type="checkbox"
+                              checked={!!tf.isActive}
+                              onChange={(e) =>
+                                updateTicketForm(ticket.ticketId, 'isActive', e.target.checked)
+                              }
+                            />
+                            Active
+                          </label>
+
+                          <div className="pt-3" style={{ borderTop: '1px solid var(--color-divider)' }}>
+                            <div
+                              style={{
+                                fontSize: 10,
+                                letterSpacing: '.08em',
+                                textTransform: 'uppercase',
+                                fontWeight: 700,
+                                marginBottom: 10,
+                                color: 'color-mix(in srgb, var(--color-text) 48%, transparent)',
+                              }}
+                            >
+                              Notification templates
+                            </div>
+                            <Field label="SMS template">
                               <textarea
-                                value={String(tf.smsPurchaseMessageTemplate ?? '')}
-                                onChange={e => updateTicketForm(ticket.ticketId, 'smsPurchaseMessageTemplate', e.target.value)}
+                                className="soa-input"
                                 rows={3}
-                                placeholder="Hi {first_name}, your {ticket_name} ticket for {event_name} is confirmed. Access: {ticket_link}"
-                                className="w-full text-sm rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring resize-none font-mono"
+                                value={String(tf.smsPurchaseMessageTemplate ?? '')}
+                                onChange={(e) =>
+                                  updateTicketForm(
+                                    ticket.ticketId,
+                                    'smsPurchaseMessageTemplate',
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="Hi {first_name}, your {ticket_name} ticket for {event_name} is confirmed."
+                                style={{ minHeight: 64, fontSize: 12.5 }}
                               />
-                              <p className="text-[10px] text-muted-foreground/40 mt-1">Placeholders: <span className="font-mono">{'{first_name}'} {'{event_name}'} {'{ticket_name}'} {'{ticket_link}'}</span></p>
                             </Field>
-                            <Field label="Email Template">
-                              <textarea
-                                value={String(tf.emailPurchaseMessageTemplate ?? '')}
-                                onChange={e => updateTicketForm(ticket.ticketId, 'emailPurchaseMessageTemplate', e.target.value)}
-                                rows={4}
-                                placeholder="Dear {first_name},&#10;&#10;Thank you for purchasing your {ticket_name} ticket for {event_name}. We look forward to seeing you!"
-                                className="w-full text-sm rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-                              />
-                              <p className="text-[10px] text-muted-foreground/40 mt-1">Placeholders: <span className="font-mono">{'{first_name}'} {'{event_name}'} {'{ticket_name}'}</span></p>
-                            </Field>
+                            <div className="mt-3">
+                              <Field label="Email template">
+                                <textarea
+                                  className="soa-input"
+                                  rows={4}
+                                  value={String(tf.emailPurchaseMessageTemplate ?? '')}
+                                  onChange={(e) =>
+                                    updateTicketForm(
+                                      ticket.ticketId,
+                                      'emailPurchaseMessageTemplate',
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder="Dear {first_name}, thank you for purchasing your {ticket_name} ticket."
+                                  style={{ minHeight: 76, fontSize: 12.5 }}
+                                />
+                                <div
+                                  style={{
+                                    fontSize: 10.5,
+                                    marginTop: 5,
+                                    color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                                  }}
+                                >
+                                  {PLACEHOLDER_HINT}
+                                </div>
+                              </Field>
+                            </div>
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-3">
-                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 text-xs">
-                            <div>
-                              <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-0.5">Available</p>
-                              <p className="font-medium text-foreground tabular-nums">{ticket.quantityAvailable}</p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-0.5">Sold</p>
-                              <p className="font-medium text-foreground tabular-nums">{ticket.soldQuantity}</p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-0.5">Limit/Person</p>
-                              <p className="font-medium text-foreground tabular-nums">{ticket.ticketLimitPerPerson}</p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-0.5">Comp.</p>
-                              <p className="font-medium text-foreground tabular-nums">{ticket.numberOfComplementary}</p>
-                            </div>
+                        <div className="flex flex-col gap-3">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            {[
+                              ['Available', num(ticket.quantityAvailable)],
+                              ['Sold', num(ticket.soldQuantity)],
+                              ['Limit/person', num(ticket.ticketLimitPerPerson)],
+                              ['Complementary', num(ticket.numberOfComplementary)],
+                            ].map(([label, value]) => (
+                              <div key={label}>
+                                <div
+                                  style={{
+                                    fontSize: 9.5,
+                                    letterSpacing: '.06em',
+                                    textTransform: 'uppercase',
+                                    marginBottom: 2,
+                                    color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                                  }}
+                                >
+                                  {label}
+                                </div>
+                                <div className="tnum" style={{ fontWeight: 600, fontSize: 13 }}>
+                                  {value}
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                          {(ticket.smsPurchaseMessageTemplate || ticket.emailPurchaseMessageTemplate) && (
-                            <div className="flex gap-2 pt-1 border-t border-border/40">
+                          {(ticket.smsPurchaseMessageTemplate ||
+                            ticket.emailPurchaseMessageTemplate) && (
+                            <div
+                              className="flex gap-2 pt-2.5 flex-wrap"
+                              style={{ borderTop: '1px solid var(--color-divider)' }}
+                            >
                               {ticket.smsPurchaseMessageTemplate && (
-                                <span className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border text-sky-400 bg-sky-500/10 border-sky-500/20">SMS template set</span>
+                                <Pill bg="var(--tint-olive-bg)" fg="var(--tint-olive-fg)">
+                                  SMS template set
+                                </Pill>
                               )}
                               {ticket.emailPurchaseMessageTemplate && (
-                                <span className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border text-violet-400 bg-violet-500/10 border-violet-500/20">Email template set</span>
+                                <Pill bg="var(--tint-clay-bg)" fg="var(--tint-clay-fg)">
+                                  Email template set
+                                </Pill>
                               )}
                             </div>
                           )}
@@ -1116,8 +1628,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
             })}
           </div>
         )}
-      </div>
-
+      </Card>
     </div>
   );
 }

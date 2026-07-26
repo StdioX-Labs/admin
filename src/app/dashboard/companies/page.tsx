@@ -2,141 +2,252 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { companyApi, type Company } from '@/lib/api';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
-  AlertCircle,
-  RotateCcw,
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
   Building2,
+  CheckCircle2,
+  Users,
+  Search,
+  X,
   Mail,
   Phone,
-  MapPin,
-  Tag,
-  DollarSign,
-  Users,
-  CheckCircle2,
-  XCircle,
   ChevronDown,
   ChevronUp,
+  Loader2,
 } from 'lucide-react';
+import {
+  Card,
+  EmptyState,
+  ErrorNote,
+  Pager,
+  Pill,
+  SkeletonCard,
+  StatTile,
+  dateShort,
+  num,
+  phoneLocal,
+  tintFor,
+} from '@/components/ui/soa';
 
 const PAGE_SIZE = 20;
 
-function fmtDate(s: string | null) {
-  if (!s) return '—';
-  return new Date(s).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' });
-}
+const TYPE_TINTS: Record<string, { bg: string; fg: string }> = {
+  EVENT_ORGANIZER: { bg: 'var(--tint-olive-bg)', fg: 'var(--tint-olive-fg)' },
+  TICKETING_COMPANY: { bg: 'var(--tint-clay-bg)', fg: 'var(--tint-clay-fg)' },
+};
 
-function fmtPhone(phone: string | null | undefined): string {
-  if (!phone) return '—';
-  const digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('254') && digits.length === 12) return '0' + digits.slice(3);
-  if (digits.startsWith('0') && digits.length >= 9) return digits;
-  return phone;
-}
-
-function ProfileTypeBadge({ type }: { type: string }) {
-  const label = type?.replace(/_/g, ' ') ?? '—';
-  const color =
-    type === 'EVENT_ORGANIZER' ? 'text-violet-400 bg-violet-500/10 border-violet-500/20' :
-    type === 'TICKETING_COMPANY' ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' :
-    'text-muted-foreground bg-accent border-border';
+function Detail({ label, value }: { label: string; value: string }) {
   return (
-    <span className={`inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border ${color}`}>
-      {label}
-    </span>
+    <div>
+      <div
+        style={{
+          fontSize: 9.5,
+          letterSpacing: '.06em',
+          textTransform: 'uppercase',
+          color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+          marginBottom: 2,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ fontSize: 12.5 }}>{value}</div>
+    </div>
   );
 }
 
 function CompanyCard({ company }: { company: Company }) {
   const [expanded, setExpanded] = useState(false);
+  const tint = TYPE_TINTS[company.profileType] ?? {
+    bg: 'var(--tint-stone-bg)',
+    fg: 'var(--tint-stone-fg)',
+  };
+  const avatar = tintFor(company.id);
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-sm font-semibold text-foreground">{company.companyName}</h3>
-                <span className="text-[10px] font-mono text-muted-foreground/40">#{company.id}</span>
-                <ProfileTypeBadge type={company.profileType} />
-                {company.isActive ? (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">
-                    <CheckCircle2 className="h-2.5 w-2.5" />Active
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-destructive bg-destructive/10 border border-destructive/20 px-1.5 py-0.5 rounded">
-                    <XCircle className="h-2.5 w-2.5" />Inactive
-                  </span>
-                )}
-              </div>
+    <Card padded={false} className="overflow-hidden">
+      <div className="flex items-start gap-3 p-4">
+        <div
+          className="grid place-items-center flex-none"
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: 12,
+            background: avatar.bg,
+            color: avatar.fg,
+            fontFamily: 'var(--font-body)',
+            fontWeight: 700,
+            fontSize: 17,
+          }}
+        >
+          {(company.companyName || '?').charAt(0).toUpperCase()}
+        </div>
 
-              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
-                  <Mail className="h-2.5 w-2.5 flex-shrink-0" />
-                  <span className="truncate max-w-[180px]">{company.emailAddress}</span>
-                </span>
-                <a
-                  href={`tel:${fmtPhone(company.phoneNumber)}`}
-                  className="flex items-center gap-1 text-[11px] text-muted-foreground/70 hover:text-foreground transition-colors"
-                >
-                  <Phone className="h-2.5 w-2.5 flex-shrink-0" />{fmtPhone(company.phoneNumber)}
-                </a>
-                {company.currency && (
-                  <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
-                    <DollarSign className="h-2.5 w-2.5 flex-shrink-0" />{company.currency}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <button
-              onClick={() => setExpanded(v => !v)}
-              className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground/50 hover:text-foreground hover:bg-accent/50 transition-colors flex-shrink-0"
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 16 }}>
+              {company.companyName}
+            </span>
+            <span
+              style={{
+                fontSize: 10,
+                color: 'color-mix(in srgb, var(--color-text) 38%, transparent)',
+              }}
             >
-              {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </button>
+              #{company.id}
+            </span>
+            <Pill bg={tint.bg} fg={tint.fg}>
+              {(company.profileType || '—').replace(/_/g, ' ').toLowerCase()}
+            </Pill>
+            {company.isActive ? (
+              <span
+                className="inline-flex items-center gap-[5px]"
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  padding: '2px 9px',
+                  borderRadius: 999,
+                  background: 'var(--tint-olive-bg)',
+                  color: 'var(--tint-olive-fg)',
+                }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: 'var(--tint-olive-dot)',
+                  }}
+                />
+                Active
+              </span>
+            ) : (
+              <span
+                className="inline-flex items-center gap-[5px]"
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  padding: '2px 9px',
+                  borderRadius: 999,
+                  background: 'var(--tint-danger-bg)',
+                  color: 'var(--tint-danger-fg)',
+                }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: 'var(--tint-danger-strong)',
+                  }}
+                />
+                Inactive
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-x-3.5 gap-y-[3px] mt-1.5">
+            <span
+              className="inline-flex items-center gap-1.5 min-w-0"
+              style={{
+                fontSize: 11.5,
+                color: 'color-mix(in srgb, var(--color-text) 55%, transparent)',
+              }}
+            >
+              <Mail className="ic w-3 h-3 flex-none" />
+              <span className="truncate max-w-[200px]">{company.emailAddress}</span>
+            </span>
+            <a
+              href={`tel:${phoneLocal(company.phoneNumber)}`}
+              className="inline-flex items-center gap-1.5"
+              style={{
+                fontSize: 11.5,
+                color: 'color-mix(in srgb, var(--color-text) 55%, transparent)',
+              }}
+            >
+              <Phone className="ic w-3 h-3 flex-none" />
+              {phoneLocal(company.phoneNumber)}
+            </a>
+            {company.currency && (
+              <span
+                className="inline-flex items-center gap-1.5"
+                style={{
+                  fontSize: 11.5,
+                  color: 'color-mix(in srgb, var(--color-text) 55%, transparent)',
+                }}
+              >
+                {company.currency}
+              </span>
+            )}
           </div>
         </div>
 
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          aria-label={expanded ? 'Collapse details' : 'Expand details'}
+          className="grid place-items-center flex-none"
+          style={{
+            width: 32,
+            height: 32,
+            border: 'none',
+            background: 'transparent',
+            borderRadius: 9,
+            color: 'color-mix(in srgb, var(--color-text) 50%, transparent)',
+          }}
+        >
+          {expanded ? (
+            <ChevronUp className="ic w-4 h-4" />
+          ) : (
+            <ChevronDown className="ic w-4 h-4" />
+          )}
+        </button>
+      </div>
+
       {expanded && (
-        <div className="border-t border-border bg-background/30 px-4 py-3 space-y-3">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            <div>
-              <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-0.5 flex items-center gap-1">
-                <MapPin className="h-2.5 w-2.5" />Physical Address
-              </p>
-              <p className="text-foreground/80">{company.physicalAddress || '—'}</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-0.5 flex items-center gap-1">
-                <Tag className="h-2.5 w-2.5" />Postal Address
-              </p>
-              <p className="text-foreground/80">{company.postalAddress || '—'}</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-0.5">Joined</p>
-              <p className="text-foreground/80">{fmtDate(company.createdAt)}</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-0.5">Last Updated</p>
-              <p className="text-foreground/80">{fmtDate(company.updatedAt)}</p>
-            </div>
+        <div
+          className="animate-soa-fade-fast"
+          style={{
+            borderTop: '1px solid var(--color-divider)',
+            background: 'var(--color-surface)',
+            padding: '13px 16px',
+          }}
+        >
+          <div
+            className="grid gap-3"
+            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}
+          >
+            <Detail label="Physical address" value={company.physicalAddress || '—'} />
+            <Detail label="Postal" value={company.postalAddress || '—'} />
+            <Detail label="Currency" value={company.currency || '—'} />
+            <Detail label="Joined" value={dateShort(company.createdAt)} />
+            <Detail label="Updated" value={dateShort(company.updatedAt)} />
           </div>
           {company.bio && (
-            <div>
-              <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-0.5">Bio</p>
-              <p className="text-xs text-foreground/70 leading-relaxed">{company.bio}</p>
+            <div className="mt-3">
+              <div
+                style={{
+                  fontSize: 9.5,
+                  letterSpacing: '.06em',
+                  textTransform: 'uppercase',
+                  color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                  marginBottom: 3,
+                }}
+              >
+                Bio
+              </div>
+              <div
+                style={{
+                  fontSize: 12.5,
+                  lineHeight: 1.5,
+                  color: 'color-mix(in srgb, var(--color-text) 80%, transparent)',
+                }}
+              >
+                {company.bio}
+              </div>
             </div>
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -176,152 +287,109 @@ export default function CompaniesPage() {
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  const handleSearch = () => {
-    setCurrentPage(0);
-    fetchData(0, search || undefined);
-  };
-
-  const handlePageChange = (p: number) => {
-    fetchData(p, search || undefined, true);
-  };
-
-  const activeCount = companies.filter(c => c.isActive).length;
+  const activeCount = companies.filter((c) => c.isActive).length;
 
   return (
-    <div className="space-y-4 pb-8">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground tracking-tight">Companies</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {isLoading ? 'Loading...' : `${totalElements} total · ${activeCount} active on this page`}
-          </p>
-        </div>
-        <Button
-          onClick={() => fetchData(currentPage, search || undefined)}
-          variant="outline"
-          size="sm"
-          className="border-border bg-transparent text-muted-foreground hover:text-foreground gap-1.5 text-xs h-8 flex-shrink-0"
-          disabled={isLoading}
-        >
-          <RotateCcw className="h-3 w-3" />
-          Refresh
-        </Button>
+    <div className="flex flex-col gap-3.5 animate-soa-fade">
+      <div
+        className="grid gap-2.5"
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}
+      >
+        <StatTile label="Total" value={num(totalElements)} icon={Building2} />
+        <StatTile label="Active (page)" value={num(activeCount)} icon={CheckCircle2} />
+        <StatTile
+          label="Showing"
+          value={num(companies.length)}
+          icon={Users}
+          bg="var(--tint-clay-bg)"
+          fg="var(--tint-clay-strong)"
+        />
       </div>
 
-      {/* Summary pills */}
-      {!isLoading && companies.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          <div className="rounded-lg border border-border bg-card px-4 py-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <Building2 className="h-3 w-3 text-violet-400" />
-              <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Total</span>
-            </div>
-            <p className="text-lg font-bold tabular-nums text-foreground">{totalElements}</p>
-          </div>
-          <div className="rounded-lg border border-border bg-card px-4 py-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-              <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Active (page)</span>
-            </div>
-            <p className="text-lg font-bold tabular-nums text-emerald-400">{activeCount}</p>
-          </div>
-          <div className="rounded-lg border border-border bg-card px-4 py-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <Users className="h-3 w-3 text-blue-400" />
-              <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Showing</span>
-            </div>
-            <p className="text-lg font-bold tabular-nums text-blue-400">{companies.length}</p>
-          </div>
-        </div>
-      )}
+      {error && <ErrorNote message={error} onRetry={() => fetchData(currentPage)} />}
 
-      {/* Error */}
-      {error && (
-        <Alert variant="destructive" className="border-destructive/30 bg-destructive/5 py-2.5">
-          <AlertDescription className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
-              <span className="text-sm text-destructive">{error}</span>
-            </div>
-            <Button onClick={() => fetchData()} variant="outline" size="sm" className="border-destructive/30 text-destructive hover:bg-destructive/10 bg-transparent h-7 text-xs gap-1 flex-shrink-0">
-              <RotateCcw className="h-3 w-3" /> Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Search */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50 pointer-events-none" />
-          <Input
-            placeholder="Search by name, email, phone..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            className="h-8 pl-8 text-xs border-border bg-background"
-          />
-        </div>
-        <Button onClick={handleSearch} variant="outline" size="sm" className="h-8 text-xs border-border bg-transparent text-muted-foreground hover:text-foreground" disabled={isLoading}>
-          Search
-        </Button>
+      <div className="relative max-w-[360px]">
+        <Search
+          className="ic absolute w-4 h-4 pointer-events-none"
+          style={{
+            left: 14,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: 'color-mix(in srgb, var(--color-text) 42%, transparent)',
+          }}
+        />
+        <input
+          className="soa-input"
+          style={{ paddingLeft: 40, background: 'var(--color-neutral-100)' }}
+          placeholder="Search by name, email, phone…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              setCurrentPage(0);
+              fetchData(0, search || undefined);
+            }
+          }}
+        />
         {search && (
-          <button onClick={() => { setSearch(''); fetchData(0); }} className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground border border-border rounded-md bg-transparent transition-colors">
-            Clear
+          <button
+            onClick={() => {
+              setSearch('');
+              fetchData(0);
+            }}
+            aria-label="Clear search"
+            className="grid place-items-center"
+            style={{
+              position: 'absolute',
+              right: 8,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              width: 26,
+              height: 26,
+              border: 'none',
+              background: 'transparent',
+              borderRadius: 999,
+              color: 'color-mix(in srgb, var(--color-text) 50%, transparent)',
+            }}
+          >
+            <X className="ic w-[15px] h-[15px]" />
           </button>
         )}
       </div>
 
-      {/* Cards */}
-      <div className="relative">
+      <div className="relative flex flex-col gap-3.5">
         {isPaging && (
-          <div className="absolute inset-0 bg-background/50 z-10 flex items-center justify-center backdrop-blur-[1px] rounded-xl">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl backdrop-blur-[1px] bg-[color-mix(in_srgb,var(--color-bg)_50%,transparent)]">
+            <Loader2 className="ic w-5 h-5 animate-spin text-muted-foreground" />
           </div>
         )}
-
         {isLoading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="rounded-xl border border-border bg-card p-4 animate-pulse space-y-2">
-                <div className="h-3.5 w-48 rounded bg-accent" />
-                <div className="h-2.5 w-64 rounded bg-accent" />
-              </div>
-            ))}
-          </div>
+          Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} height={82} />)
         ) : companies.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card py-16 text-center">
-            <Building2 className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
-            <p className="text-sm font-medium text-muted-foreground">
-              {search ? 'No companies match your search' : 'No companies found'}
-            </p>
-          </div>
+          <EmptyState
+            icon={Building2}
+            title={search ? 'No companies match your search' : 'No companies found'}
+          />
         ) : (
-          <div className="space-y-3">
-            {companies.map(c => <CompanyCard key={c.id} company={c} />)}
-          </div>
+          companies.map((c) => <CompanyCard key={c.id} company={c} />)
         )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-[11px] text-muted-foreground/60">
-            Page {currentPage + 1} of {totalPages} · {totalElements} companies
-          </p>
-          <div className="flex items-center gap-1">
-            <Button onClick={() => handlePageChange(currentPage - 1)} disabled={!hasPrevious || isPaging} variant="outline" size="sm" className="h-7 w-7 p-0 border-border bg-transparent text-muted-foreground hover:text-foreground disabled:opacity-30">
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </Button>
-            <Button onClick={() => handlePageChange(currentPage + 1)} disabled={!hasNext || isPaging} variant="outline" size="sm" className="h-7 w-7 p-0 border-border bg-transparent text-muted-foreground hover:text-foreground disabled:opacity-30">
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <Pager
+        page={currentPage}
+        totalPages={totalPages}
+        totalElements={totalElements}
+        noun="companies"
+        hasPrevious={hasPrevious}
+        hasNext={hasNext}
+        busy={isPaging}
+        onPrev={() => fetchData(currentPage - 1, search || undefined, true)}
+        onNext={() => fetchData(currentPage + 1, search || undefined, true)}
+      />
     </div>
   );
 }

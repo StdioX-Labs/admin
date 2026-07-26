@@ -1,16 +1,18 @@
-'use client';
+import { ComingSoon } from '@/components/ui/coming-soon';
 
-import { use } from 'react';
-
-export default function CompanyEventDetailsPage({ params }: { params: Promise<{ id: string; eventId: string }> }) {
-  const { id, eventId } = use(params);
-
+export default async function CompanyEventDetailsPage({
+  params,
+}: {
+  params: Promise<{ id: string; eventId: string }>;
+}) {
+  const { id, eventId } = await params;
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Event Details</h1>
-      <p className="text-muted-foreground">Company: {id}</p>
-      <p className="text-muted-foreground">Event: {eventId}</p>
-    </div>
+    <ComingSoon
+      title="Event details"
+      description="Per-event breakdown within a partner account."
+      backHref="/dashboard/events"
+      backLabel="Events"
+      detail={`Company #${id} · Event #${eventId}`}
+    />
   );
 }
-

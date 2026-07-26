@@ -40,7 +40,7 @@ export const OtpInput = React.forwardRef<HTMLInputElement, OtpInputProps>(
             key={i}
             aria-hidden="true"
             className={cn(
-              'h-12 w-12 flex items-center justify-center text-lg font-medium rounded-md border transition-colors select-none pointer-events-none',
+              'h-12 w-12 flex items-center justify-center text-lg font-bold tnum rounded-md border bg-[var(--color-surface)] transition-colors select-none pointer-events-none',
               isFocused && i === activeIndex
                 ? 'border-ring ring-2 ring-ring ring-offset-background'
                 : 'border-input',

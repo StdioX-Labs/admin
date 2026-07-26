@@ -1,9 +1,14 @@
-export default function CompanyEventsPage() {
+import { ComingSoon } from '@/components/ui/coming-soon';
+
+export default async function CompanyEventsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Company Events</h1>
-      <p className="text-muted-foreground">Company events will be displayed here.</p>
-    </div>
+    <ComingSoon
+      title="Company events"
+      description="Every event this organizer has run."
+      backHref="/dashboard/companies"
+      backLabel="Companies"
+      detail={`Company #${id}`}
+    />
   );
 }
-

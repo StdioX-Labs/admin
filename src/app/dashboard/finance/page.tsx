@@ -1,576 +1,312 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState, useMemo } from 'react';
+import { DollarSign, Wallet, Percent, Activity, Download } from 'lucide-react';
+import { Card, KpiCard, Pill, money, dateShort } from '@/components/ui/soa';
+import { PLATFORM_KPIS as K } from '@/lib/platform-analytics';
 
-interface Transaction {
+/**
+ * ⚠️ Transaction rows are a placeholder dataset.
+ *
+ * The proxy route `POST /api/transactions/detailed` and its client
+ * (`transactionsApi.fetchDetailed`) already exist and return exactly this
+ * shape — wire them in here when a company/event scope is chosen for the
+ * ledger. The KPI row above is real reporting data.
+ */
+
+type TxType = 'Ticket Sale' | 'Commission' | 'Payout' | 'Refund';
+type TxStatus = 'Completed' | 'Pending' | 'Failed';
+type Channel = 'M-Pesa' | 'Paystack' | 'LittlePay';
+
+interface Tx {
   id: string;
-  type: 'income' | 'expense' | 'refund' | 'commission';
+  type: TxType;
+  party: string;
+  channel: Channel;
   amount: number;
-  description: string;
-  category: 'ticket_sales' | 'commission' | 'refund' | 'operational' | 'marketing' | 'platform_fee';
-  status: 'completed' | 'pending' | 'failed' | 'cancelled';
+  status: TxStatus;
   date: string;
-  reference: string;
-  eventId?: string;
-  eventTitle?: string;
-  companyId?: string;
-  companyName?: string;
-  paymentMethod: 'mpesa' | 'bank_transfer' | 'card' | 'paypal';
 }
 
-interface FinanceStats {
-  totalRevenue: number;
-  totalExpenses: number;
-  netProfit: number;
-  pendingPayments: number;
-  completedTransactions: number;
-  monthlyGrowth: number;
+const SAMPLE_TX: Tx[] = [
+  { id: 'TXN-4821', type: 'Ticket Sale', party: 'Nairobi Jazz Festival', channel: 'M-Pesa', amount: 250000, status: 'Completed', date: '2026-04-22' },
+  { id: 'PAY-1180', type: 'Payout', party: 'Sarafina Sounds', channel: 'M-Pesa', amount: -1800000, status: 'Completed', date: '2026-04-22' },
+  { id: 'COM-0934', type: 'Commission', party: 'Blankets & Wine', channel: 'Paystack', amount: 115200, status: 'Completed', date: '2026-04-21' },
+  { id: 'REF-0212', type: 'Refund', party: 'Koroga Festival', channel: 'M-Pesa', amount: -5000, status: 'Completed', date: '2026-04-21' },
+  { id: 'TXN-4809', type: 'Ticket Sale', party: 'Safari Rally Fan Zone', channel: 'LittlePay', amount: 42000, status: 'Pending', date: '2026-04-20' },
+  { id: 'PAY-1176', type: 'Payout', party: 'Koroga Productions', channel: 'Paystack', amount: -720000, status: 'Pending', date: '2026-04-20' },
+  { id: 'TXN-4790', type: 'Ticket Sale', party: 'Tech & Startup Summit', channel: 'Paystack', amount: 180000, status: 'Completed', date: '2026-04-19' },
+  { id: 'REF-0209', type: 'Refund', party: 'Blankets & Wine', channel: 'M-Pesa', amount: -6000, status: 'Failed', date: '2026-04-19' },
+  { id: 'COM-0928', type: 'Commission', party: 'Safari Rally Fan Zone', channel: 'M-Pesa', amount: 36400, status: 'Completed', date: '2026-04-18' },
+  { id: 'TXN-4771', type: 'Ticket Sale', party: 'Nairobi Jazz Festival', channel: 'M-Pesa', amount: 500000, status: 'Completed', date: '2026-04-18' },
+  { id: 'PAY-1170', type: 'Payout', party: 'StartupHub Kenya', channel: 'Paystack', amount: -480000, status: 'Completed', date: '2026-04-17' },
+  { id: 'TXN-4760', type: 'Ticket Sale', party: 'Koroga Festival', channel: 'LittlePay', amount: 27500, status: 'Completed', date: '2026-04-17' },
+];
+
+const TYPE_TINT: Record<TxType, { bg: string; fg: string }> = {
+  'Ticket Sale': { bg: 'var(--tint-olive-bg)', fg: 'var(--tint-olive-fg)' },
+  Commission: { bg: 'var(--tint-clay-bg)', fg: 'var(--tint-clay-fg)' },
+  Payout: { bg: 'var(--tint-stone-bg)', fg: 'var(--tint-stone-fg)' },
+  Refund: { bg: 'var(--tint-danger-bg)', fg: 'var(--tint-danger-fg)' },
+};
+
+const STATUS_TINT: Record<TxStatus, { bg: string; fg: string }> = {
+  Completed: { bg: 'var(--tint-olive-bg)', fg: 'var(--tint-olive-fg)' },
+  Pending: { bg: 'var(--tint-sand-bg)', fg: 'var(--tint-sand-fg)' },
+  Failed: { bg: 'var(--tint-danger-bg)', fg: 'var(--tint-danger-fg)' },
+};
+
+/** Money in is olive, money out is clay. */
+function amountColor(n: number) {
+  return n >= 0 ? 'var(--tint-olive-strong)' : 'var(--color-accent-700)';
 }
 
-export default function FinanceDashboard() {
-  const router = useRouter();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [stats, setStats] = useState<FinanceStats | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | Transaction['type']>('all');
-  const [filterStatus, setFilterStatus] = useState<'all' | Transaction['status']>('all');
-  const [filterCategory, setFilterCategory] = useState<'all' | Transaction['category']>('all');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+function signed(n: number) {
+  return `${n >= 0 ? '+' : '−'}${money(Math.abs(n))}`;
+}
 
-  // Mock data - replace with actual API calls
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+export default function FinancePage() {
+  const [type, setType] = useState<'all' | TxType>('all');
+  const [channel, setChannel] = useState<'all' | Channel>('all');
 
-        const mockStats: FinanceStats = {
-          totalRevenue: 4750000,
-          totalExpenses: 1200000,
-          netProfit: 3550000,
-          pendingPayments: 8,
-          completedTransactions: 342,
-          monthlyGrowth: 12.5
-        };
+  const rows = useMemo(
+    () =>
+      SAMPLE_TX.filter(
+        (t) => (type === 'all' || t.type === type) && (channel === 'all' || t.channel === channel)
+      ),
+    [type, channel]
+  );
 
-        const mockTransactions: Transaction[] = [
-          {
-            id: '1',
-            type: 'income',
-            amount: 225000,
-            description: 'Ticket sales for Tech Innovation Summit 2024',
-            category: 'ticket_sales',
-            status: 'completed',
-            date: '2024-12-10',
-            reference: 'TXN-001-2024',
-            eventId: '1',
-            eventTitle: 'Tech Innovation Summit 2024',
-            companyId: 'comp-1',
-            companyName: 'TechCorp Solutions',
-            paymentMethod: 'mpesa'
-          },
-          {
-            id: '2',
-            type: 'commission',
-            amount: 22500,
-            description: 'Platform commission (10%) for Tech Summit',
-            category: 'commission',
-            status: 'completed',
-            date: '2024-12-10',
-            reference: 'COM-001-2024',
-            eventId: '1',
-            eventTitle: 'Tech Innovation Summit 2024',
-            companyId: 'comp-1',
-            companyName: 'TechCorp Solutions',
-            paymentMethod: 'bank_transfer'
-          },
-          {
-            id: '3',
-            type: 'income',
-            amount: 48000,
-            description: 'Workshop registration fees',
-            category: 'ticket_sales',
-            status: 'pending',
-            date: '2024-12-12',
-            reference: 'TXN-002-2024',
-            eventId: '2',
-            eventTitle: 'Digital Marketing Workshop',
-            companyId: 'comp-2',
-            companyName: 'StartupHub Kenya',
-            paymentMethod: 'card'
-          },
-          {
-            id: '4',
-            type: 'refund',
-            amount: 15000,
-            description: 'Refund for cancelled event tickets',
-            category: 'refund',
-            status: 'completed',
-            date: '2024-12-08',
-            reference: 'REF-001-2024',
-            eventId: '6',
-            eventTitle: 'Basketball Championship',
-            companyId: 'comp-6',
-            companyName: 'Sports Kenya',
-            paymentMethod: 'mpesa'
-          },
-          {
-            id: '5',
-            type: 'expense',
-            amount: 75000,
-            description: 'Platform maintenance and hosting costs',
-            category: 'operational',
-            status: 'completed',
-            date: '2024-12-05',
-            reference: 'EXP-001-2024',
-            paymentMethod: 'bank_transfer'
-          },
-          {
-            id: '6',
-            type: 'expense',
-            amount: 45000,
-            description: 'Marketing campaign for Q4 events',
-            category: 'marketing',
-            status: 'pending',
-            date: '2024-12-11',
-            reference: 'EXP-002-2024',
-            paymentMethod: 'card'
-          },
-          {
-            id: '7',
-            type: 'income',
-            amount: 60000,
-            description: 'Networking event ticket sales',
-            category: 'ticket_sales',
-            status: 'completed',
-            date: '2024-12-18',
-            reference: 'TXN-003-2024',
-            eventId: '3',
-            eventTitle: 'Startup Pitch Night',
-            companyId: 'comp-3',
-            companyName: 'EventMasters Ltd',
-            paymentMethod: 'mpesa'
-          },
-          {
-            id: '8',
-            type: 'commission',
-            amount: 6000,
-            description: 'Platform commission for networking event',
-            category: 'commission',
-            status: 'completed',
-            date: '2024-12-18',
-            reference: 'COM-002-2024',
-            eventId: '3',
-            eventTitle: 'Startup Pitch Night',
-            companyId: 'comp-3',
-            companyName: 'EventMasters Ltd',
-            paymentMethod: 'bank_transfer'
-          }
-        ];
+  const kpis = [
+    {
+      label: 'Total GMV',
+      value: money(K.gmv),
+      note: 'all channels, 12 months',
+      icon: DollarSign,
+      bg: 'var(--tint-olive-bg)',
+      fg: 'var(--tint-olive-strong)',
+    },
+    {
+      label: 'Platform income',
+      value: money(K.totalIncome),
+      note: 'commission earned',
+      icon: Wallet,
+      bg: 'var(--tint-clay-bg)',
+      fg: 'var(--tint-clay-strong)',
+    },
+    {
+      label: 'Gross margin',
+      value: `${K.grossMargin}%`,
+      note: 'after direct costs',
+      icon: Percent,
+      bg: 'var(--tint-sand-bg)',
+      fg: 'var(--tint-sand-fg)',
+    },
+    {
+      label: 'Direct costs',
+      value: money(K.directCosts),
+      note: 'M-Pesa fees + refunds',
+      icon: Activity,
+      bg: '#f6dfce',
+      fg: '#8c491a',
+    },
+  ];
 
-        setStats(mockStats);
-        setTransactions(mockTransactions);
-      } catch {
-        setError('Failed to load finance data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.eventTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.companyName?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || transaction.type === filterType;
-    const matchesStatus = filterStatus === 'all' || transaction.status === filterStatus;
-    const matchesCategory = filterCategory === 'all' || transaction.category === filterCategory;
-    return matchesSearch && matchesType && matchesStatus && matchesCategory;
-  });
-
-  const getTypeBadge = (type: string) => {
-    const styles = {
-      income: 'bg-green-100 text-green-800 border-green-200',
-      commission: 'bg-blue-100 text-blue-800 border-blue-200',
-      expense: 'bg-red-100 text-red-800 border-red-200',
-      refund: 'bg-orange-100 text-orange-800 border-orange-200'
-    };
-    return styles[type as keyof typeof styles] || styles.income;
-  };
-
-  const getStatusBadge = (status: string) => {
-    const styles = {
-      completed: 'bg-green-100 text-green-800 border-green-200',
-      pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      failed: 'bg-red-100 text-red-800 border-red-200',
-      cancelled: 'bg-accent text-foreground border-border'
-    };
-    return styles[status as keyof typeof styles] || styles.pending;
-  };
-
-  const getCategoryBadge = (category: string) => {
-    const styles = {
-      ticket_sales: 'bg-purple-100 text-purple-800 border-purple-200',
-      commission: 'bg-blue-100 text-blue-800 border-blue-200',
-      refund: 'bg-orange-100 text-orange-800 border-orange-200',
-      operational: 'bg-accent text-foreground border-border',
-      marketing: 'bg-pink-100 text-pink-800 border-pink-200',
-      platform_fee: 'bg-indigo-100 text-indigo-800 border-indigo-200'
-    };
-    return styles[category as keyof typeof styles] || styles.operational;
-  };
-
-  const getPaymentMethodIcon = (method: string) => {
-    switch (method) {
-      case 'mpesa':
-        return '📱';
-      case 'bank_transfer':
-        return '🏦';
-      case 'card':
-        return '💳';
-      case 'paypal':
-        return '💰';
-      default:
-        return '💳';
-    }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-KE', {
-      style: 'currency',
-      currency: 'KES'
-    }).format(amount);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-KE', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-muted-foreground mx-auto mb-3"></div>
-          <p className="text-muted-foreground text-sm">Loading finance data...</p>
-        </div>
-      </div>
-    );
-  }
+  const selectStyle = { width: 'auto', minWidth: 130, background: 'var(--color-surface)' } as const;
 
   return (
-    <div className="p-3">
-      <div className="max-w-6xl mx-auto space-y-4">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Finance Dashboard</h1>
-            <p className="text-muted-foreground text-sm mt-1">Track revenue, expenses, and financial performance</p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              onClick={() => router.push('/dashboard/finance/reports')}
-              variant="outline"
-              size="sm"
-              className="border-border text-muted-foreground hover:bg-background hover:border-border transition-all duration-200"
-            >
-              Reports
-            </Button>
-            <Button
-              onClick={() => router.push('/dashboard/finance/transactions')}
-              size="sm"
-              className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
-            >
-              All Transactions
-            </Button>
-          </div>
+    <div className="flex flex-col gap-3.5 animate-soa-fade">
+      <div
+        className="grid gap-3"
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}
+      >
+        {kpis.map((k) => (
+          <KpiCard key={k.label} {...k} />
+        ))}
+      </div>
+
+      <Card padded={false} className="overflow-hidden">
+        <div className="flex flex-wrap items-center gap-2.5" style={{ padding: '13px 16px' }}>
+          <span
+            className="mr-auto"
+            style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 16 }}
+          >
+            Transactions
+          </span>
+          <select
+            className="soa-input"
+            style={selectStyle}
+            value={type}
+            onChange={(e) => setType(e.target.value as typeof type)}
+            aria-label="Filter by type"
+          >
+            <option value="all">All types</option>
+            <option value="Ticket Sale">Ticket Sale</option>
+            <option value="Commission">Commission</option>
+            <option value="Payout">Payout</option>
+            <option value="Refund">Refund</option>
+          </select>
+          <select
+            className="soa-input"
+            style={selectStyle}
+            value={channel}
+            onChange={(e) => setChannel(e.target.value as typeof channel)}
+            aria-label="Filter by channel"
+          >
+            <option value="all">All channels</option>
+            <option value="M-Pesa">M-Pesa</option>
+            <option value="Paystack">Paystack</option>
+            <option value="LittlePay">LittlePay</option>
+          </select>
+          <button
+            className="flex items-center gap-1.5"
+            style={{
+              height: 36,
+              padding: '0 14px',
+              borderRadius: 'var(--radius-control)',
+              border: '1px solid var(--color-divider)',
+              background: 'var(--color-surface)',
+              fontSize: 12.5,
+              fontWeight: 600,
+              fontFamily: 'var(--font-body)',
+              color: 'var(--color-text)',
+            }}
+          >
+            <Download className="ic w-[15px] h-[15px]" />
+            Export
+          </button>
         </div>
 
-        {/* Error Alert */}
-        {error && (
-          <Alert variant="destructive" className="border-red-200 bg-red-50">
-            <AlertDescription className="text-red-700 text-sm">{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Stats Cards - 2 Rows Layout */}
-        {stats && (
-          <div className="space-y-3">
-            {/* First Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <Card className="p-4 bg-card border border-border hover:shadow-md transition-shadow duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Total Revenue</p>
-                    <p className="text-xl font-bold text-green-600">{formatCurrency(stats.totalRevenue)}</p>
-                  </div>
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                    </svg>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-4 bg-card border border-border hover:shadow-md transition-shadow duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Total Expenses</p>
-                    <p className="text-xl font-bold text-red-600">{formatCurrency(stats.totalExpenses)}</p>
-                  </div>
-                  <div className="p-2 bg-red-100 rounded-lg">
-                    <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-                    </svg>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-4 bg-card border border-border hover:shadow-md transition-shadow duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Net Profit</p>
-                    <p className="text-xl font-bold text-blue-600">{formatCurrency(stats.netProfit)}</p>
-                  </div>
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                    </svg>
-                  </div>
-                </div>
-              </Card>
-            </div>
-
-            {/* Second Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <Card className="p-4 bg-card border border-border hover:shadow-md transition-shadow duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Pending Payments</p>
-                    <p className="text-2xl font-bold text-yellow-600">{stats.pendingPayments}</p>
-                  </div>
-                  <div className="p-2 bg-yellow-100 rounded-lg">
-                    <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-4 bg-card border border-border hover:shadow-md transition-shadow duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Completed Transactions</p>
-                    <p className="text-2xl font-bold text-muted-foreground">{stats.completedTransactions}</p>
-                  </div>
-                  <div className="p-2 bg-accent rounded-lg">
-                    <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-4 bg-card border border-border hover:shadow-md transition-shadow duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Monthly Growth</p>
-                    <p className="text-2xl font-bold text-purple-600">+{stats.monthlyGrowth}%</p>
-                  </div>
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
-                    </svg>
-                  </div>
-                </div>
-              </Card>
-            </div>
+        {rows.length === 0 ? (
+          <div
+            style={{
+              padding: '44px 20px',
+              textAlign: 'center',
+              fontSize: 13,
+              color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+              borderTop: '1px solid var(--color-divider)',
+            }}
+          >
+            No transactions match these filters
           </div>
-        )}
-
-        {/* Filters and Search */}
-        <Card className="p-4 bg-card border border-border">
-          <div className="space-y-3">
-            <Input
-              type="text"
-              placeholder="Search transactions, references, events, or companies..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-9 border-border focus:border-ring text-sm"
-            />
-
-            {/* Filter Dropdowns */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              {/* Type Filter */}
-              <div className="space-y-2">
-                <span className="text-xs font-medium text-muted-foreground">Type:</span>
-                <Select value={filterType} onValueChange={(value) => setFilterType(value as typeof filterType)}>
-                  <SelectTrigger className="h-9 border-border focus:border-ring text-sm">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="income">Income</SelectItem>
-                    <SelectItem value="commission">Commission</SelectItem>
-                    <SelectItem value="expense">Expense</SelectItem>
-                    <SelectItem value="refund">Refund</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Status Filter */}
-              <div className="space-y-2">
-                <span className="text-xs font-medium text-muted-foreground">Status:</span>
-                <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as typeof filterStatus)}>
-                  <SelectTrigger className="h-9 border-border focus:border-ring text-sm">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="failed">Failed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Category Filter */}
-              <div className="space-y-2">
-                <span className="text-xs font-medium text-muted-foreground">Category:</span>
-                <Select value={filterCategory} onValueChange={(value) => setFilterCategory(value as typeof filterCategory)}>
-                  <SelectTrigger className="h-9 border-border focus:border-ring text-sm">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="ticket_sales">Ticket Sales</SelectItem>
-                    <SelectItem value="commission">Commission</SelectItem>
-                    <SelectItem value="refund">Refund</SelectItem>
-                    <SelectItem value="operational">Operational</SelectItem>
-                    <SelectItem value="marketing">Marketing</SelectItem>
-                    <SelectItem value="platform_fee">Platform Fee</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Transactions Table */}
-        <Card className="bg-card border border-border overflow-hidden">
-          <div className="p-4 border-b border-border">
-            <h3 className="text-lg font-semibold text-foreground">Recent Transactions</h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              {filteredTransactions.length} of {transactions.length} transactions
-            </p>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-background">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Transaction</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Type</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Amount</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Status</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Category</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Payment</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Date</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-card divide-y divide-slate-200">
-                {filteredTransactions.map((transaction) => (
-                  <tr key={transaction.id} className="hover:bg-background transition-colors duration-150">
-                    <td className="px-4 py-3">
-                      <div className="max-w-48">
-                        <p className="font-medium text-foreground truncate" title={transaction.description}>
-                          {transaction.description}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate" title={transaction.reference}>
-                          {transaction.reference}
-                        </p>
-                        {transaction.eventTitle && (
-                          <p className="text-xs text-muted-foreground truncate" title={transaction.eventTitle}>
-                            {transaction.eventTitle}
-                          </p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getTypeBadge(transaction.type)}`}>
-                        {transaction.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className={`font-medium ${transaction.type === 'income' || transaction.type === 'commission' ? 'text-green-600' : 'text-red-600'}`}>
-                        {transaction.type === 'income' || transaction.type === 'commission' ? '+' : '-'}{formatCurrency(transaction.amount)}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getStatusBadge(transaction.status)}`}>
-                        {transaction.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getCategoryBadge(transaction.category)}`}>
-                        {transaction.category.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <span className="text-sm">{getPaymentMethodIcon(transaction.paymentMethod)}</span>
-                        <span className="text-xs text-muted-foreground capitalize">
-                          {transaction.paymentMethod.replace('_', ' ')}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">
-                      {formatDate(transaction.date)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1">
-                        <Button
-                          onClick={() => router.push(`/dashboard/finance/${transaction.id}`)}
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2 text-xs border-border text-muted-foreground hover:bg-background"
-                        >
-                          View
-                        </Button>
-                      </div>
-                    </td>
+        ) : (
+          <>
+            {/* Desktop table */}
+            <div
+              className="overflow-x-auto hidden md:block"
+              style={{ borderTop: '1px solid var(--color-divider)' }}
+            >
+              <table className="soa-table" style={{ minWidth: 720 }}>
+                <thead>
+                  <tr>
+                    <th>Transaction</th>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Channel</th>
+                    <th style={{ textAlign: 'right' }}>Amount</th>
+                    <th style={{ textAlign: 'right' }}>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {filteredTransactions.length === 0 && (
-            <div className="text-center py-8">
-              <svg className="mx-auto h-10 w-10 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-              </svg>
-              <h3 className="mt-2 text-sm font-medium text-foreground">No transactions found</h3>
-              <p className="mt-1 text-xs text-muted-foreground">Try adjusting your search or filter criteria.</p>
+                </thead>
+                <tbody>
+                  {rows.map((t) => (
+                    <tr key={t.id}>
+                      <td>
+                        <div style={{ fontWeight: 600, fontSize: 12.5 }}>{t.party}</div>
+                        <div
+                          className="tnum"
+                          style={{
+                            fontSize: 10.5,
+                            color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                          }}
+                        >
+                          {t.id}
+                        </div>
+                      </td>
+                      <td
+                        className="tnum"
+                        style={{
+                          fontSize: 12.5,
+                          color: 'color-mix(in srgb, var(--color-text) 60%, transparent)',
+                        }}
+                      >
+                        {dateShort(t.date)}
+                      </td>
+                      <td>
+                        <Pill bg={TYPE_TINT[t.type].bg} fg={TYPE_TINT[t.type].fg}>
+                          {t.type}
+                        </Pill>
+                      </td>
+                      <td style={{ fontSize: 12.5 }}>{t.channel}</td>
+                      <td
+                        className="tnum"
+                        style={{ textAlign: 'right', fontWeight: 700, color: amountColor(t.amount) }}
+                      >
+                        {signed(t.amount)}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <Pill bg={STATUS_TINT[t.status].bg} fg={STATUS_TINT[t.status].fg}>
+                          {t.status}
+                        </Pill>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-        </Card>
-      </div>
+
+            {/* Mobile rows */}
+            <div className="md:hidden">
+              {rows.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center gap-2.5"
+                  style={{ padding: '12px 16px', borderTop: '1px solid var(--color-divider)' }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>{t.party}</div>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <Pill bg={TYPE_TINT[t.type].bg} fg={TYPE_TINT[t.type].fg}>
+                        {t.type}
+                      </Pill>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: 'color-mix(in srgb, var(--color-text) 48%, transparent)',
+                        }}
+                      >
+                        {t.channel} · {dateShort(t.date)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right flex-none">
+                    <div
+                      className="tnum"
+                      style={{ fontWeight: 700, fontSize: 13.5, color: amountColor(t.amount) }}
+                    >
+                      {signed(t.amount)}
+                    </div>
+                    <div className="mt-1">
+                      <Pill bg={STATUS_TINT[t.status].bg} fg={STATUS_TINT[t.status].fg}>
+                        {t.status}
+                      </Pill>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </Card>
+
+      <p
+        className="m-0"
+        style={{
+          fontSize: 11.5,
+          color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+        }}
+      >
+        Ledger rows are sample data. The KPI row reflects reconciled 12-month reporting figures.
+      </p>
     </div>
   );
 }

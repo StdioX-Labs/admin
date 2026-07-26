@@ -1,9 +1,14 @@
-export default function LicenseDetailsPage({ params }: { params: { id: string } }) {
+import { ComingSoon } from '@/components/ui/coming-soon';
+
+export default async function LicenseDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">License Details</h1>
-      <p className="text-muted-foreground">License ID: {params.id}</p>
-    </div>
+    <ComingSoon
+      title="Licence details"
+      description="Term, seats and renewal status."
+      backHref="/dashboard/b2b/licenses"
+      backLabel="Licences"
+      detail={`Licence #${id}`}
+    />
   );
 }
-

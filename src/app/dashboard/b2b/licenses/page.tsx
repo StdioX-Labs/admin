@@ -1,9 +1,12 @@
+import { ComingSoon } from '@/components/ui/coming-soon';
+
 export default function LicensesPage() {
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Licenses</h1>
-      <p className="text-muted-foreground">Coming soon...</p>
-    </div>
+    <ComingSoon
+      title="Licences"
+      description="Issue, renew and revoke B2B subscription licences."
+      backHref="/dashboard/b2b"
+      backLabel="B2B"
+    />
   );
 }
-

@@ -2,22 +2,42 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { eventsApi } from '@/lib/api';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
-  Calendar, MapPin, Building2, Tag, Ticket,
-  ChevronDown, ChevronUp, CheckCircle2, AlertCircle,
-  RotateCcw, Loader2, ExternalLink, ChevronLeft, ChevronRight,
-  Clock, Globe, EyeOff,
+  Building2,
+  MapPin,
+  CalendarDays,
+  Tag,
+  Ticket,
+  Clock,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Loader2,
+  RotateCcw,
+  Globe,
+  EyeOff,
 } from 'lucide-react';
+import {
+  Card,
+  EmptyState,
+  ErrorNote,
+  Meta,
+  Pager,
+  Poster,
+  SkeletonCard,
+  SuccessNote,
+  Toggle,
+  money,
+  num,
+  dateShort,
+  timeShort,
+} from '@/components/ui/soa';
 
 interface TicketSummary {
   ticketId: number;
   ticketName: string;
   ticketPrice: number;
-  ticketsSold?: number;
-  revenue?: number;
   ticketCount?: number;
   originalTicketCount?: number;
 }
@@ -33,22 +53,15 @@ interface OnHoldEvent {
   ticketSaleStartDate: string;
   ticketSaleEndDate: string;
   eventStartDate: string;
-  eventEndDate: string;
-  active: boolean;
-  status: string;
   companyId: number;
   companyName: string;
-  totalTicketsSold: number;
-  totalRevenue: number;
   ticketSummaries: TicketSummary[];
   published?: boolean;
 }
 
-function fmt(n: number) {
-  return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(n);
-}
+const PAGE_SIZE = 20;
 
-function EventCard({
+function ApprovalCard({
   event,
   commission,
   published,
@@ -60,126 +73,150 @@ function EventCard({
   event: OnHoldEvent;
   commission: string;
   published: boolean;
-  onCommissionChange: (val: string) => void;
-  onPublishedChange: (val: boolean) => void;
+  onCommissionChange: (v: string) => void;
+  onPublishedChange: (v: boolean) => void;
   onApprove: () => void;
   approving: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-
-  const startDate = new Date(event.eventStartDate);
-  const dateStr = startDate.toLocaleDateString('en-KE', { month: 'short', day: 'numeric', year: 'numeric' });
-  const timeStr = startDate.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' });
-  const saleStart = new Date(event.ticketSaleStartDate).toLocaleDateString('en-KE', { month: 'short', day: 'numeric' });
-  const saleEnd = new Date(event.ticketSaleEndDate).toLocaleDateString('en-KE', { month: 'short', day: 'numeric' });
-
-  const commissionNum = parseFloat(commission);
-  const commissionValid = !isNaN(commissionNum) && commissionNum >= 0 && commissionNum <= 100;
+  const value = parseFloat(commission);
+  const valid = !isNaN(value) && value >= 0 && value <= 100;
+  const capacity = event.ticketSummaries.reduce(
+    (s, t) => s + (t.originalTicketCount ?? t.ticketCount ?? 0),
+    0
+  );
+  const cheapest = event.ticketSummaries.length
+    ? Math.min(...event.ticketSummaries.map((t) => t.ticketPrice))
+    : null;
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
+    <Card padded={false} className="overflow-hidden">
       <div className="flex">
-        {/* Poster */}
-        <div className="w-24 sm:w-36 flex-shrink-0 self-stretch relative">
-          {event.eventPosterUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={event.eventPosterUrl}
-              alt={event.eventName}
-              className="w-full h-full object-cover"
-              style={{ minHeight: '160px' }}
-            />
-          ) : (
-            <div className="w-full h-full bg-accent flex items-center justify-center" style={{ minHeight: '160px' }}>
-              <Calendar className="h-6 w-6 text-muted-foreground/30" />
-            </div>
-          )}
-          <div className="absolute top-2 left-2">
-            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded backdrop-blur-sm">
-              <Clock className="h-2.5 w-2.5" />
-              On Hold
-            </span>
-          </div>
+        <div className="relative flex-none">
+          <Poster
+            url={event.eventPosterUrl}
+            name={event.eventName}
+            seed={event.eventId}
+            className="w-[96px] sm:w-[136px] h-full"
+            style={{ minHeight: 160 }}
+          />
+          <span
+            className="absolute inline-flex items-center gap-1"
+            style={{
+              top: 8,
+              left: 8,
+              fontSize: 10,
+              fontWeight: 600,
+              padding: '2px 8px',
+              borderRadius: 999,
+              background: 'color-mix(in srgb, var(--tint-clay-bg) 92%, transparent)',
+              color: 'var(--tint-clay-fg)',
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            <Clock className="ic w-2.5 h-2.5" />
+            On hold
+          </span>
         </div>
 
-        {/* Content */}
         <div className="flex-1 min-w-0 p-4 flex flex-col gap-3">
-          {/* Header */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-semibold text-foreground leading-snug">{event.eventName}</h3>
-              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
-                  <Building2 className="h-2.5 w-2.5 flex-shrink-0" />
-                  {event.companyName}
-                </span>
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
-                  <Tag className="h-2.5 w-2.5 flex-shrink-0" />
-                  {event.eventCategory}
-                </span>
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
-                  <MapPin className="h-2.5 w-2.5 flex-shrink-0" />
-                  {event.eventLocation}
-                </span>
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
-                  <Calendar className="h-2.5 w-2.5 flex-shrink-0" />
-                  {dateStr} · {timeStr}
-                </span>
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground/60">
-                  <Ticket className="h-2.5 w-2.5 flex-shrink-0" />
-                  Sales: {saleStart} – {saleEnd}
-                </span>
+              <h3
+                className="m-0"
+                style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 16, lineHeight: 1.15 }}
+              >
+                {event.eventName}
+              </h3>
+              <div className="flex flex-wrap gap-x-3.5 gap-y-[3px] mt-1.5">
+                <Meta icon={Building2}>{event.companyName}</Meta>
+                <Meta icon={Tag}>{event.eventCategory}</Meta>
+                <Meta icon={MapPin}>{event.eventLocation}</Meta>
+                <Meta icon={CalendarDays}>
+                  {dateShort(event.eventStartDate)} · {timeShort(event.eventStartDate)}
+                </Meta>
+                <Meta icon={Ticket}>
+                  Sales: {dateShort(event.ticketSaleStartDate)} – {dateShort(event.ticketSaleEndDate)}
+                </Meta>
               </div>
             </div>
-            <Button
+            <button
               onClick={() => window.open(`https://soldoutafrica.com/${event.slug}`, '_blank')}
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 p-0 text-muted-foreground/40 hover:text-foreground flex-shrink-0"
               title="Preview event"
+              className="grid place-items-center flex-none"
+              style={{
+                width: 30,
+                height: 30,
+                border: 'none',
+                background: 'transparent',
+                borderRadius: 9,
+                color: 'color-mix(in srgb, var(--color-text) 40%, transparent)',
+              }}
             >
-              <ExternalLink className="h-3.5 w-3.5" />
-            </Button>
+              <ExternalLink className="ic w-[15px] h-[15px]" />
+            </button>
           </div>
 
-          {/* Description */}
-          <p className="text-[11px] text-muted-foreground/60 line-clamp-2 leading-relaxed">
-            {event.eventDescription}
-          </p>
+          {event.eventDescription && (
+            <p
+              className="m-0 line-clamp-2"
+              style={{
+                fontSize: 11.5,
+                lineHeight: 1.5,
+                color: 'color-mix(in srgb, var(--color-text) 60%, transparent)',
+              }}
+            >
+              {event.eventDescription}
+            </p>
+          )}
 
-          {/* Ticket types */}
           {event.ticketSummaries.length > 0 && (
             <div>
               <button
-                onClick={() => setExpanded(e => !e)}
-                className="flex items-center gap-1 text-[11px] text-muted-foreground/50 hover:text-foreground transition-colors"
+                onClick={() => setExpanded((e) => !e)}
+                className="flex items-center gap-1"
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  fontSize: 11.5,
+                  color: 'color-mix(in srgb, var(--color-text) 50%, transparent)',
+                  fontFamily: 'var(--font-body)',
+                }}
               >
-                {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                {event.ticketSummaries.length} ticket type{event.ticketSummaries.length !== 1 ? 's' : ''}
-                {!expanded && (
-                  <span className="text-muted-foreground/40">
-                    · from {fmt(Math.min(...event.ticketSummaries.map(t => t.ticketPrice)))}
+                {expanded ? (
+                  <ChevronUp className="ic w-3 h-3" />
+                ) : (
+                  <ChevronDown className="ic w-3 h-3" />
+                )}
+                {event.ticketSummaries.length} ticket type
+                {event.ticketSummaries.length === 1 ? '' : 's'}
+                {!expanded && cheapest !== null && (
+                  <span style={{ color: 'color-mix(in srgb, var(--color-text) 40%, transparent)' }}>
+                    · from {cheapest === 0 ? 'Free' : money(cheapest)}
                   </span>
                 )}
               </button>
               {expanded && (
-                <div className="mt-2 rounded-lg border border-border/60 overflow-x-auto">
-                  <table className="w-full text-xs min-w-[280px]">
-                    <thead className="bg-accent/30">
+                <div
+                  className="mt-2 overflow-x-auto animate-soa-fade-fast"
+                  style={{ border: '1px solid var(--color-divider)', borderRadius: 10 }}
+                >
+                  <table className="soa-table" style={{ minWidth: 280 }}>
+                    <thead style={{ background: 'var(--color-surface)' }}>
                       <tr>
-                        <th className="text-left text-[10px] text-muted-foreground/50 uppercase tracking-wider px-3 py-1.5 font-medium">Type</th>
-                        <th className="text-right text-[10px] text-muted-foreground/50 uppercase tracking-wider px-3 py-1.5 font-medium">Price</th>
-                        <th className="text-right text-[10px] text-muted-foreground/50 uppercase tracking-wider px-3 py-1.5 font-medium">Available</th>
+                        <th>Type</th>
+                        <th style={{ textAlign: 'right' }}>Price</th>
+                        <th style={{ textAlign: 'right' }}>Available</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-border/40">
-                      {event.ticketSummaries.map(t => (
+                    <tbody>
+                      {event.ticketSummaries.map((t) => (
                         <tr key={t.ticketId}>
-                          <td className="px-3 py-2 text-foreground/80">{t.ticketName}</td>
-                          <td className="px-3 py-2 text-right tabular-nums text-foreground/70">
-                            {t.ticketPrice === 0 ? 'Free' : fmt(t.ticketPrice)}
+                          <td>{t.ticketName}</td>
+                          <td className="tnum" style={{ textAlign: 'right' }}>
+                            {t.ticketPrice === 0 ? 'Free' : money(t.ticketPrice)}
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums text-foreground/70">
+                          <td className="tnum" style={{ textAlign: 'right' }}>
                             {t.originalTicketCount ?? t.ticketCount ?? '—'}
                           </td>
                         </tr>
@@ -191,66 +228,110 @@ function EventCard({
             </div>
           )}
 
+          {capacity > 0 && (
+            <div
+              style={{
+                fontSize: 11,
+                color: 'color-mix(in srgb, var(--color-text) 42%, transparent)',
+              }}
+            >
+              {num(capacity)} total capacity
+            </div>
+          )}
+
           {/* Approval controls */}
-          <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-border/50 mt-auto">
-            {/* Commission */}
+          <div
+            className="flex flex-wrap items-center gap-3 pt-2.5 mt-auto"
+            style={{ borderTop: '1px solid var(--color-divider)' }}
+          >
             <div className="flex items-center gap-2">
-              <label className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">Commission %</label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  max="100"
-                  value={commission}
-                  onChange={e => onCommissionChange(e.target.value)}
-                  className="h-7 w-20 text-xs text-center pr-1"
-                />
-              </div>
-              {!commissionValid && commission !== '' && (
-                <span className="text-[10px] text-destructive">0–100</span>
+              <label
+                htmlFor={`commission-${event.eventId}`}
+                style={{ fontSize: 11.5, fontWeight: 600 }}
+                className="whitespace-nowrap text-muted-foreground"
+              >
+                Commission %
+              </label>
+              <input
+                id={`commission-${event.eventId}`}
+                className="soa-input tnum"
+                style={{
+                  height: 30,
+                  minHeight: 30,
+                  width: 76,
+                  textAlign: 'center',
+                  padding: '0 8px',
+                  background: 'var(--color-neutral-100)',
+                }}
+                value={commission}
+                inputMode="decimal"
+                onChange={(e) => onCommissionChange(e.target.value)}
+              />
+              {!valid && commission !== '' && (
+                <span style={{ fontSize: 10, color: 'var(--tint-danger-fg)' }}>0–100</span>
               )}
             </div>
 
-            {/* Published toggle */}
             <div className="flex items-center gap-2">
-              <label className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">Published</label>
-              <button
-                onClick={() => onPublishedChange(!published)}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
-                  published ? 'bg-emerald-500/80' : 'bg-muted-foreground/20'
-                }`}
-                role="switch"
-                aria-checked={published}
+              <span style={{ fontSize: 11.5, fontWeight: 600 }} className="text-muted-foreground">
+                Published
+              </span>
+              <Toggle checked={published} onChange={onPublishedChange} label="Publish on approval" />
+              <span
+                className="inline-flex items-center gap-1"
+                style={{
+                  fontSize: 10,
+                  color: published
+                    ? 'var(--color-accent-2-700)'
+                    : 'color-mix(in srgb, var(--color-text) 50%, transparent)',
+                }}
               >
-                <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${
-                  published ? 'translate-x-4' : 'translate-x-1'
-                }`} />
-              </button>
-              <span className={`flex items-center gap-1 text-[10px] ${published ? 'text-emerald-400' : 'text-muted-foreground/50'}`}>
-                {published ? <><Globe className="h-2.5 w-2.5" />Live</> : <><EyeOff className="h-2.5 w-2.5" />Hidden</>}
+                {published ? (
+                  <>
+                    <Globe className="ic w-2.5 h-2.5" />
+                    Live
+                  </>
+                ) : (
+                  <>
+                    <EyeOff className="ic w-2.5 h-2.5" />
+                    Hidden
+                  </>
+                )}
               </span>
             </div>
 
-            {/* Approve button */}
-            <div className="ml-auto">
-              <Button
-                onClick={onApprove}
-                disabled={approving || !commissionValid}
-                size="sm"
-                className="h-7 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5 disabled:opacity-50"
-              >
-                {approving ? (
-                  <><Loader2 className="h-3 w-3 animate-spin" />Approving…</>
-                ) : (
-                  <><CheckCircle2 className="h-3 w-3" />Approve</>
-                )}
-              </Button>
-            </div>
+            <button
+              onClick={onApprove}
+              disabled={approving || !valid}
+              className="ml-auto flex items-center gap-1.5 disabled:opacity-50"
+              style={{
+                height: 32,
+                padding: '0 18px',
+                borderRadius: 'var(--radius-control)',
+                border: 'none',
+                background: 'var(--color-accent-2)',
+                color: '#fff',
+                fontSize: 13,
+                fontWeight: 700,
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              {approving ? (
+                <>
+                  <Loader2 className="ic w-3.5 h-3.5 animate-spin" />
+                  Approving…
+                </>
+              ) : (
+                <>
+                  <Check className="ic w-3.5 h-3.5" />
+                  Approve
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -266,27 +347,27 @@ export default function ApprovalsPage() {
   const [hasNext, setHasNext] = useState(false);
   const [hasPrevious, setHasPrevious] = useState(false);
 
-  // Per-event approval settings
-  const [settings, setSettings] = useState<Record<number, { commission: string; published: boolean }>>({});
+  // Per-event approval parameters, preserved across refetches.
+  const [settings, setSettings] = useState<
+    Record<number, { commission: string; published: boolean }>
+  >({});
 
   const fetchEvents = useCallback(async (page = 0) => {
     setIsLoading(true);
     setError('');
     try {
-      const res = await eventsApi.getAllEvents(page, 20, undefined, 'ONHOLD');
+      const res = await eventsApi.getAllEvents(page, PAGE_SIZE, undefined, 'ONHOLD');
       if (res.status && res.data?.data) {
-        const data = res.data.data as OnHoldEvent[];
+        const data = res.data.data as unknown as OnHoldEvent[];
         setEvents(data);
         setCurrentPage(res.data.page);
         setTotalPages(res.data.totalPages);
         setTotalElements(res.data.totalElements);
         setHasNext(res.data.hasNext);
         setHasPrevious(res.data.hasPrevious);
-
-        // Seed default settings for any new events
-        setSettings(prev => {
+        setSettings((prev) => {
           const next = { ...prev };
-          data.forEach(e => {
+          data.forEach((e) => {
             if (!next[e.eventId]) {
               next[e.eventId] = { commission: '5', published: e.published ?? false };
             }
@@ -303,27 +384,29 @@ export default function ApprovalsPage() {
     }
   }, []);
 
-  useEffect(() => { fetchEvents(0); }, [fetchEvents]);
+  useEffect(() => {
+    fetchEvents(0);
+  }, [fetchEvents]);
 
   const handleApprove = async (event: OnHoldEvent) => {
     const s = settings[event.eventId] ?? { commission: '5', published: false };
-    const commission = parseFloat(s.commission);
-    if (isNaN(commission) || commission < 0 || commission > 100) return;
+    const value = parseFloat(s.commission);
+    if (isNaN(value) || value < 0 || value > 100) return;
 
     setApprovingId(event.eventId);
     setError('');
     setSuccess('');
-
     try {
       const res = await eventsApi.updateEvent(event.eventId, {
         status: 'ACTIVE',
         isActive: true,
-        percentageCommission: commission,
+        percentageCommission: value,
         published: s.published,
       });
       if (!res.status) throw new Error(res.message || 'Failed to approve event');
-
-      setSuccess(`"${event.eventName}" approved at ${commission}% commission · ${s.published ? 'Published' : 'Hidden'}`);
+      setSuccess(
+        `"${event.eventName}" approved at ${value}% commission · ${s.published ? 'Published' : 'Hidden'}`
+      );
       setTimeout(() => setSuccess(''), 6000);
       await fetchEvents(currentPage);
     } catch (err) {
@@ -334,127 +417,105 @@ export default function ApprovalsPage() {
   };
 
   return (
-    <div className="space-y-4 pb-8">
-      {/* Header */}
+    <div className="flex flex-col gap-3.5 animate-soa-fade" style={{ maxWidth: 880 }}>
       <div className="flex items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold text-foreground tracking-tight">Event Approvals</h1>
-            {!isLoading && totalElements > 0 && (
-              <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-[10px] font-bold text-amber-400 tabular-nums">
-                {totalElements}
-              </span>
-            )}
+        {!isLoading && totalElements > 0 ? (
+          <div
+            className="flex flex-row items-center gap-3 flex-1"
+            style={{
+              background: 'var(--color-accent-100)',
+              borderRadius: 'var(--radius-card)',
+              boxShadow: 'var(--shadow-sm)',
+              padding: '13px 16px',
+            }}
+          >
+            <span
+              className="grid place-items-center flex-none"
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 999,
+                background: 'var(--color-accent)',
+                color: '#fff',
+              }}
+            >
+              <Clock className="ic w-[18px] h-[18px]" />
+            </span>
+            <div style={{ fontSize: 13, color: 'var(--color-accent-800)' }}>
+              <strong>{totalElements}</strong> event{totalElements === 1 ? '' : 's'} waiting for
+              review
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Events on hold waiting for your review
-          </p>
-        </div>
-        <Button
+        ) : (
+          <div className="flex-1" />
+        )}
+        <button
           onClick={() => fetchEvents(currentPage)}
-          variant="outline"
-          size="sm"
-          className="h-8 text-xs border-border bg-transparent text-muted-foreground hover:text-foreground gap-1.5"
+          className="flex items-center gap-1.5 flex-none"
+          style={{
+            height: 34,
+            padding: '0 14px',
+            borderRadius: 999,
+            border: '1px solid var(--color-divider)',
+            background: 'var(--color-neutral-100)',
+            fontSize: 12.5,
+            fontWeight: 600,
+            fontFamily: 'var(--font-body)',
+            color: 'var(--color-text)',
+          }}
         >
-          <RotateCcw className="h-3 w-3" />
+          <RotateCcw className="ic w-3.5 h-3.5" />
           Refresh
-        </Button>
+        </button>
       </div>
 
-      {/* Alerts */}
-      {error && (
-        <Alert variant="destructive" className="border-destructive/30 bg-destructive/5 py-2.5">
-          <AlertDescription className="flex items-center gap-2">
-            <AlertCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
-            <span className="text-sm text-destructive">{error}</span>
-          </AlertDescription>
-        </Alert>
-      )}
-      {success && (
-        <Alert className="border-emerald-500/20 bg-emerald-500/5 py-2.5">
-          <AlertDescription className="flex items-center gap-2">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
-            <span className="text-sm text-emerald-400">{success}</span>
-          </AlertDescription>
-        </Alert>
-      )}
+      {error && <ErrorNote message={error} onRetry={() => fetchEvents(currentPage)} />}
+      {success && <SuccessNote message={success} />}
 
-      {/* Content */}
       {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-border bg-card overflow-hidden animate-pulse flex">
-              <div className="w-24 sm:w-36 bg-accent flex-shrink-0" style={{ minHeight: '160px' }} />
-              <div className="flex-1 p-4 space-y-3">
-                <div className="h-4 w-3/4 rounded bg-accent" />
-                <div className="h-3 w-1/2 rounded bg-accent" />
-                <div className="h-3 w-2/3 rounded bg-accent" />
-                <div className="h-8 w-full rounded bg-accent mt-4" />
-              </div>
-            </div>
-          ))}
-        </div>
+        Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} height={200} />)
       ) : events.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card py-20 text-center">
-          <CheckCircle2 className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
-          <p className="text-sm font-medium text-muted-foreground">No events awaiting approval</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">All caught up!</p>
-        </div>
+        <EmptyState
+          icon={Check}
+          title="All caught up"
+          hint="No events waiting for review."
+          tone="success"
+        />
       ) : (
-        <div className="space-y-3">
-          {events.map(event => (
-            <EventCard
-              key={event.eventId}
-              event={event}
-              commission={settings[event.eventId]?.commission ?? '5'}
-              published={settings[event.eventId]?.published ?? false}
-              onCommissionChange={val =>
-                setSettings(prev => ({
-                  ...prev,
-                  [event.eventId]: { ...prev[event.eventId], commission: val },
-                }))
-              }
-              onPublishedChange={val =>
-                setSettings(prev => ({
-                  ...prev,
-                  [event.eventId]: { ...prev[event.eventId], published: val },
-                }))
-              }
-              onApprove={() => handleApprove(event)}
-              approving={approvingId === event.eventId}
-            />
-          ))}
-        </div>
+        events.map((event) => (
+          <ApprovalCard
+            key={event.eventId}
+            event={event}
+            commission={settings[event.eventId]?.commission ?? '5'}
+            published={settings[event.eventId]?.published ?? false}
+            onCommissionChange={(v) =>
+              setSettings((prev) => ({
+                ...prev,
+                [event.eventId]: { ...prev[event.eventId], commission: v },
+              }))
+            }
+            onPublishedChange={(v) =>
+              setSettings((prev) => ({
+                ...prev,
+                [event.eventId]: { ...prev[event.eventId], published: v },
+              }))
+            }
+            onApprove={() => handleApprove(event)}
+            approving={approvingId === event.eventId}
+          />
+        ))
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-[11px] text-muted-foreground/60">
-            Page {currentPage + 1} of {totalPages} · {totalElements} events
-          </p>
-          <div className="flex items-center gap-1">
-            <Button
-              onClick={() => fetchEvents(currentPage - 1)}
-              disabled={!hasPrevious}
-              variant="outline"
-              size="sm"
-              className="h-7 w-7 p-0 border-border bg-transparent text-muted-foreground hover:text-foreground disabled:opacity-30"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              onClick={() => fetchEvents(currentPage + 1)}
-              disabled={!hasNext}
-              variant="outline"
-              size="sm"
-              className="h-7 w-7 p-0 border-border bg-transparent text-muted-foreground hover:text-foreground disabled:opacity-30"
-            >
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <Pager
+        page={currentPage}
+        totalPages={totalPages}
+        totalElements={totalElements}
+        noun="events"
+        hasPrevious={hasPrevious}
+        hasNext={hasNext}
+        onPrev={() => fetchEvents(currentPage - 1)}
+        onNext={() => fetchEvents(currentPage + 1)}
+      />
     </div>
   );
 }

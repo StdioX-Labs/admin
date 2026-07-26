@@ -1,9 +1,12 @@
+import { ComingSoon } from '@/components/ui/coming-soon';
+
 export default function ReportsPage() {
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Financial Reports</h1>
-      <p className="text-muted-foreground">Coming soon...</p>
-    </div>
+    <ComingSoon
+      title="Financial reports"
+      description="Scheduled statements and downloadable reconciliations. Live figures are on Analytics."
+      backHref="/dashboard/finance"
+      backLabel="Finance"
+    />
   );
 }
-
