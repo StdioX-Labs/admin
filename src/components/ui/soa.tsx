@@ -421,6 +421,46 @@ export function KpiCard({
   );
 }
 
+/** Small figure block used in the metric grid inside event cards. */
+export function MetricTile({
+  label,
+  value,
+  note,
+  color,
+}: {
+  label: string;
+  value: string;
+  note?: string;
+  color?: string;
+}) {
+  return (
+    <div style={{ background: 'var(--color-surface)', borderRadius: 12, padding: '8px 11px' }}>
+      <div
+        style={{
+          fontSize: 10,
+          color: 'color-mix(in srgb, var(--color-text) 52%, transparent)',
+          marginBottom: 2,
+        }}
+      >
+        {label}
+      </div>
+      <div className="tnum" style={{ fontWeight: 700, fontSize: 14, color }}>
+        {value}
+      </div>
+      {note && (
+        <div
+          style={{
+            fontSize: 9.5,
+            color: 'color-mix(in srgb, var(--color-text) 42%, transparent)',
+          }}
+        >
+          {note}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── bars ───────────────────────────────────────────────────────────────── */
 
 /** Thin rounded progress track. Olive past 75%, terracotta below. */

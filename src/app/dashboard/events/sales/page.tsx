@@ -17,6 +17,10 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
+  Building2,
+  MapPin,
+  Tag,
+  Loader2,
 } from 'lucide-react';
 import {
   Card,
@@ -27,8 +31,13 @@ import {
   ProgressBar,
   SkeletonCard,
   StatTile,
+  StatusPill,
+  MetricTile,
+  Meta,
   money,
   num,
+  dateShort,
+  timeShort,
 } from '@/components/ui/soa';
 import { TicketSalesTable } from '@/components/ui/ticket-sales-table';
 
@@ -108,14 +117,18 @@ export default function EventSalesPage() {
   const router = useRouter();
   const [allEvents, setAllEvents] = useState<AdminEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortKey>('revenue');
   const [currentPage, setCurrentPage] = useState(0);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
-  const fetchData = useCallback(async (searchName?: string) => {
-    setIsLoading(true);
+  // First load shows skeletons; later refetches keep the current cards on
+  // screen behind a translucent "Updating" overlay so the page doesn't blink.
+  const fetchData = useCallback(async (searchName?: string, isRefresh = false) => {
+    if (isRefresh) setIsRefreshing(true);
+    else setIsLoading(true);
     setCurrentPage(0);
     setError('');
     try {
@@ -131,6 +144,7 @@ export default function EventSalesPage() {
       setError(err instanceof Error ? err.message : 'Failed to load sales data');
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -227,7 +241,7 @@ export default function EventSalesPage() {
         </div>
       </div>
 
-      {error && <ErrorNote message={error} onRetry={() => fetchData(search || undefined)} />}
+      {error && <ErrorNote message={error} onRetry={() => fetchData(search || undefined, true)} />}
 
       {/* Search + actions */}
       <div className="flex flex-wrap items-center gap-2.5">
@@ -247,13 +261,13 @@ export default function EventSalesPage() {
             placeholder="Search events…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && fetchData(search || undefined)}
+            onKeyDown={(e) => e.key === 'Enter' && fetchData(search || undefined, true)}
           />
           {search && (
             <button
               onClick={() => {
                 setSearch('');
-                fetchData();
+                fetchData(undefined, true);
               }}
               aria-label="Clear search"
               className="grid place-items-center"
@@ -275,8 +289,8 @@ export default function EventSalesPage() {
           )}
         </div>
         <button
-          onClick={() => fetchData(search || undefined)}
-          disabled={isLoading}
+          onClick={() => fetchData(search || undefined, true)}
+          disabled={isLoading || isRefreshing}
           className="flex items-center gap-1.5 disabled:opacity-50"
           style={{
             height: 36,
@@ -290,12 +304,12 @@ export default function EventSalesPage() {
             color: 'var(--color-text)',
           }}
         >
-          <RotateCcw className="ic w-3.5 h-3.5" />
+          <RotateCcw className={`ic w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
           <span className="hidden sm:inline">Refresh</span>
         </button>
         <button
           onClick={() => downloadCSV(sorted)}
-          disabled={isLoading || allEvents.length === 0}
+          disabled={isLoading || isRefreshing || allEvents.length === 0}
           className="flex items-center gap-1.5 disabled:opacity-50"
           style={{
             height: 36,
@@ -314,195 +328,297 @@ export default function EventSalesPage() {
         </button>
       </div>
 
-      {/* Leaderboard */}
-      {isLoading ? (
-        <SkeletonCard height={420} />
-      ) : rows.length === 0 ? (
-        <EmptyState
-          icon={CalendarDays}
-          title={search ? 'No events match your search' : 'No active events'}
-        />
-      ) : (
-        <Card padded={false} className="overflow-hidden">
-          <div className="flex items-center gap-2" style={{ padding: '14px 16px 11px' }}>
-            <Trophy className="ic w-[18px] h-[18px]" style={{ color: 'var(--color-accent)' }} />
-            <span style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 16 }}>
-              Event leaderboard
-            </span>
+      {/* Ranking context — the cards are ordered, so say by what. */}
+      {!isLoading && rows.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: 2 }}>
+          <Trophy className="ic w-4 h-4" style={{ color: 'var(--color-accent)' }} />
+          <span style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 15 }}>
+            Ranked by{' '}
+            {sort === 'revenue' ? 'revenue' : sort === 'tickets' ? 'tickets sold' : 'sell-through'}
+          </span>
+          <span
+            className="ml-auto tnum"
+            style={{
+              fontSize: 11.5,
+              color: 'color-mix(in srgb, var(--color-text) 50%, transparent)',
+            }}
+          >
+            {totalElements} upcoming &amp; ongoing
+          </span>
+        </div>
+      )}
+
+      {/* Ranked event cards — same anatomy as the Events list, plus a rank
+          badge and a revenue bar scaled against the top earner. */}
+      <div className="relative flex flex-col gap-3.5">
+        {isRefreshing && !isLoading && (
+          <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl backdrop-blur-[1px] bg-[color-mix(in_srgb,var(--color-bg)_55%,transparent)]">
             <span
-              className="ml-auto"
+              className="flex items-center gap-2"
               style={{
-                fontSize: 11.5,
-                color: 'color-mix(in srgb, var(--color-text) 50%, transparent)',
+                background: 'var(--color-neutral-100)',
+                boxShadow: 'var(--shadow-md)',
+                borderRadius: 999,
+                padding: '8px 16px',
+                fontSize: 12.5,
+                fontWeight: 600,
               }}
             >
-              {totalElements} upcoming &amp; ongoing
+              <Loader2 className="ic w-4 h-4 animate-spin" style={{ color: 'var(--color-accent)' }} />
+              Updating sales…
             </span>
           </div>
+        )}
 
-          {rows.map((e, i) => {
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} height={196} />)
+        ) : rows.length === 0 ? (
+          <EmptyState
+            icon={CalendarDays}
+            title={search ? 'No events match your search' : 'No active events'}
+            hint={search ? 'Try a different search term' : undefined}
+          />
+        ) : (
+          rows.map((e, i) => {
             const rank = currentPage * PAGE_SIZE + i + 1;
             const pct = sellThrough(e);
+            const capacity = capacityOf(e);
             const top = rank === 1;
             const isOpen = expanded.has(e.eventId);
             return (
-              <div key={e.eventId} style={{ borderTop: '1px solid var(--color-divider)' }}>
-                <div
-                  className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5"
-                  style={{ padding: '14px 16px' }}
-                >
-                <span
-                  className="flex-none text-center"
-                  style={{
-                    width: 22,
-                    fontFamily: 'var(--font-body)',
-                    fontWeight: 700,
-                    fontSize: 14,
-                    color: top
-                      ? 'var(--color-accent)'
-                      : 'color-mix(in srgb, var(--color-text) 40%, transparent)',
-                  }}
-                >
-                  {rank}
-                </span>
-
-                <Poster
-                  url={e.eventPosterUrl}
-                  name={e.eventName}
-                  seed={e.eventId}
-                  style={{ width: 40, height: 52, borderRadius: 8 }}
-                />
-
-                <div className="flex-1 min-w-[150px]">
-                  <div style={{ fontWeight: 600, fontSize: 13.5, lineHeight: 1.2 }}>
-                    {e.eventName}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: 'color-mix(in srgb, var(--color-text) 50%, transparent)',
-                    }}
-                  >
-                    {e.companyName}
-                  </div>
-                </div>
-
-                <div className="w-[160px] flex-none">
-                  <div className="flex justify-between mb-1" style={{ fontSize: 10.5 }}>
+              <Card key={e.eventId} padded={false} className="overflow-hidden">
+                <div className="flex">
+                  <div className="relative flex-none">
+                    <Poster
+                      url={e.eventPosterUrl}
+                      name={e.eventName}
+                      seed={e.eventId}
+                      className="w-[100px] sm:w-[130px] h-full"
+                      style={{ minHeight: 196 }}
+                    />
+                    {/* Rank badge — this list is ordered, the Events list is not. */}
                     <span
-                      style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}
-                    >
-                      Revenue
-                    </span>
-                    <span
-                      className="tnum font-bold"
-                      style={{ color: 'var(--tint-olive-strong)' }}
-                    >
-                      {money(e.totalRevenue)}
-                    </span>
-                  </div>
-                  <ProgressBar
-                    pct={(e.totalRevenue / maxRev) * 100}
-                    height={6}
-                    color={top ? 'var(--color-accent)' : '#c3d0a6'}
-                  />
-                </div>
-
-                <div className="w-16 flex-none text-right">
-                  <div className="tnum" style={{ fontWeight: 700, fontSize: 13.5 }}>
-                    {num(e.totalTicketsSold)}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: 'color-mix(in srgb, var(--color-text) 42%, transparent)',
-                    }}
-                  >
-                    sold
-                  </div>
-                </div>
-
-                <div className="w-[120px] flex-none">
-                  <div className="flex justify-between mb-1" style={{ fontSize: 10.5 }}>
-                    <span
-                      style={{ color: 'color-mix(in srgb, var(--color-text) 50%, transparent)' }}
-                    >
-                      Sell-through
-                    </span>
-                    <span className="tnum font-bold">{pct}%</span>
-                  </div>
-                  <ProgressBar pct={pct} height={6} />
-                </div>
-
-                <div className="flex items-center gap-1.5 flex-none">
-                  <button
-                    onClick={() => window.open(`https://soldoutafrica.com/${e.slug}`, '_blank')}
-                    title="View live"
-                    className="grid place-items-center"
-                    style={{
-                      width: 28,
-                      height: 28,
-                      border: 'none',
-                      background: 'transparent',
-                      borderRadius: 8,
-                      color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
-                    }}
-                  >
-                    <ExternalLink className="ic w-[14px] h-[14px]" />
-                  </button>
-                  <button
-                    onClick={() => router.push(`/dashboard/events/${e.eventId}/edit`)}
-                    title="Edit"
-                    className="grid place-items-center"
-                    style={{
-                      width: 28,
-                      height: 28,
-                      border: 'none',
-                      background: 'transparent',
-                      borderRadius: 8,
-                      color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
-                    }}
-                  >
-                    <Pencil className="ic w-[14px] h-[14px]" />
-                  </button>
-                  {e.ticketSummaries.length > 0 && (
-                    <button
-                      onClick={() =>
-                        setExpanded((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(e.eventId)) next.delete(e.eventId);
-                          else next.add(e.eventId);
-                          return next;
-                        })
-                      }
-                      title={isOpen ? 'Hide ticket breakdown' : 'Show ticket breakdown'}
-                      aria-expanded={isOpen}
-                      className="grid place-items-center"
+                      className="absolute grid place-items-center tnum"
                       style={{
-                        width: 28,
-                        height: 28,
-                        border: 'none',
-                        background: 'transparent',
-                        borderRadius: 8,
-                        color: isOpen
-                          ? 'var(--color-accent-700)'
-                          : 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                        top: 8,
+                        left: 8,
+                        minWidth: 26,
+                        height: 26,
+                        padding: '0 7px',
+                        borderRadius: 999,
+                        fontFamily: 'var(--font-body)',
+                        fontWeight: 700,
+                        fontSize: 12.5,
+                        background: top ? 'var(--color-accent)' : 'var(--color-neutral-100)',
+                        color: top ? '#fff' : 'var(--color-text)',
+                        boxShadow: 'var(--shadow-sm)',
                       }}
                     >
-                      {isOpen ? (
-                        <ChevronUp className="ic w-[14px] h-[14px]" />
-                      ) : (
-                        <ChevronDown className="ic w-[14px] h-[14px]" />
-                      )}
-                    </button>
-                  )}
+                      {rank}
+                    </span>
+                  </div>
+
+                  <div className="flex-1 min-w-0 px-4 py-3.5">
+                    <div className="flex justify-between gap-2.5 items-start">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            style={{
+                              fontFamily: 'var(--font-body)',
+                              fontWeight: 700,
+                              fontSize: 16,
+                              lineHeight: 1.1,
+                            }}
+                          >
+                            {e.eventName}
+                          </span>
+                          <StatusPill status={e.status} />
+                          {top && (
+                            <span
+                              className="inline-flex items-center gap-1"
+                              style={{
+                                fontSize: 10.5,
+                                fontWeight: 700,
+                                padding: '2px 9px',
+                                borderRadius: 999,
+                                background: 'var(--color-accent-100)',
+                                color: 'var(--color-accent-800)',
+                              }}
+                            >
+                              <Trophy className="ic w-2.5 h-2.5" />
+                              Top seller
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-x-3.5 gap-y-[3px] mt-1.5">
+                          <Meta icon={Building2}>
+                            {e.companyName}
+                            <span
+                              className="ml-1"
+                              style={{
+                                color: 'color-mix(in srgb, var(--color-text) 38%, transparent)',
+                              }}
+                            >
+                              #{e.companyId}
+                            </span>
+                          </Meta>
+                          <Meta icon={MapPin}>{e.eventLocation}</Meta>
+                          <Meta icon={CalendarDays}>
+                            {dateShort(e.eventStartDate)} · {timeShort(e.eventStartDate)}
+                          </Meta>
+                          <Meta icon={Tag}>{e.eventCategory}</Meta>
+                          {capacity > 0 && <Meta icon={Ticket}>{num(capacity)} capacity</Meta>}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 flex-none">
+                        <button
+                          onClick={() => window.open(`https://soldoutafrica.com/${e.slug}`, '_blank')}
+                          title="View live"
+                          className="grid place-items-center"
+                          style={{
+                            width: 30,
+                            height: 30,
+                            border: 'none',
+                            background: 'transparent',
+                            borderRadius: 9,
+                            color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                          }}
+                        >
+                          <ExternalLink className="ic w-[15px] h-[15px]" />
+                        </button>
+                        <button
+                          onClick={() => router.push(`/dashboard/events/${e.eventId}/edit`)}
+                          title="Edit"
+                          className="grid place-items-center"
+                          style={{
+                            width: 30,
+                            height: 30,
+                            border: 'none',
+                            background: 'transparent',
+                            borderRadius: 9,
+                            color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                          }}
+                        >
+                          <Pencil className="ic w-[15px] h-[15px]" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Revenue share against the top earner — the ranking signal. */}
+                    <div className="mt-3">
+                      <div className="flex justify-between mb-[5px]" style={{ fontSize: 11 }}>
+                        <span
+                          style={{ color: 'color-mix(in srgb, var(--color-text) 55%, transparent)' }}
+                        >
+                          Revenue share
+                        </span>
+                        <span
+                          className="tnum"
+                          style={{ fontWeight: 700, color: 'var(--tint-olive-strong)' }}
+                        >
+                          {money(e.totalRevenue)}
+                        </span>
+                      </div>
+                      <ProgressBar
+                        pct={(e.totalRevenue / maxRev) * 100}
+                        color={top ? 'var(--color-accent)' : '#c3d0a6'}
+                      />
+                    </div>
+
+                    {capacity > 0 && (
+                      <div className="mt-2.5">
+                        <div className="flex justify-between mb-[5px]" style={{ fontSize: 11 }}>
+                          <span
+                            style={{
+                              color: 'color-mix(in srgb, var(--color-text) 55%, transparent)',
+                            }}
+                          >
+                            <span
+                              className="tnum font-semibold"
+                              style={{ color: 'var(--color-text)' }}
+                            >
+                              {num(e.totalTicketsSold)}
+                            </span>{' '}
+                            / {num(capacity)} sold
+                          </span>
+                          <span className="tnum font-bold">{pct}%</span>
+                        </div>
+                        <ProgressBar pct={pct} />
+                      </div>
+                    )}
+
+                    <div
+                      className="grid gap-2 mt-2.5"
+                      style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(104px, 100%), 1fr))' }}
+                    >
+                      <MetricTile
+                        label="Revenue"
+                        value={money(e.totalRevenue)}
+                        color="var(--tint-olive-strong)"
+                      />
+                      <MetricTile
+                        label="Tickets sold"
+                        value={num(e.totalTicketsSold)}
+                        note={`${e.analytics.totalTicketTypes} type${e.analytics.totalTicketTypes === 1 ? '' : 's'}`}
+                      />
+                      <MetricTile
+                        label="Platform fee"
+                        value={money(e.totalPlatformFee)}
+                        note={
+                          e.percentageCommission != null
+                            ? `${e.percentageCommission}% commission`
+                            : undefined
+                        }
+                        color="var(--tint-clay-strong)"
+                      />
+                      <MetricTile
+                        label="This week"
+                        value={num(e.analytics.currentWeekSales)}
+                        note={`${num(e.analytics.totalAttendees)} attendees`}
+                        color="var(--tint-sand-fg)"
+                      />
+                    </div>
+
+                    {e.ticketSummaries.length > 0 && (
+                      <button
+                        onClick={() =>
+                          setExpanded((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(e.eventId)) next.delete(e.eventId);
+                            else next.add(e.eventId);
+                            return next;
+                          })
+                        }
+                        aria-expanded={isOpen}
+                        className="inline-flex items-center gap-1.5 mt-[11px]"
+                        style={{
+                          border: 'none',
+                          background: 'transparent',
+                          fontSize: 11.5,
+                          fontWeight: 600,
+                          color: 'var(--color-accent-700)',
+                          fontFamily: 'var(--font-body)',
+                        }}
+                      >
+                        {isOpen ? (
+                          <ChevronUp className="ic w-[13px] h-[13px]" />
+                        ) : (
+                          <ChevronDown className="ic w-[13px] h-[13px]" />
+                        )}
+                        {isOpen ? 'Hide' : 'Show'} ticket breakdown
+                      </button>
+                    )}
                   </div>
                 </div>
 
                 {isOpen && e.ticketSummaries.length > 0 && (
                   <div
                     className="animate-soa-fade-fast"
-                    style={{ background: 'var(--color-surface)' }}
+                    style={{
+                      borderTop: '1px solid var(--color-divider)',
+                      background: 'var(--color-surface)',
+                    }}
                   >
                     <TicketSalesTable
                       rows={e.ticketSummaries.map((t) => ({
@@ -520,11 +636,11 @@ export default function EventSalesPage() {
                     />
                   </div>
                 )}
-              </div>
+              </Card>
             );
-          })}
-        </Card>
-      )}
+          })
+        )}
+      </div>
 
       <Pager
         page={currentPage}

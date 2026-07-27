@@ -31,6 +31,7 @@ import {
   StatusPill,
   SuccessNote,
   StatTile,
+  MetricTile,
   Toggle,
   money,
   num,
@@ -74,46 +75,6 @@ interface EventRow {
 }
 
 const PAGE_SIZE = 5;
-
-/** Small figure block inside an event card. */
-function Metric({
-  label,
-  value,
-  note,
-  color,
-}: {
-  label: string;
-  value: string;
-  note?: string;
-  color?: string;
-}) {
-  return (
-    <div style={{ background: 'var(--color-surface)', borderRadius: 12, padding: '8px 11px' }}>
-      <div
-        style={{
-          fontSize: 10,
-          color: 'color-mix(in srgb, var(--color-text) 52%, transparent)',
-          marginBottom: 2,
-        }}
-      >
-        {label}
-      </div>
-      <div className="tnum" style={{ fontWeight: 700, fontSize: 14, color }}>
-        {value}
-      </div>
-      {note && (
-        <div
-          style={{
-            fontSize: 9.5,
-            color: 'color-mix(in srgb, var(--color-text) 42%, transparent)',
-          }}
-        >
-          {note}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function EventCard({
   event,
@@ -258,13 +219,13 @@ function EventCard({
             className="grid gap-2 mt-2.5"
             style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(104px, 100%), 1fr))' }}
           >
-            <Metric label="Revenue" value={money(event.totalRevenue)} color="var(--tint-olive-strong)" />
-            <Metric
+            <MetricTile label="Revenue" value={money(event.totalRevenue)} color="var(--tint-olive-strong)" />
+            <MetricTile
               label="Tickets sold"
               value={num(event.totalTicketsSold)}
               note={`${event.analytics.totalTicketTypes} type${event.analytics.totalTicketTypes === 1 ? '' : 's'}`}
             />
-            <Metric
+            <MetricTile
               label="Platform fee"
               value={money(event.totalPlatformFee)}
               note={
@@ -274,7 +235,7 @@ function EventCard({
               }
               color="var(--tint-clay-strong)"
             />
-            <Metric
+            <MetricTile
               label="This week"
               value={num(event.analytics.currentWeekSales)}
               color="var(--tint-sand-fg)"
