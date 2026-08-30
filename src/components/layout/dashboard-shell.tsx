@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+
 import { Sidebar } from './sidebar';
 import { Header, MobileHeader } from './header';
 import { BottomNav } from './bottom-nav';
@@ -12,8 +14,16 @@ import { PendingCountProvider } from './pending-count';
  * the header and scrolling content beside it.
  * Mobile: no sidebar — a compact header on top and a bottom tab bar below,
  * so every destination stays within thumb reach.
+ *
+ * The shell owns the viewport: the document is locked (see `.soa-shell-locked`
+ * in globals.css) so the only thing that scrolls is <main>.
  */
 export function DashboardShell({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    document.documentElement.classList.add('soa-shell-locked');
+    return () => document.documentElement.classList.remove('soa-shell-locked');
+  }, []);
+
   return (
     <PendingCountProvider>
       <div
@@ -25,11 +35,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           <Sidebar />
         </div>
 
-        <div className="flex-1 min-w-0 flex flex-col h-dvh">
+        <div className="flex-1 min-w-0 min-h-0 flex flex-col">
           <Header />
           <MobileHeader />
 
-          <main className="flex-1 overflow-y-auto overflow-x-hidden">
+          <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain">
             <div
               className="w-full mx-auto"
               style={{

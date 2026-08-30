@@ -182,6 +182,20 @@
   box-sizing: border-box;
 }
 
+/* Mobile browsers size the initial containing block to the *large* viewport
+   (toolbar collapsed) while `100dvh` starts at the small one. That leftover
+   slack makes the document itself scrollable, so a swipe drags the whole shell
+   — header, content and bottom bar — upward and exposes bare background under
+   it. While the console shell is mounted we pin the document to the dynamic
+   viewport and take its scrollport away, leaving <main> as the only scroller. */
+html.soa-shell-locked,
+html.soa-shell-locked body {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
   background: var(--color-bg);

@@ -74,7 +74,7 @@ interface EventRow {
   ticketSummaries: TicketSummary[];
 }
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 20;
 
 function EventCard({
   event,
@@ -494,7 +494,7 @@ export default function EventsPage() {
         )}
 
         {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} height={196} />)
+          Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} height={196} />)
         ) : events.length === 0 ? (
           <EmptyState
             icon={CalendarDays}
