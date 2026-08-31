@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { upstreamStatus } from '@/lib/auth';
 import { cookies } from 'next/headers';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -27,10 +28,10 @@ export async function GET() {
     try {
       const authData = JSON.parse(authTokenCookie.value);
 
-      // Check if the token is expired (2 hours)
+      // Check if the session has expired
       const now = Date.now();
       const issuedAt = authData.issuedAt || 0;
-      const maxAge = 8 * 60 * 60 * 1000; // 2 hours
+      const maxAge = 8 * 60 * 60 * 1000; // 8 hours, matches the cookie maxAge
 
       if (now - issuedAt > maxAge) {
         console.error('[Dashboard Stats API] Token expired');
@@ -89,7 +90,7 @@ export async function GET() {
           status: false,
           message: data.message || 'Failed to fetch dashboard stats'
         },
-        { status: response.status }
+        { status: upstreamStatus(response.status) }
       );
     }
 

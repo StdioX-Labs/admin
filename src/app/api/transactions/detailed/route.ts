@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { upstreamStatus } from '@/lib/auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME;
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     const data = await response.json();
     if (!response.ok) {
-      return NextResponse.json({ status: false, message: data.message || 'Failed to fetch transactions' }, { status: response.status });
+      return NextResponse.json({ status: false, message: data.message || 'Failed to fetch transactions' }, { status: upstreamStatus(response.status) });
     }
     return NextResponse.json(data);
   } catch (error) {

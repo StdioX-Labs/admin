@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { upstreamStatus } from '@/lib/auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME;
@@ -30,7 +31,7 @@ export async function GET(
 
       const now = Date.now();
       const issuedAt = authData.issuedAt || 0;
-      const maxAge = 8 * 60 * 60 * 1000; // 8 hours
+      const maxAge = 8 * 60 * 60 * 1000; // 8 hours, matches the cookie maxAge
 
       if (now - issuedAt > maxAge) {
         console.error('[Event Detail API] Token expired');
@@ -89,7 +90,7 @@ export async function GET(
           status: false,
           message: data.message || 'Failed to fetch event'
         },
-        { status: response.status }
+        { status: upstreamStatus(response.status) }
       );
     }
 
@@ -146,7 +147,7 @@ async function handleEventUpdate(
 
       const now = Date.now();
       const issuedAt = authData.issuedAt || 0;
-      const maxAge = 8 * 60 * 60 * 1000; // 8 hours
+      const maxAge = 8 * 60 * 60 * 1000; // 8 hours, matches the cookie maxAge
 
       if (now - issuedAt > maxAge) {
         console.error('[Event Update API] Token expired');
@@ -210,7 +211,7 @@ async function handleEventUpdate(
           status: false,
           message: data.message || 'Failed to update event'
         },
-        { status: response.status }
+        { status: upstreamStatus(response.status) }
       );
     }
 

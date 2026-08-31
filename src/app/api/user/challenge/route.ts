@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { upstreamStatus } from '@/lib/auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME;
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
     if (!contentType?.includes('application/json')) {
       return NextResponse.json(
         { status: false, message: `API returned non-JSON response (${response.status})` },
-        { status: response.status || 500 }
+        { status: upstreamStatus(response.status) || 500 }
       );
     }
 
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
+      return NextResponse.json(data, { status: upstreamStatus(response.status) });
     }
 
     return NextResponse.json(data);

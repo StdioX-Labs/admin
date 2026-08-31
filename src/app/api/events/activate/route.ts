@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { upstreamStatus } from '@/lib/auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME;
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
 
       const now = Date.now();
       const issuedAt = authData.issuedAt || 0;
-      const maxAge = 8 * 60 * 60 * 1000; // 8 hours
+      const maxAge = 8 * 60 * 60 * 1000; // 8 hours, matches the cookie maxAge
 
       if (now - issuedAt > maxAge) {
         console.error('[Event Activate API] Token expired');
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
           status: false,
           message: data.message || 'Failed to activate event'
         },
-        { status: response.status }
+        { status: upstreamStatus(response.status) }
       );
     }
 

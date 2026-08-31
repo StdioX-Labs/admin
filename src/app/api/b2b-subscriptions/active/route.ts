@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { upstreamStatus } from '@/lib/auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME;
@@ -27,7 +28,7 @@ export async function GET() {
       const authData = JSON.parse(authTokenCookie.value);
       const now = Date.now();
       const issuedAt = authData.issuedAt || 0;
-      const maxAge = 8 * 60 * 60 * 1000; // 2 hours
+      const maxAge = 8 * 60 * 60 * 1000; // 8 hours, matches the cookie maxAge
 
       if (now - issuedAt > maxAge) {
         console.error('[B2B Active API] Token expired');
@@ -79,7 +80,7 @@ export async function GET() {
       console.error('[B2B Active API] API returned error:', data);
       return NextResponse.json(
         { error: data.message || 'Failed to fetch active subscriptions', status: false, message: data.message || 'Failed to fetch active subscriptions' },
-        { status: response.status }
+        { status: upstreamStatus(response.status) }
       );
     }
 

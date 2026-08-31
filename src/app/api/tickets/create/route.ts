@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { upstreamStatus } from '@/lib/auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME;
@@ -26,10 +27,10 @@ export async function POST(request: NextRequest) {
     try {
       const authData = JSON.parse(authTokenCookie.value);
 
-      // Check if the token is expired (2 hours)
+      // Check if the session has expired
       const now = Date.now();
       const issuedAt = authData.issuedAt || 0;
-      const maxAge = 8 * 60 * 60 * 1000; // 2 hours
+      const maxAge = 8 * 60 * 60 * 1000; // 8 hours, matches the cookie maxAge
 
       if (now - issuedAt > maxAge) {
         console.error('[Create Ticket API] Token expired');
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
           status: false,
           message: data.message || 'Failed to create ticket'
         },
-        { status: response.status }
+        { status: upstreamStatus(response.status) }
       );
     }
 

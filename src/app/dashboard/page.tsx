@@ -87,8 +87,18 @@ export default function DashboardPage() {
       setStats(statsResult.value as DashboardStats);
     } else {
       const err = statsResult.reason;
-      if (err?.status === 401) setError('You are not authorized. Please log in again.');
-      else setError(err?.message || 'Failed to load dashboard data.');
+      // A 401 now means only one thing — this console's session is gone — so
+      // send them somewhere they can act on it. Upstream refusals arrive as
+      // 502s and stay here as a retryable error instead of a false eviction.
+      if (err?.status === 401) {
+        router.push('/login');
+        return;
+      }
+      setError(
+        err?.status === 502
+          ? 'The platform API is not responding right now. Please try again.'
+          : err?.message || 'Failed to load dashboard data.'
+      );
     }
 
     if (eventsResult.status === 'fulfilled') {
@@ -98,7 +108,7 @@ export default function DashboardPage() {
 
     setIsLoading(false);
     setEventsLoading(false);
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     fetchData();
