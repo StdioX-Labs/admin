@@ -182,16 +182,37 @@
   box-sizing: border-box;
 }
 
-/* Mobile browsers size the initial containing block to the *large* viewport
+/* ── console viewport lock ────────────────────────────────────────────────
+   Mobile browsers size the initial containing block to the *large* viewport
    (toolbar collapsed) while `100dvh` starts at the small one. That leftover
    slack makes the document itself scrollable, so a swipe drags the whole shell
    — header, content and bottom bar — upward and exposes bare background under
-   it. While the console shell is mounted we pin the document to the dynamic
-   viewport and take its scrollport away, leaving <main> as the only scroller. */
-html.soa-shell-locked,
+   it.
+
+   `overflow: hidden` on the document is not enough: iOS Safari ignores it and
+   still lets the page be dragged. Taking <body> out of flow is what actually
+   holds — a fixed body has no scrollport to drag, on any engine. It is sized in
+   `dvh` rather than pinned with `inset: 0` so the bottom tab bar sits above the
+   toolbar while it is shown, and grows into the space when it collapses.
+
+   Applied both by `:has()` (so it holds on the very first paint) and by a class
+   the shell toggles (so it still holds on engines without `:has()`). Scoped to
+   the console — the login page keeps ordinary document scrolling. */
+html:has(.soa-shell),
+html.soa-shell-locked {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html:has(.soa-shell) body,
 html.soa-shell-locked body {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
   height: 100dvh;
-  max-height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
 }

@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
-import { checkRateLimit, resetRateLimitForIdentifier } from '@/lib/rate-limit';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { withErrorHandler } from '@/lib/auth';
 
 // Get environment variables
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME;
 const API_PASSWORD = process.env.NEXT_PUBLIC_API_PASSWORD;
-
-// Export the rate limiting function for access in other routes
-export { resetRateLimitForIdentifier };
 
 async function handlePost(request: Request) {
   // Get the client's IP address from headers

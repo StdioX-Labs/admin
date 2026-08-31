@@ -112,7 +112,7 @@ export function BottomNav() {
       {moreOpen && (
         <div
           onClick={() => setMoreOpen(false)}
-          className="md:hidden fixed inset-0 flex items-end animate-soa-fade"
+          className="md:hidden fixed inset-x-0 top-0 h-dvh flex items-end animate-soa-fade"
           style={{
             zIndex: 60,
             background: 'color-mix(in srgb, var(--color-neutral-900) 45%, transparent)',

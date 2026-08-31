@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Instrument_Sans, Spectral } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/providers";
@@ -15,6 +15,16 @@ const spectral = Spectral({
     subsets: ["latin"],
     weight: ["400", "500", "600", "700"],
 });
+
+// The console locks <body> out of flow (see the viewport lock in globals.css),
+// so a keyboard that merely overlays the page would bury the focused field with
+// no way to scroll to it. `resizes-content` shrinks the layout viewport — and
+// with it `100dvh` — so the shell reflows above the keyboard instead.
+export const viewport: Viewport = {
+    width: "device-width",
+    initialScale: 1,
+    interactiveWidget: "resizes-content",
+};
 
 export const metadata: Metadata = {
     metadataBase: new URL("https://admin.soldoutafrica.com"),

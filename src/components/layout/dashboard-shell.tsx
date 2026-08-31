@@ -27,7 +27,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <PendingCountProvider>
       <div
-        className="flex h-dvh overflow-hidden"
+        className="soa-shell flex h-dvh overflow-hidden"
         style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}
       >
         {/* Sidebar — desktop only; mobile navigates via the bottom bar. */}
