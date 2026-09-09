@@ -338,6 +338,7 @@ function ApprovalCard({
 export default function ApprovalsPage() {
   const [events, setEvents] = useState<OnHoldEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [approvingId, setApprovingId] = useState<number | null>(null);
@@ -352,8 +353,13 @@ export default function ApprovalsPage() {
     Record<number, { commission: string; published: boolean }>
   >({});
 
-  const fetchEvents = useCallback(async (page = 0) => {
-    setIsLoading(true);
+  const fetchEvents = useCallback(async (page = 0, { silent = false } = {}) => {
+    // Swapping up to 20 cards for 3 skeletons collapses the scroller by a few
+    // thousand pixels, so the browser clamps the scroll offset and throws the
+    // reader back to the top. Only the first load may do that; paging, Refresh
+    // and post-approval reads keep the list mounted under an overlay instead.
+    if (silent) setIsRefreshing(true);
+    else setIsLoading(true);
     setError('');
     try {
       const res = await eventsApi.getAllEvents(page, PAGE_SIZE, undefined, 'ONHOLD');
@@ -381,6 +387,7 @@ export default function ApprovalsPage() {
       setError(err instanceof Error ? err.message : 'Failed to load events');
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -408,7 +415,7 @@ export default function ApprovalsPage() {
         `"${event.eventName}" approved at ${value}% commission · ${s.published ? 'Published' : 'Hidden'}`
       );
       setTimeout(() => setSuccess(''), 6000);
-      await fetchEvents(currentPage);
+      await fetchEvents(currentPage, { silent: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Approval failed');
     } finally {
@@ -450,7 +457,7 @@ export default function ApprovalsPage() {
           <div className="flex-1" />
         )}
         <button
-          onClick={() => fetchEvents(currentPage)}
+          onClick={() => fetchEvents(currentPage, { silent: true })}
           className="flex items-center gap-1.5 flex-none"
           style={{
             height: 34,
@@ -469,42 +476,50 @@ export default function ApprovalsPage() {
         </button>
       </div>
 
-      {error && <ErrorNote message={error} onRetry={() => fetchEvents(currentPage)} />}
+      {error && <ErrorNote message={error} onRetry={() => fetchEvents(currentPage, { silent: true })} />}
       {success && <SuccessNote message={success} />}
 
-      {isLoading ? (
-        Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} height={200} />)
-      ) : events.length === 0 ? (
-        <EmptyState
-          icon={Check}
-          title="All caught up"
-          hint="No events waiting for review."
-          tone="success"
-        />
-      ) : (
-        events.map((event) => (
-          <ApprovalCard
-            key={event.eventId}
-            event={event}
-            commission={settings[event.eventId]?.commission ?? '5'}
-            published={settings[event.eventId]?.published ?? false}
-            onCommissionChange={(v) =>
-              setSettings((prev) => ({
-                ...prev,
-                [event.eventId]: { ...prev[event.eventId], commission: v },
-              }))
-            }
-            onPublishedChange={(v) =>
-              setSettings((prev) => ({
-                ...prev,
-                [event.eventId]: { ...prev[event.eventId], published: v },
-              }))
-            }
-            onApprove={() => handleApprove(event)}
-            approving={approvingId === event.eventId}
+      <div className="relative flex flex-col gap-3.5">
+        {isRefreshing && (
+          <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl backdrop-blur-[1px] bg-[color-mix(in_srgb,var(--color-bg)_50%,transparent)]">
+            <Loader2 className="ic w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {isLoading ? (
+          Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} height={200} />)
+        ) : events.length === 0 ? (
+          <EmptyState
+            icon={Check}
+            title="All caught up"
+            hint="No events waiting for review."
+            tone="success"
           />
-        ))
-      )}
+        ) : (
+          events.map((event) => (
+            <ApprovalCard
+              key={event.eventId}
+              event={event}
+              commission={settings[event.eventId]?.commission ?? '5'}
+              published={settings[event.eventId]?.published ?? false}
+              onCommissionChange={(v) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  [event.eventId]: { ...prev[event.eventId], commission: v },
+                }))
+              }
+              onPublishedChange={(v) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  [event.eventId]: { ...prev[event.eventId], published: v },
+                }))
+              }
+              onApprove={() => handleApprove(event)}
+              approving={approvingId === event.eventId}
+            />
+          ))
+        )}
+      </div>
 
       <Pager
         page={currentPage}
@@ -513,8 +528,8 @@ export default function ApprovalsPage() {
         noun="events"
         hasPrevious={hasPrevious}
         hasNext={hasNext}
-        onPrev={() => fetchEvents(currentPage - 1)}
-        onNext={() => fetchEvents(currentPage + 1)}
+        onPrev={() => fetchEvents(currentPage - 1, { silent: true })}
+        onNext={() => fetchEvents(currentPage + 1, { silent: true })}
       />
     </div>
   );

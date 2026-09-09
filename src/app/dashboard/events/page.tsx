@@ -483,7 +483,7 @@ export default function EventsPage() {
         </div>
       </div>
 
-      {error && <ErrorNote message={error} onRetry={() => fetchData(currentPage)} />}
+      {error && <ErrorNote message={error} onRetry={() => fetchData(currentPage, searchTerm || undefined, true)} />}
       {success && <SuccessNote message={success} />}
 
       <div className="relative flex flex-col gap-3.5">
