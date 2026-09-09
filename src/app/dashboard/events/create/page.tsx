@@ -932,7 +932,7 @@ export default function CreateEventPage() {
                       value={t.sms}
                       onChange={(e) => setTicketField(idx, 'sms', e.target.value)}
                       placeholder="Hi {first_name}, your {ticket_name} ticket for {event_name} is confirmed. Access: {ticket_link}"
-                      style={{ minHeight: 64, fontSize: 12.5, background: 'var(--color-neutral-100)' }}
+                      style={{ minHeight: 64, background: 'var(--color-neutral-100)' }}
                     />
                     <div
                       style={{
@@ -953,7 +953,7 @@ export default function CreateEventPage() {
                         value={t.email}
                         onChange={(e) => setTicketField(idx, 'email', e.target.value)}
                         placeholder="Dear {first_name}, thank you for purchasing your {ticket_name} ticket for {event_name}. We look forward to seeing you!"
-                        style={{ minHeight: 80, fontSize: 12.5, background: 'var(--color-neutral-100)' }}
+                        style={{ minHeight: 80, background: 'var(--color-neutral-100)' }}
                       />
                       <div
                         style={{

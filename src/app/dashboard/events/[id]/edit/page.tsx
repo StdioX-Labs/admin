@@ -227,8 +227,14 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
   const [ticketForms, setTicketForms] = useState<Record<number, Partial<TicketRow>>>({});
   const [newTicket, setNewTicket] = useState<NewTicketForm>(emptyNewTicket());
 
-  const fetchEvent = useCallback(async () => {
-    setIsLoading(true);
+  const fetchEvent = useCallback(async ({ silent = false } = {}) => {
+    // A refresh after a save must not unmount the form. `isLoading` swaps the
+    // whole page for a centred spinner, which collapses the scroll container
+    // from a few thousand pixels to about a hundred; the browser then clamps
+    // the scroll offset, so the user is thrown to the top and sees a screen of
+    // empty space where the form was. Reads triggered by the user's own save
+    // refresh in place — the Save button is already showing its own spinner.
+    if (!silent) setIsLoading(true);
     setError('');
     try {
       const resp = await eventsApi.getEventById(eventId);
@@ -288,7 +294,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load event');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [eventId]);
 
@@ -356,7 +362,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
       const resp = await eventsApi.updateEvent(eventId, payload);
       if (resp.status === true) {
         setSuccess('Event updated successfully');
-        await fetchEvent();
+        await fetchEvent({ silent: true });
         setTimeout(() => setSuccess(''), 5000);
       } else {
         setError(resp.message || 'Failed to update event');
@@ -395,7 +401,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
       if (resp.status === true) {
         setSuccess(`Ticket "${tf.ticketName}" updated`);
         setEditingTicketId(null);
-        await fetchEvent();
+        await fetchEvent({ silent: true });
         setTimeout(() => setSuccess(''), 4000);
       } else {
         setError(resp.message || 'Failed to update ticket');
@@ -437,7 +443,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         setSuccess(`Ticket "${newTicket.ticketName}" created`);
         setShowNewTicket(false);
         setNewTicket(emptyNewTicket());
-        await fetchEvent();
+        await fetchEvent({ silent: true });
         setTimeout(() => setSuccess(''), 4000);
       } else {
         setError(resp.message || 'Failed to create ticket');
@@ -469,7 +475,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
           `Ticket sales ${suspendActionType === 'suspend' ? 'suspended' : 'activated'} successfully`
         );
         setShowSuspendModal(false);
-        await fetchEvent();
+        await fetchEvent({ silent: true });
         setTimeout(() => setSuccess(''), 4000);
       } else {
         setSuspendError(resp.message || `Failed to ${suspendActionType} ticket sales`);
@@ -1114,7 +1120,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                   value={newTicket.sms}
                   onChange={(e) => setNewTicket((t) => ({ ...t, sms: e.target.value }))}
                   placeholder="Hi {first_name}, your {ticket_name} ticket for {event_name} is confirmed. Access: {ticket_link}"
-                  style={{ minHeight: 64, fontSize: 12.5, background: 'var(--color-neutral-100)' }}
+                  style={{ minHeight: 64, background: 'var(--color-neutral-100)' }}
                 />
               </Field>
               <div className="mt-3">
@@ -1125,7 +1131,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                     value={newTicket.email}
                     onChange={(e) => setNewTicket((t) => ({ ...t, email: e.target.value }))}
                     placeholder="Dear {first_name}, thank you for purchasing your {ticket_name} ticket for {event_name}."
-                    style={{ minHeight: 76, fontSize: 12.5, background: 'var(--color-neutral-100)' }}
+                    style={{ minHeight: 76, background: 'var(--color-neutral-100)' }}
                   />
                   <div
                     style={{
@@ -1616,7 +1622,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                                   )
                                 }
                                 placeholder="Hi {first_name}, your {ticket_name} ticket for {event_name} is confirmed."
-                                style={{ minHeight: 64, fontSize: 12.5 }}
+                                style={{ minHeight: 64 }}
                               />
                             </Field>
                             <div className="mt-3">
@@ -1633,7 +1639,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                                     )
                                   }
                                   placeholder="Dear {first_name}, thank you for purchasing your {ticket_name} ticket."
-                                  style={{ minHeight: 76, fontSize: 12.5 }}
+                                  style={{ minHeight: 76 }}
                                 />
                                 <div
                                   style={{

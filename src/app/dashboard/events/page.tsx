@@ -374,7 +374,7 @@ export default function EventsPage() {
       });
       if (response.status === true) {
         setSuccess(`"${event.eventName}" set to on hold`);
-        await fetchData(currentPage, searchTerm || undefined);
+        await fetchData(currentPage, searchTerm || undefined, true);
         setTimeout(() => setSuccess(''), 5000);
       } else {
         setError(response.message || 'Failed to update event status');
@@ -409,7 +409,7 @@ export default function EventsPage() {
         setSuccess(
           `"${target.eventName}" activated at ${value}% commission · ${published ? 'Published' : 'Hidden'}`
         );
-        await fetchData(currentPage, searchTerm || undefined);
+        await fetchData(currentPage, searchTerm || undefined, true);
         setTimeout(() => setSuccess(''), 5000);
       } else {
         setError(response.message || 'Failed to activate event');
