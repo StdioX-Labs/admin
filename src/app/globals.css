@@ -436,7 +436,14 @@ img {
   min-height: 36px;
   padding: 6px 14px;
   font: inherit;
-  font-size: 14px;
+  /* 16px is the threshold below which iOS Safari zooms the page in when a
+     control takes focus. With the shell pinned to the viewport that zoom
+     strands the layout mid-page — it reads as the UI scrolling itself up and
+     leaving empty space, and it does not zoom back out on blur. Full size on
+     phones, tighter from md up where no engine does this. Mirrors the
+     `text-base md:text-sm` that components/ui/input.tsx already uses, and the
+     inline 16px otp-input.tsx has carried for the same reason. */
+  font-size: 16px;
   color: var(--color-text);
   caret-color: var(--color-accent);
   background: var(--color-surface);
@@ -457,6 +464,12 @@ textarea.soa-input {
   min-height: 90px;
   resize: vertical;
   line-height: 1.5;
+}
+
+@media (min-width: 768px) {
+  .soa-input {
+    font-size: 14px;
+  }
 }
 
 /* Native selects swap the OS chevron for the system one. */
