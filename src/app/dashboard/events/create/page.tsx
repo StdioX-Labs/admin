@@ -660,7 +660,7 @@ export default function CreateEventPage() {
             <Field label="Event poster">
               <div className="flex gap-3.5 items-start flex-wrap">
                 <label
-                  className="grid place-items-center cursor-pointer flex-none"
+                  className="relative grid place-items-center cursor-pointer flex-none"
                   style={{
                     width: 120,
                     height: 160,
