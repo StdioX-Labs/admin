@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { eventsApi, createEventApi } from '@/lib/api';
 import {
   ArrowLeft,
@@ -183,6 +183,14 @@ const PLACEHOLDER_HINT = 'Placeholders: {first_name} · {event_name} · {ticket_
 
 export default function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Opened from the approvals queue? Send every exit back there instead of to
+  // the events list, so a correct-then-approve round trip keeps its place.
+  const backTo =
+    searchParams?.get('from') === 'approvals'
+      ? '/dashboard/events/approvals'
+      : '/dashboard/events';
+  const backLabel = backTo.endsWith('approvals') ? 'Approvals' : 'Events';
   const { id: eventId } = use(params);
 
   const [tickets, setTickets] = useState<TicketRow[]>([]);
@@ -514,7 +522,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         />
         <p className="text-sm text-muted-foreground">Event not found</p>
         <button
-          onClick={() => router.push('/dashboard/events')}
+          onClick={() => router.push(backTo)}
           className="mt-4"
           style={{
             fontSize: 13,
@@ -537,7 +545,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
       {/* Breadcrumb */}
       <div className="flex items-center gap-2.5 flex-wrap">
         <button
-          onClick={() => router.push('/dashboard/events')}
+          onClick={() => router.push(backTo)}
           className="flex items-center gap-1.5"
           style={{
             fontSize: 12.5,
@@ -548,7 +556,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
           }}
         >
           <ArrowLeft className="ic w-3.5 h-3.5" />
-          Events
+          {backLabel}
         </button>
         <span style={{ color: 'color-mix(in srgb, var(--color-text) 30%, transparent)' }}>/</span>
         <span className="truncate max-w-[240px]" style={{ fontSize: 12.5, fontWeight: 600 }}>

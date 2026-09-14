@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { eventsApi } from '@/lib/api';
 import {
   Building2,
@@ -14,6 +15,7 @@ import {
   ChevronUp,
   ExternalLink,
   Loader2,
+  Pencil,
   RotateCcw,
   Globe,
   EyeOff,
@@ -67,6 +69,7 @@ function ApprovalCard({
   published,
   onCommissionChange,
   onPublishedChange,
+  onEdit,
   onApprove,
   approving,
 }: {
@@ -75,6 +78,7 @@ function ApprovalCard({
   published: boolean;
   onCommissionChange: (v: string) => void;
   onPublishedChange: (v: boolean) => void;
+  onEdit: () => void;
   onApprove: () => void;
   approving: boolean;
 }) {
@@ -301,9 +305,29 @@ function ApprovalCard({
             </div>
 
             <button
+              onClick={onEdit}
+              disabled={approving}
+              className="ml-auto flex items-center gap-1.5 disabled:opacity-50"
+              style={{
+                height: 32,
+                padding: '0 14px',
+                borderRadius: 'var(--radius-control)',
+                border: '1px solid var(--color-divider)',
+                background: 'transparent',
+                color: 'var(--color-text)',
+                fontSize: 13,
+                fontWeight: 600,
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              <Pencil className="ic w-3.5 h-3.5" />
+              Edit
+            </button>
+
+            <button
               onClick={onApprove}
               disabled={approving || !valid}
-              className="ml-auto flex items-center gap-1.5 disabled:opacity-50"
+              className="flex items-center gap-1.5 disabled:opacity-50"
               style={{
                 height: 32,
                 padding: '0 18px',
@@ -336,6 +360,7 @@ function ApprovalCard({
 }
 
 export default function ApprovalsPage() {
+  const router = useRouter();
   const [events, setEvents] = useState<OnHoldEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -513,6 +538,9 @@ export default function ApprovalsPage() {
                   ...prev,
                   [event.eventId]: { ...prev[event.eventId], published: v },
                 }))
+              }
+              onEdit={() =>
+                router.push(`/dashboard/events/${event.eventId}/edit?from=approvals`)
               }
               onApprove={() => handleApprove(event)}
               approving={approvingId === event.eventId}
