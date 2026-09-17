@@ -13,6 +13,7 @@ import {
   Ticket,
   DollarSign,
   Pencil,
+  FileDown,
   ExternalLink,
   ChevronDown,
   ChevronUp,
@@ -80,11 +81,15 @@ function EventCard({
   event,
   onToggle,
   onEdit,
+  onReport,
+  reporting,
   toggling,
 }: {
   event: EventRow;
   onToggle: (e: EventRow) => void;
   onEdit: (id: number) => void;
+  onReport: (e: EventRow) => void;
+  reporting: boolean;
   toggling: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -165,6 +170,26 @@ function EventCard({
                   'Hold'
                 ) : (
                   'Activate'
+                )}
+              </button>
+              <button
+                onClick={() => onReport(event)}
+                disabled={reporting}
+                title="Download certified performance report"
+                className="grid place-items-center disabled:opacity-50"
+                style={{
+                  width: 30,
+                  height: 30,
+                  border: 'none',
+                  background: 'transparent',
+                  borderRadius: 9,
+                  color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                }}
+              >
+                {reporting ? (
+                  <Loader2 className="ic w-[15px] h-[15px] animate-spin" />
+                ) : (
+                  <FileDown className="ic w-[15px] h-[15px]" />
                 )}
               </button>
               <button
@@ -306,6 +331,7 @@ export default function EventsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPaging, setIsPaging] = useState(false);
   const [togglingEventId, setTogglingEventId] = useState<number | null>(null);
+  const [reportingEventId, setReportingEventId] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -421,6 +447,34 @@ export default function EventsPage() {
     }
   };
 
+  // The figures come back signed from the server; the browser only renders
+  // them. Building the document from the numbers already on this page would
+  // certify nothing, since this page could be showing anything.
+  const handleReport = async (event: EventRow) => {
+    setReportingEventId(event.eventId);
+    setError('');
+    try {
+      const [{ buildReportPdf, buildReportCsv, reportFileStem, saveBlob }, resp] = await Promise.all([
+        import('@/lib/report-document'),
+        fetch(`/api/events/${event.eventId}/report`, { credentials: 'include' }),
+      ]);
+      const data = await resp.json();
+      if (!resp.ok || !data.status) {
+        throw new Error(data.message || 'Could not build the report');
+      }
+      const stem = reportFileStem(data.report);
+      const verifyUrl = `${window.location.origin}/api/reports/verify`;
+      saveBlob(buildReportPdf(data.report, data.certificate, verifyUrl), `${stem}.pdf`);
+      saveBlob(buildReportCsv(data.report, data.certificate), `${stem}.csv`);
+      setSuccess(`Certified report ${data.report.reference} downloaded (PDF + CSV)`);
+      setTimeout(() => setSuccess(''), 6000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not build the report');
+    } finally {
+      setReportingEventId(null);
+    }
+  };
+
   const pageRevenue = events.reduce((s, e) => s + e.totalRevenue, 0);
   const pageSold = events.reduce((s, e) => s + e.totalTicketsSold, 0);
 
@@ -508,6 +562,8 @@ export default function EventsPage() {
               event={event}
               onToggle={handleToggle}
               onEdit={(id) => router.push(`/dashboard/events/${id}/edit`)}
+              onReport={handleReport}
+              reporting={reportingEventId === event.eventId}
               toggling={togglingEventId === event.eventId}
             />
           ))
