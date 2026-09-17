@@ -26,7 +26,6 @@ import {
   Card,
   EmptyState,
   ErrorNote,
-  Pager,
   Poster,
   ProgressBar,
   SkeletonCard,
@@ -41,7 +40,6 @@ import {
 } from '@/components/ui/soa';
 import { TicketSalesTable } from '@/components/ui/ticket-sales-table';
 
-const PAGE_SIZE = 20;
 
 type SortKey = 'revenue' | 'tickets' | 'sellthrough';
 
@@ -121,7 +119,6 @@ export default function EventSalesPage() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortKey>('revenue');
-  const [currentPage, setCurrentPage] = useState(0);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   // First load shows skeletons; later refetches keep the current cards on
@@ -129,7 +126,6 @@ export default function EventSalesPage() {
   const fetchData = useCallback(async (searchName?: string, isRefresh = false) => {
     if (isRefresh) setIsRefreshing(true);
     else setIsLoading(true);
-    setCurrentPage(0);
     setError('');
     try {
       // One large page: the date filter below would make server-side counts wrong.
@@ -163,8 +159,10 @@ export default function EventSalesPage() {
   }, [allEvents, sort]);
 
   const totalElements = sorted.length;
-  const totalPages = Math.max(1, Math.ceil(totalElements / PAGE_SIZE));
-  const rows = sorted.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+  // Every active event is fetched in a single request, so the table shows the
+  // whole ranking rather than slicing it — the ranks read straight through and
+  // sorting by revenue or sell-through no longer hides the tail behind a pager.
+  const rows = sorted;
 
   const totRev = allEvents.reduce((s, e) => s + e.totalRevenue, 0);
   const totSold = allEvents.reduce((s, e) => s + e.totalTicketsSold, 0);
@@ -217,10 +215,7 @@ export default function EventSalesPage() {
             return (
               <button
                 key={seg.key}
-                onClick={() => {
-                  setSort(seg.key);
-                  setCurrentPage(0);
-                }}
+                onClick={() => setSort(seg.key)}
                 style={{
                   padding: '7px 14px',
                   fontSize: 12.5,
@@ -380,7 +375,7 @@ export default function EventSalesPage() {
           />
         ) : (
           rows.map((e, i) => {
-            const rank = currentPage * PAGE_SIZE + i + 1;
+            const rank = i + 1;
             const pct = sellThrough(e);
             const capacity = capacityOf(e);
             const top = rank === 1;
@@ -641,17 +636,6 @@ export default function EventSalesPage() {
           })
         )}
       </div>
-
-      <Pager
-        page={currentPage}
-        totalPages={totalPages}
-        totalElements={totalElements}
-        noun="events"
-        hasPrevious={currentPage > 0}
-        hasNext={currentPage < totalPages - 1}
-        onPrev={() => setCurrentPage((p) => p - 1)}
-        onNext={() => setCurrentPage((p) => p + 1)}
-      />
     </div>
   );
 }
