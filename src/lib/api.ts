@@ -278,6 +278,21 @@ export interface AdminEvent {
 
 // Events API
 export const eventsApi = {
+  /**
+   * Issue complimentary tickets for an event. The issuing user is taken from
+   * the session server-side, so it is deliberately absent from this payload.
+   */
+  issueComplementary: async (input: {
+    eventId: number;
+    customer: { mobile_number: string; email: string };
+    tickets: Array<{ ticketId: number; quantity: number }>;
+  }) => {
+    return fetchApi<{ status: boolean; message: string; issuedTo?: { email: string; mobile: string } }>(
+      '/event/issue/complementary',
+      { method: 'POST', body: JSON.stringify(input) }
+    );
+  },
+
   // Fetch all events with pagination
   getAllEvents: async (page: number = 0, size: number = 10, searchName?: string, status?: string) => {
     let url = `/events?page=${page}&size=${size}`;

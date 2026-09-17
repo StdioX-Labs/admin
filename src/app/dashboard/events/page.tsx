@@ -2,6 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  formatKenyanPhone,
+  isValidEmail,
+  normalizeEmail,
+  normalizeKenyanPhone,
+} from '@/lib/phone';
 import { eventsApi } from '@/lib/api';
 import {
   Search,
@@ -14,6 +20,7 @@ import {
   DollarSign,
   Pencil,
   FileDown,
+  Gift,
   ExternalLink,
   ChevronDown,
   ChevronUp,
@@ -83,6 +90,7 @@ function EventCard({
   onEdit,
   onReport,
   reporting,
+  onComp,
   toggling,
 }: {
   event: EventRow;
@@ -90,6 +98,7 @@ function EventCard({
   onEdit: (id: number) => void;
   onReport: (e: EventRow) => void;
   reporting: boolean;
+  onComp: (e: EventRow) => void;
   toggling: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -171,6 +180,21 @@ function EventCard({
                 ) : (
                   'Activate'
                 )}
+              </button>
+              <button
+                onClick={() => onComp(event)}
+                title="Issue complimentary tickets"
+                className="grid place-items-center"
+                style={{
+                  width: 30,
+                  height: 30,
+                  border: 'none',
+                  background: 'transparent',
+                  borderRadius: 9,
+                  color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                }}
+              >
+                <Gift className="ic w-[15px] h-[15px]" />
               </button>
               <button
                 onClick={() => onReport(event)}
@@ -332,6 +356,15 @@ export default function EventsPage() {
   const [isPaging, setIsPaging] = useState(false);
   const [togglingEventId, setTogglingEventId] = useState<number | null>(null);
   const [reportingEventId, setReportingEventId] = useState<number | null>(null);
+
+  // Complimentary issuing
+  const [compFor, setCompFor] = useState<EventRow | null>(null);
+  const [compTicketId, setCompTicketId] = useState('');
+  const [compQty, setCompQty] = useState('1');
+  const [compEmail, setCompEmail] = useState('');
+  const [compPhone, setCompPhone] = useState('');
+  const [compError, setCompError] = useState('');
+  const [compBusy, setCompBusy] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -444,6 +477,50 @@ export default function EventsPage() {
       setError(err instanceof Error ? err.message : 'Failed to activate event');
     } finally {
       setTogglingEventId(null);
+    }
+  };
+
+  const openComp = (event: EventRow) => {
+    setCompFor(event);
+    setCompTicketId(event.ticketSummaries[0] ? String(event.ticketSummaries[0].ticketId) : '');
+    setCompQty('1');
+    setCompEmail('');
+    setCompPhone('');
+    setCompError('');
+  };
+
+  const handleIssueComp = async () => {
+    if (!compFor) return;
+    // Mirror the server's checks so a mistake is caught before it becomes a
+    // request; the route validates again, since it cannot trust this page.
+    if (!isValidEmail(compEmail)) return setCompError('Enter a valid recipient email address');
+    if (!normalizeKenyanPhone(compPhone))
+      return setCompError('Enter a valid Kenyan phone number, e.g. 0715066651');
+    if (!compTicketId) return setCompError('Select a ticket type');
+    const quantity = Number(compQty);
+    if (!Number.isInteger(quantity) || quantity < 1)
+      return setCompError('Quantity must be a whole number of at least 1');
+
+    setCompBusy(true);
+    setCompError('');
+    try {
+      const resp = await eventsApi.issueComplementary({
+        eventId: compFor.eventId,
+        customer: { mobile_number: compPhone, email: compEmail },
+        tickets: [{ ticketId: Number(compTicketId), quantity }],
+      });
+      if (resp.status === false) throw new Error(resp.message || 'Failed to issue');
+      const tier = compFor.ticketSummaries.find((t) => String(t.ticketId) === compTicketId);
+      setSuccess(
+        `${quantity} complimentary ${tier?.ticketName ?? 'ticket'}${quantity === 1 ? '' : 's'} issued to ` +
+          `${normalizeEmail(compEmail)} (${formatKenyanPhone(compPhone)})`
+      );
+      setTimeout(() => setSuccess(''), 7000);
+      setCompFor(null);
+    } catch (err) {
+      setCompError(err instanceof Error ? err.message : 'Failed to issue complimentary tickets');
+    } finally {
+      setCompBusy(false);
     }
   };
 
@@ -564,6 +641,7 @@ export default function EventsPage() {
               onEdit={(id) => router.push(`/dashboard/events/${id}/edit`)}
               onReport={handleReport}
               reporting={reportingEventId === event.eventId}
+              onComp={openComp}
               toggling={togglingEventId === event.eventId}
             />
           ))
@@ -581,6 +659,157 @@ export default function EventsPage() {
         onPrev={() => fetchData(currentPage - 1, searchTerm || undefined, true)}
         onNext={() => fetchData(currentPage + 1, searchTerm || undefined, true)}
       />
+
+      {/* Complimentary tickets */}
+      {compFor && (
+        <div
+          onClick={() => !compBusy && setCompFor(null)}
+          className="fixed inset-0 grid place-items-center p-4 animate-soa-fade"
+          style={{
+            zIndex: 70,
+            background: 'color-mix(in srgb, var(--color-neutral-900) 50%, transparent)',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Issue complimentary tickets"
+            className="flex flex-col gap-3.5 animate-soa-pop"
+            style={{
+              width: 'min(440px, 100%)',
+              background: 'var(--color-neutral-100)',
+              borderRadius: 'var(--radius-dialog)',
+              boxShadow: 'var(--shadow-lg)',
+              padding: 18,
+            }}
+          >
+            <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 20 }}>
+              Issue complimentary tickets
+            </div>
+            <p className="m-0" style={{ fontSize: 14, opacity: 0.85 }}>
+              Free tickets for <strong>{compFor.eventName}</strong>, sent straight to the
+              recipient. This cannot be undone.
+            </p>
+
+            <div className="field">
+              <label htmlFor="comp-ticket">Ticket type</label>
+              <select
+                id="comp-ticket"
+                className="soa-input"
+                value={compTicketId}
+                onChange={(e) => setCompTicketId(e.target.value)}
+              >
+                {compFor.ticketSummaries.length === 0 && <option value="">No ticket types</option>}
+                {compFor.ticketSummaries.map((t) => (
+                  <option key={t.ticketId} value={String(t.ticketId)}>
+                    {t.ticketName}
+                    {t.ticketPrice ? ` — ${money(t.ticketPrice)}` : ' — Free'}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="field">
+              <label htmlFor="comp-qty">Quantity</label>
+              <input
+                id="comp-qty"
+                className="soa-input"
+                value={compQty}
+                onChange={(e) => setCompQty(e.target.value.replace(/[^0-9]/g, ''))}
+                inputMode="numeric"
+                placeholder="1"
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="comp-email">Recipient email</label>
+              <input
+                id="comp-email"
+                className="soa-input"
+                value={compEmail}
+                onChange={(e) => setCompEmail(e.target.value)}
+                type="email"
+                placeholder="name@example.com"
+                autoFocus
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="comp-phone">Recipient phone</label>
+              <input
+                id="comp-phone"
+                className="soa-input"
+                value={compPhone}
+                onChange={(e) => setCompPhone(e.target.value)}
+                inputMode="tel"
+                placeholder="0715066651"
+              />
+              {compPhone && normalizeKenyanPhone(compPhone) && (
+                <div
+                  style={{
+                    fontSize: 11.5,
+                    marginTop: 5,
+                    color: 'color-mix(in srgb, var(--color-text) 52%, transparent)',
+                  }}
+                >
+                  Will send to {formatKenyanPhone(compPhone)}
+                </div>
+              )}
+            </div>
+
+            {compError && (
+              <div style={{ fontSize: 12.5, color: 'var(--tint-danger-strong)' }}>{compError}</div>
+            )}
+
+            <div className="flex gap-2.5 justify-end mt-1">
+              <button
+                onClick={() => setCompFor(null)}
+                disabled={compBusy}
+                style={{
+                  padding: '9px 16px',
+                  borderRadius: 'var(--radius-control)',
+                  border: '1px solid var(--color-divider)',
+                  background: 'transparent',
+                  color: 'var(--color-text)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-body)',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleIssueComp}
+                disabled={compBusy || compFor.ticketSummaries.length === 0}
+                className="flex items-center gap-1.5 disabled:opacity-50"
+                style={{
+                  padding: '9px 16px',
+                  borderRadius: 'var(--radius-control)',
+                  border: 'none',
+                  background: 'var(--color-accent)',
+                  color: '#fff',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-body)',
+                }}
+              >
+                {compBusy ? (
+                  <>
+                    <Loader2 className="ic w-3.5 h-3.5 animate-spin" />
+                    Issuing…
+                  </>
+                ) : (
+                  <>
+                    <Gift className="ic w-3.5 h-3.5" />
+                    Issue tickets
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Activation dialog */}
       {activateFor && (
