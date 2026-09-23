@@ -560,6 +560,42 @@ export interface Company {
   updatedAt: string;
 }
 
+export interface CompanyUser {
+  id: number;
+  fullName: string;
+  emailAddress: string;
+  mobileNumber: string;
+  roles: string;
+  active?: boolean;
+}
+
+export const usersApi = {
+  /**
+   * Create a user against a company. The password is generated server-side and
+   * never travels through here — sign-in is by emailed OTP.
+   */
+  create: async (input: {
+    fullName: string;
+    emailAddress: string;
+    mobileNumber: string;
+    idNumber?: string;
+    companyId: number;
+    roles: 'SUPER_ADMIN' | 'COMPANY_OWNER' | 'STAFF';
+  }) => {
+    return fetchApi<{ status: boolean; message: string; user?: Record<string, unknown> }>(
+      '/user/create',
+      { method: 'POST', body: JSON.stringify(input) }
+    );
+  },
+
+  listByCompany: async (companyId: number) => {
+    return fetchApi<{ status: boolean; message: string; users?: CompanyUser[] }>(
+      `/company/users?companyId=${companyId}`,
+      { method: 'GET' }
+    );
+  },
+};
+
 export const companyApi = {
   getById: async (companyId: number | string) => {
     return fetchApi<{

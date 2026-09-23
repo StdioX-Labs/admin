@@ -503,7 +503,7 @@ export default function EventSalesPage() {
                           <ExternalLink className="ic w-[15px] h-[15px]" />
                         </button>
                         <button
-                          onClick={() => router.push(`/dashboard/events/${e.eventId}/edit`)}
+                          onClick={() => router.push(`/dashboard/events/${e.eventId}/edit?from=sales`)}
                           title="Edit"
                           className="grid place-items-center"
                           style={{

@@ -186,11 +186,13 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
   const searchParams = useSearchParams();
   // Opened from the approvals queue? Send every exit back there instead of to
   // the events list, so a correct-then-approve round trip keeps its place.
-  const backTo =
-    searchParams?.get('from') === 'approvals'
-      ? '/dashboard/events/approvals'
-      : '/dashboard/events';
-  const backLabel = backTo.endsWith('approvals') ? 'Approvals' : 'Events';
+  const from = searchParams?.get('from');
+  const RETURNS_TO = {
+    approvals: { href: '/dashboard/events/approvals', label: 'Approvals' },
+    sales: { href: '/dashboard/events/sales', label: 'Active sales' },
+  } as const;
+  const { href: backTo, label: backLabel } =
+    RETURNS_TO[from as keyof typeof RETURNS_TO] ?? { href: '/dashboard/events', label: 'Events' };
   const { id: eventId } = use(params);
 
   const [tickets, setTickets] = useState<TicketRow[]>([]);

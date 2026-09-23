@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { AddUserModal } from '@/components/users/add-user-modal';
+import { useFlashMessage } from '@/components/events/event-actions';
 import {
   Users as UsersIcon,
   Activity,
@@ -9,12 +11,14 @@ import {
   BadgeCheck,
   DollarSign,
   Search,
+  UserPlus,
 } from 'lucide-react';
 import {
   Card,
   EmptyState,
   Pill,
   StatTile,
+  SuccessNote,
   ago,
   compactMoney,
   dateShort,
@@ -133,6 +137,8 @@ export default function UsersPage() {
   const [role, setRole] = useState<'all' | Role>('all');
   const [status, setStatus] = useState<'all' | Status>('all');
   const [verified, setVerified] = useState<'all' | 'verified' | 'unverified'>('all');
+  const [addingUser, setAddingUser] = useState(false);
+  const { message: success, show: showSuccess } = useFlashMessage(9000);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -157,6 +163,29 @@ export default function UsersPage() {
 
   return (
     <div className="flex flex-col gap-3.5 animate-soa-fade">
+      <div className="flex items-center justify-end">
+        <button
+          onClick={() => setAddingUser(true)}
+          className="flex items-center gap-1.5"
+          style={{
+            padding: '9px 16px',
+            borderRadius: 'var(--radius-control)',
+            border: 'none',
+            background: 'var(--color-accent)',
+            color: '#fff',
+            fontSize: 13,
+            fontWeight: 700,
+            fontFamily: 'var(--font-body)',
+            boxShadow: 'var(--shadow-sm)',
+          }}
+        >
+          <UserPlus className="ic w-4 h-4" />
+          Add user
+        </button>
+      </div>
+
+      {success && <SuccessNote message={success} />}
+
       <div
         className="grid gap-2.5"
         style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))' }}
@@ -404,6 +433,9 @@ export default function UsersPage() {
         Showing {filtered.length} of {SAMPLE_USERS.length} sample records — this screen is not yet
         wired to a live users endpoint.
       </p>
+    {addingUser && (
+        <AddUserModal onClose={() => setAddingUser(false)} onCreated={showSuccess} />
+      )}
     </div>
   );
 }
