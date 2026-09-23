@@ -2,6 +2,13 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  ComplimentaryButton,
+  ComplimentaryTicketsModal,
+  ReportButton,
+  useCertifiedReport,
+  useFlashMessage,
+} from '@/components/events/event-actions';
 import { eventsApi, type AdminEvent } from '@/lib/api';
 import {
   DollarSign,
@@ -26,6 +33,7 @@ import {
   Card,
   EmptyState,
   ErrorNote,
+  SuccessNote,
   Poster,
   ProgressBar,
   SkeletonCard,
@@ -120,6 +128,12 @@ export default function EventSalesPage() {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortKey>('revenue');
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [compFor, setCompFor] = useState<AdminEvent | null>(null);
+  const { message: success, show: showSuccess } = useFlashMessage();
+  const { download: downloadReport, busyEventId: reportingEventId } = useCertifiedReport({
+    onSuccess: showSuccess,
+    onError: setError,
+  });
 
   // First load shows skeletons; later refetches keep the current cards on
   // screen behind a translucent "Updating" overlay so the page doesn't blink.
@@ -237,6 +251,7 @@ export default function EventSalesPage() {
       </div>
 
       {error && <ErrorNote message={error} onRetry={() => fetchData(search || undefined, true)} />}
+      {success && <SuccessNote message={success} />}
 
       {/* Search + actions */}
       <div className="flex flex-wrap items-center gap-2.5">
@@ -467,6 +482,11 @@ export default function EventSalesPage() {
                       </div>
 
                       <div className="flex items-center gap-1.5 flex-none">
+                        <ComplimentaryButton onClick={() => setCompFor(e)} />
+                        <ReportButton
+                          busy={reportingEventId === e.eventId}
+                          onClick={() => downloadReport(e)}
+                        />
                         <button
                           onClick={() => window.open(`https://soldoutafrica.com/${e.slug}`, '_blank')}
                           title="View live"
@@ -636,6 +656,13 @@ export default function EventSalesPage() {
           })
         )}
       </div>
+    {compFor && (
+        <ComplimentaryTicketsModal
+          event={compFor}
+          onClose={() => setCompFor(null)}
+          onIssued={showSuccess}
+        />
+      )}
     </div>
   );
 }

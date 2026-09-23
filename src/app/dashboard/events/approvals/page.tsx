@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useFlashMessage } from '@/components/events/event-actions';
 import { eventsApi } from '@/lib/api';
 import {
   Building2,
@@ -365,7 +366,7 @@ export default function ApprovalsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const { message: success, show: showSuccess, clear: clearSuccess } = useFlashMessage();
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -427,7 +428,7 @@ export default function ApprovalsPage() {
 
     setApprovingId(event.eventId);
     setError('');
-    setSuccess('');
+    clearSuccess();
     try {
       const res = await eventsApi.updateEvent(event.eventId, {
         status: 'ACTIVE',
@@ -436,10 +437,8 @@ export default function ApprovalsPage() {
         published: s.published,
       });
       if (!res.status) throw new Error(res.message || 'Failed to approve event');
-      setSuccess(
-        `"${event.eventName}" approved at ${value}% commission · ${s.published ? 'Published' : 'Hidden'}`
-      );
-      setTimeout(() => setSuccess(''), 6000);
+      showSuccess(
+        `"${event.eventName}" approved at ${value}% commission · ${s.published ? 'Published' : 'Hidden'}`);
       await fetchEvents(currentPage, { silent: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Approval failed');
