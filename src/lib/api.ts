@@ -594,6 +594,30 @@ export const usersApi = {
     );
   },
 
+  /** Update a user, optionally moving them to another company. */
+  update: async (input: {
+    userId: number;
+    fullName: string;
+    emailAddress: string;
+    mobileNumber: string;
+    idNumber?: string;
+    roles: 'SUPER_ADMIN' | 'COMPANY_OWNER' | 'STAFF';
+    companyId?: number;
+  }) => {
+    return fetchApi<{ status: boolean; message: string }>('/user/edit', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    });
+  },
+
+  /** Suspend (active: false) or reactivate (active: true) a user. */
+  setActive: async (userId: number, active: boolean) => {
+    return fetchApi<{ status: boolean; message: string }>('/user/status', {
+      method: 'PUT',
+      body: JSON.stringify({ userId, active }),
+    });
+  },
+
   listByCompany: async (companyId: number) => {
     return fetchApi<{ status: boolean; message: string; users?: CompanyUser[] }>(
       `/company/users?companyId=${companyId}`,

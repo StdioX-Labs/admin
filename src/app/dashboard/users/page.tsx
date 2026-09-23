@@ -10,6 +10,9 @@ import {
   Search,
   ShieldCheck,
   UserPlus,
+  Pencil,
+  Ban,
+  RotateCw,
   XCircle,
 } from 'lucide-react';
 import {
@@ -25,7 +28,7 @@ import {
 } from '@/components/ui/soa';
 import { companyApi, usersApi, type Company, type CompanyUser } from '@/lib/api';
 import { formatKenyanPhone } from '@/lib/phone';
-import { AddUserModal } from '@/components/users/add-user-modal';
+import { UserFormModal } from '@/components/users/user-form-modal';
 import { useFlashMessage } from '@/components/events/event-actions';
 
 /**
@@ -120,6 +123,8 @@ export default function UsersPage() {
   const [kyc, setKyc] = useState<'all' | 'verified' | 'unverified'>('all');
 
   const [addingUser, setAddingUser] = useState(false);
+  const [editingUser, setEditingUser] = useState<CompanyUser | null>(null);
+  const [statusBusyId, setStatusBusyId] = useState<number | null>(null);
   const { message: success, show: showSuccess } = useFlashMessage(9000);
 
   useEffect(() => {
@@ -169,6 +174,63 @@ export default function UsersPage() {
   useEffect(() => {
     fetchUsers(companyId);
   }, [companyId, fetchUsers]);
+
+  const toggleActive = async (u: CompanyUser) => {
+    setStatusBusyId(u.id);
+    setError('');
+    try {
+      const resp = await usersApi.setActive(u.id, !u.active);
+      if (resp.status === false) throw new Error(resp.message || 'Failed to update the user');
+      showSuccess(`${u.fullName} ${u.active ? 'suspended' : 'reactivated'}.`);
+      await fetchUsers(companyId, { silent: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update the user');
+    } finally {
+      setStatusBusyId(null);
+    }
+  };
+
+  const rowActions = (u: CompanyUser) => (
+    <div className="flex items-center gap-1 justify-end">
+      <button
+        onClick={() => setEditingUser(u)}
+        title="Edit user"
+        className="grid place-items-center"
+        style={{
+          width: 30,
+          height: 30,
+          border: 'none',
+          background: 'transparent',
+          borderRadius: 9,
+          color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+        }}
+      >
+        <Pencil className="ic w-[15px] h-[15px]" />
+      </button>
+      <button
+        onClick={() => toggleActive(u)}
+        disabled={statusBusyId === u.id}
+        title={u.active ? 'Suspend user' : 'Reactivate user'}
+        className="grid place-items-center disabled:opacity-50"
+        style={{
+          width: 30,
+          height: 30,
+          border: 'none',
+          background: 'transparent',
+          borderRadius: 9,
+          color: u.active
+            ? 'var(--tint-danger-strong)'
+            : 'var(--tint-olive-strong)',
+        }}
+      >
+        {u.active ? (
+          <Ban className="ic w-[15px] h-[15px]" />
+        ) : (
+          <RotateCw className="ic w-[15px] h-[15px]" />
+        )}
+      </button>
+    </div>
+  );
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -415,6 +477,7 @@ export default function UsersPage() {
                           <th>Role</th>
                           <th>KYC</th>
                           <th>Status</th>
+                          <th />
                         </tr>
                       </thead>
                       <tbody>
@@ -487,6 +550,7 @@ export default function UsersPage() {
                             <td>
                               <StatusChip active={u.active} />
                             </td>
+                            <td>{rowActions(u)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -521,11 +585,12 @@ export default function UsersPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <Pill bg={roleTint(u.roles).bg} fg={roleTint(u.roles).fg}>
                           {roleLabel(u.roles)}
                         </Pill>
                         <StatusChip active={u.active} />
+                        <div className="ml-auto">{rowActions(u)}</div>
                       </div>
                       <div
                         className="flex justify-between pt-2.5"
@@ -562,9 +627,20 @@ export default function UsersPage() {
       )}
 
       {addingUser && (
-        <AddUserModal
+        <UserFormModal
           onClose={() => setAddingUser(false)}
-          onCreated={(m) => {
+          onSaved={(m) => {
+            showSuccess(m);
+            fetchUsers(companyId, { silent: true });
+          }}
+        />
+      )}
+
+      {editingUser && (
+        <UserFormModal
+          user={editingUser}
+          onClose={() => setEditingUser(null)}
+          onSaved={(m) => {
             showSuccess(m);
             fetchUsers(companyId, { silent: true });
           }}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, UserPlus } from 'lucide-react';
+import { Loader2, Save, UserPlus } from 'lucide-react';
 import { companyApi, usersApi, type Company, type CompanyUser } from '@/lib/api';
 import { formatKenyanPhone, isValidEmail, normalizeKenyanPhone } from '@/lib/phone';
 
@@ -14,20 +14,24 @@ const ROLES = [
 type Role = (typeof ROLES)[number]['value'];
 
 /**
- * Adds a person to a company.
+ * Adds a person to a company, or edits one.
  *
  * The console administers every company, so unlike the organiser dashboard —
  * where the company is implicitly the signed-in user's — the company is chosen
- * here. The current roster is shown alongside the picker so it is obvious who
- * is already there before adding another.
+ * here, and changing it moves the user. The current roster is shown alongside
+ * the picker so it is obvious who is already there.
  */
-export function AddUserModal({
+export function UserFormModal({
+  user,
   onClose,
-  onCreated,
+  onSaved,
 }: {
+  /** Omit to create; pass a user to edit them. */
+  user?: CompanyUser;
   onClose: () => void;
-  onCreated: (message: string) => void;
+  onSaved: (message: string) => void;
 }) {
+  const editing = Boolean(user);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(true);
   const [companyId, setCompanyId] = useState('');
@@ -35,11 +39,15 @@ export function AddUserModal({
   const [roster, setRoster] = useState<CompanyUser[] | null>(null);
   const [rosterLoading, setRosterLoading] = useState(false);
 
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [idNumber, setIdNumber] = useState('');
-  const [role, setRole] = useState<Role>('STAFF');
+  const [fullName, setFullName] = useState(user?.fullName ?? '');
+  const [email, setEmail] = useState(user?.emailAddress ?? '');
+  const [phone, setPhone] = useState(user?.mobileNumber ?? '');
+  const [idNumber, setIdNumber] = useState(
+    user?.idNumber && user.idNumber !== '00000000' ? user.idNumber : ''
+  );
+  const [role, setRole] = useState<Role>(
+    (ROLES.find((r) => r.value === user?.roles)?.value ?? 'STAFF') as Role
+  );
 
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -50,7 +58,14 @@ export function AddUserModal({
       try {
         const resp = await companyApi.getAll(0, 200);
         if (cancelled) return;
-        setCompanies(resp.data?.companies ?? []);
+        const list = resp.data?.companies ?? [];
+        setCompanies(list);
+        if (user) {
+          // Editing opens on the user's current company. The roster payload
+          // names the company but never carries its id, so match by name.
+          const own = list.find((c) => c.companyName === user.companyName);
+          if (own) setCompanyId(String(own.id));
+        }
       } catch {
         if (!cancelled) setError('Could not load companies');
       } finally {
@@ -60,7 +75,7 @@ export function AddUserModal({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [user]);
 
   // Who is already at the selected company.
   useEffect(() => {
@@ -95,6 +110,31 @@ export function AddUserModal({
     setBusy(true);
     setError('');
     try {
+      const company = companies.find((c) => String(c.id) === companyId);
+      const companyName = company?.companyName ?? 'the company';
+      const roleLabel = ROLES.find((r) => r.value === role)?.label ?? role;
+
+      if (editing && user) {
+        const movedFrom = user.companyName !== companyName ? user.companyName : null;
+        const resp = await usersApi.update({
+          userId: user.id,
+          fullName: fullName.trim(),
+          emailAddress: email,
+          mobileNumber: phone,
+          idNumber: idNumber.trim() || undefined,
+          roles: role,
+          companyId: Number(companyId),
+        });
+        if (resp.status === false) throw new Error(resp.message || 'Failed to update the user');
+        onSaved(
+          movedFrom
+            ? `${fullName.trim()} moved from ${movedFrom} to ${companyName} as ${roleLabel}.`
+            : `${fullName.trim()} updated as ${roleLabel}.`
+        );
+        onClose();
+        return;
+      }
+
       const resp = await usersApi.create({
         fullName: fullName.trim(),
         emailAddress: email,
@@ -104,20 +144,25 @@ export function AddUserModal({
         roles: role,
       });
       if (resp.status === false) throw new Error(resp.message || 'Failed to create the user');
-      const company = companies.find((c) => String(c.id) === companyId);
-      const roleLabel = ROLES.find((r) => r.value === role)?.label ?? role;
-      onCreated(
-        `${fullName.trim()} added to ${company?.companyName ?? 'the company'} as ${roleLabel}. ` +
+      onSaved(
+        `${fullName.trim()} added to ${companyName} as ${roleLabel}. ` +
           'They sign in with a one-time code sent to their email.'
       );
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create the user');
+      setError(
+        err instanceof Error
+          ? err.message
+          : editing
+            ? 'Failed to update the user'
+            : 'Failed to create the user'
+      );
     } finally {
       setBusy(false);
     }
   };
 
+  const company = companies.find((c) => String(c.id) === companyId);
   const rosterLine = rosterLoading
     ? 'Checking who is already there…'
     : roster === null
@@ -148,7 +193,7 @@ export function AddUserModal({
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="Add user to a company"
+        aria-label={editing ? 'Edit user' : 'Add user to a company'}
         className="flex flex-col gap-3.5 animate-soa-pop overflow-y-auto"
         style={{
           width: 'min(480px, 100%)',
@@ -160,7 +205,7 @@ export function AddUserModal({
         }}
       >
         <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 20 }}>
-          Add user to a company
+          {editing ? 'Edit user' : 'Add user to a company'}
         </div>
 
         <div className="field">
@@ -180,6 +225,11 @@ export function AddUserModal({
             ))}
           </select>
           {companyId && <div style={hintStyle}>{rosterLine}</div>}
+          {editing && user && company?.companyName && company.companyName !== user.companyName && (
+            <div style={{ ...hintStyle, color: 'var(--color-accent-700)', fontWeight: 600 }}>
+              Saving will move {user.fullName} out of {user.companyName}.
+            </div>
+          )}
         </div>
 
         <div className="field">
@@ -289,7 +339,12 @@ export function AddUserModal({
             {busy ? (
               <>
                 <Loader2 className="ic w-3.5 h-3.5 animate-spin" />
-                Adding…
+                {editing ? 'Saving…' : 'Adding…'}
+              </>
+            ) : editing ? (
+              <>
+                <Save className="ic w-3.5 h-3.5" />
+                Save changes
               </>
             ) : (
               <>
