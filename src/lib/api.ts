@@ -563,10 +563,16 @@ export interface Company {
 export interface CompanyUser {
   id: number;
   fullName: string;
-  emailAddress: string;
+  idNumber: string;
   mobileNumber: string;
+  emailAddress: string;
   roles: string;
-  active?: boolean;
+  companyName: string;
+  kycStatus: string;
+  currency: string;
+  /** A free-text job title the platform keeps alongside `roles`; often null. */
+  role: string | null;
+  active: boolean;
 }
 
 export const usersApi = {
