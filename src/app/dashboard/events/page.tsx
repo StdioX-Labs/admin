@@ -340,6 +340,43 @@ export default function EventsPage() {
       else setIsLoading(true);
       setError('');
       try {
+        // A bare number is an event ID. The platform's search only matches on
+        // event name — `LOWER(event_name) LIKE %term%` — so an ID is resolved
+        // to its name first and the normal search run with that, then narrowed
+        // to the exact id. Going through the list this way keeps the row's
+        // figures the server-computed ones every other row shows, rather than
+        // totals derived differently from the detail payload.
+        const idTerm = search?.trim() ?? '';
+        if (/^\d+$/.test(idTerm)) {
+          // A missing id is a normal "nothing matched", not a failure to report.
+          const detail = await eventsApi
+            .getEventById(Number(idTerm))
+            .catch(() => null);
+          const found = detail?.status
+            ? (detail.event as { eventName?: string } | undefined)
+            : undefined;
+          if (!found?.eventName) {
+            setEvents([]);
+            setCurrentPage(0);
+            setTotalPages(0);
+            setTotalElements(0);
+            setHasNext(false);
+            setHasPrevious(false);
+            return;
+          }
+          const byName = await eventsApi.getAllEvents(0, PAGE_SIZE, found.eventName);
+          const rows = ((byName.data?.data ?? []) as unknown as EventRow[]).filter(
+            (e) => String(e.eventId) === idTerm
+          );
+          setEvents(rows);
+          setCurrentPage(0);
+          setTotalPages(rows.length ? 1 : 0);
+          setTotalElements(rows.length);
+          setHasNext(false);
+          setHasPrevious(false);
+          return;
+        }
+
         const response = await eventsApi.getAllEvents(page, PAGE_SIZE, search);
         if (response.status && response.data?.data) {
           setEvents(response.data.data as unknown as EventRow[]);
@@ -460,7 +497,7 @@ export default function EventsPage() {
           <input
             className="soa-input"
             style={{ paddingLeft: 40, background: 'var(--color-neutral-100)' }}
-            placeholder="Search events, companies, locations…"
+            placeholder="Search by event ID, name, company or location…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -518,7 +555,13 @@ export default function EventsPage() {
           <EmptyState
             icon={CalendarDays}
             title="No events found"
-            hint={searchTerm ? 'Try a different search term' : undefined}
+            hint={
+              /^\d+$/.test(searchTerm.trim())
+                ? `No event with ID ${searchTerm.trim()}`
+                : searchTerm
+                  ? 'Try a different search term'
+                  : undefined
+            }
           />
         ) : (
           events.map((event) => (
