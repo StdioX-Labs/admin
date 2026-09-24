@@ -178,20 +178,27 @@ export default function DashboardPage() {
       {error && <ErrorNote message={error} onRetry={fetchData} />}
 
       {/* KPI strip */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-2.5 sm:gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {isLoading
-          ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} height={104} />)
-          : statCards.map((c) => {
+          ? Array.from({ length: 5 }).map((_, i) => (
+              <SkeletonCard key={i} height={84} />
+            ))
+          : statCards.map((c, i) => {
               const Icon = c.icon;
+              // Five tiles across two columns leave the last one beside a hole.
+              // Letting it run full width turns that gap into a deliberate row,
+              // and Pending — the only tile that asks for action — is the right
+              // one to carry it.
+              const lastOfFive = i === statCards.length - 1 && statCards.length % 2 === 1;
               return (
                 <Card
                   key={c.label}
                   onClick={() => router.push(c.href)}
                   hoverLift
                   padded={false}
-                  style={{ padding: 15 }}
+                  className={`p-3 sm:p-[15px] ${lastOfFive ? 'col-span-2 lg:col-span-1' : ''}`}
                 >
-                  <div className="flex items-center justify-between mb-[11px]">
+                  <div className="flex items-center justify-between mb-1.5 sm:mb-[11px]">
                     <span
                       style={{
                         fontSize: 10.5,
@@ -203,51 +210,60 @@ export default function DashboardPage() {
                       {c.label}
                     </span>
                     <span
-                      className="grid place-items-center flex-none"
+                      className="grid place-items-center flex-none w-[26px] h-[26px] sm:w-[30px] sm:h-[30px]"
                       style={{
-                        width: 30,
-                        height: 30,
                         borderRadius: 9,
                         background: c.tint.bg,
                         color: c.tint.fg,
                       }}
                     >
-                      <Icon className="ic w-[15px] h-[15px]" />
+                      <Icon className="ic w-[14px] h-[14px] sm:w-[15px] sm:h-[15px]" />
                     </span>
                   </div>
                   <div
-                    className="tnum truncate"
-                    style={{
-                      fontFamily: 'var(--font-body)',
-                      fontWeight: 700,
-                      fontSize: 26,
-                      lineHeight: 1,
-                    }}
+                    className={
+                      lastOfFive
+                        ? 'flex items-baseline gap-2.5 lg:block'
+                        : ''
+                    }
                   >
-                    {c.value}
-                  </div>
-                  <div className="flex items-center gap-[5px] mt-2">
-                    <span
-                      className="inline-flex items-center"
+                    <div
+                      className="tnum truncate text-[21px] sm:text-[26px]"
                       style={{
-                        fontSize: 10.5,
+                        fontFamily: 'var(--font-body)',
                         fontWeight: 700,
-                        padding: '1px 7px',
-                        borderRadius: 999,
-                        background: 'var(--tint-olive-bg)',
-                        color: 'var(--tint-olive-strong)',
+                        lineHeight: 1,
                       }}
                     >
-                      {c.trend}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: 'color-mix(in srgb, var(--color-text) 48%, transparent)',
-                      }}
+                      {c.value}
+                    </div>
+                    <div
+                      className={`flex items-center gap-[5px] ${
+                        lastOfFive ? 'lg:mt-2' : 'mt-1.5 sm:mt-2'
+                      }`}
                     >
-                      {c.sub}
-                    </span>
+                      <span
+                        className="inline-flex items-center"
+                        style={{
+                          fontSize: 10.5,
+                          fontWeight: 700,
+                          padding: '1px 7px',
+                          borderRadius: 999,
+                          background: 'var(--tint-olive-bg)',
+                          color: 'var(--tint-olive-strong)',
+                        }}
+                      >
+                        {c.trend}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: 'color-mix(in srgb, var(--color-text) 48%, transparent)',
+                        }}
+                      >
+                        {c.sub}
+                      </span>
+                    </div>
                   </div>
                 </Card>
               );
