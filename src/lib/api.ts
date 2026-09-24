@@ -567,6 +567,8 @@ export interface Company {
 
 export interface CompanyUser {
   id: number;
+  /** Present on the platform-wide listing; company/fetch/users omits it. */
+  companyId?: number | null;
   fullName: string;
   idNumber: string;
   mobileNumber: string;
@@ -621,6 +623,18 @@ export const usersApi = {
       method: 'PUT',
       body: JSON.stringify({ userId, active }),
     });
+  },
+
+  /** Every user on the platform. Company becomes a filter, not a prerequisite. */
+  listAll: async (search?: string) => {
+    const q = search ? `?search=${encodeURIComponent(search)}` : '';
+    return fetchApi<{
+      status: boolean;
+      message?: string;
+      users?: CompanyUser[];
+      totalElements?: number;
+      source?: 'platform' | 'per-company';
+    }>(`/users${q}`, { method: 'GET' });
   },
 
   listByCompany: async (companyId: number) => {

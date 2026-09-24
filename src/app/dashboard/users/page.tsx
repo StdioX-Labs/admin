@@ -32,13 +32,16 @@ import { UserFormModal } from '@/components/users/user-form-modal';
 import { useFlashMessage } from '@/components/events/event-actions';
 
 /**
- * Users, per company.
+ * Everyone on the platform.
  *
- * The platform exposes users through /company/users?companyId=, with no
- * endpoint that lists everyone at once — so a company is chosen first and the
- * roster is that company's. Only what the endpoint actually returns is shown:
- * there is no join date, last-seen, spend or event count in the payload, and
- * inventing columns for them would misrepresent the data.
+ * Company is a filter here, not a prerequisite: the page opens on the whole
+ * roster. /api/users prefers the platform's own listing and falls back to
+ * walking the companies where that has not been deployed yet, so this screen
+ * behaves the same either way.
+ *
+ * Only what the platform actually returns is shown. There is no join date,
+ * last-seen, spend or event count in the payload, and inventing columns for
+ * them would misrepresent the data.
  */
 
 const ROLES = ['SUPER_ADMIN', 'COMPANY_OWNER', 'STAFF'] as const;
@@ -113,7 +116,7 @@ export default function UsersPage() {
   const [companyId, setCompanyId] = useState('');
 
   const [users, setUsers] = useState<CompanyUser[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
 
@@ -133,10 +136,8 @@ export default function UsersPage() {
       try {
         const resp = await companyApi.getAll(0, 200);
         if (cancelled) return;
-        const list = resp.data?.companies ?? [];
-        setCompanies(list);
-        // Land on a roster rather than an empty screen.
-        if (list.length) setCompanyId(String(list[0].id));
+        // Only to label and filter by; the roster no longer depends on it.
+        setCompanies(resp.data?.companies ?? []);
       } catch {
         if (!cancelled) setError('Could not load companies');
       } finally {
@@ -148,32 +149,28 @@ export default function UsersPage() {
     };
   }, []);
 
-  const fetchUsers = useCallback(
-    async (id: string, { silent = false } = {}) => {
-      if (!id) return;
-      // A refresh keeps the roster on screen behind an overlay; only the first
-      // read of a company swaps in skeletons.
-      if (silent) setIsRefreshing(true);
-      else setIsLoading(true);
-      setError('');
-      try {
-        const resp = await usersApi.listByCompany(Number(id));
-        if (resp.status === false) throw new Error(resp.message || 'Failed to load users');
-        setUsers(resp.users ?? []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load users');
-        setUsers([]);
-      } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
-      }
-    },
-    []
-  );
+  const fetchUsers = useCallback(async ({ silent = false } = {}) => {
+    // A refresh keeps the roster on screen behind an overlay; only the first
+    // read swaps in skeletons.
+    if (silent) setIsRefreshing(true);
+    else setIsLoading(true);
+    setError('');
+    try {
+      const resp = await usersApi.listAll();
+      if (resp.status === false) throw new Error(resp.message || 'Failed to load users');
+      setUsers(resp.users ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load users');
+      setUsers([]);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchUsers(companyId);
-  }, [companyId, fetchUsers]);
+    fetchUsers();
+  }, [fetchUsers]);
 
   const toggleActive = async (u: CompanyUser) => {
     setStatusBusyId(u.id);
@@ -182,7 +179,7 @@ export default function UsersPage() {
       const resp = await usersApi.setActive(u.id, !u.active);
       if (resp.status === false) throw new Error(resp.message || 'Failed to update the user');
       showSuccess(`${u.fullName} ${u.active ? 'suspended' : 'reactivated'}.`);
-      await fetchUsers(companyId, { silent: true });
+      await fetchUsers({ silent: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update the user');
     } finally {
@@ -235,9 +232,13 @@ export default function UsersPage() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     return users.filter((u) => {
+      const matchesCompany =
+        !companyId ||
+        String(u.companyId ?? '') === companyId ||
+        u.companyName === companies.find((c) => String(c.id) === companyId)?.companyName;
       const matchesSearch =
         !q ||
-        `${u.fullName} ${u.emailAddress} ${u.mobileNumber} ${u.idNumber} ${u.role ?? ''}`
+        `${u.fullName} ${u.emailAddress} ${u.mobileNumber} ${u.idNumber} ${u.role ?? ''} ${u.companyName ?? ''}`
           .toLowerCase()
           .includes(q);
       const matchesRole = role === 'all' || u.roles === role;
@@ -246,20 +247,22 @@ export default function UsersPage() {
       const matchesKyc =
         kyc === 'all' ||
         (kyc === 'verified' ? isKycVerified(u.kycStatus) : !isKycVerified(u.kycStatus));
-      return matchesSearch && matchesRole && matchesStatus && matchesKyc;
+      return matchesCompany && matchesSearch && matchesRole && matchesStatus && matchesKyc;
     });
-  }, [users, search, role, status, kyc]);
+  }, [users, companies, companyId, search, role, status, kyc]);
 
+  // Counts follow the filters, so narrowing to a company answers "how many
+  // owners does this one have" rather than restating the platform total.
   const stats = useMemo(
     () => ({
-      total: users.length,
-      active: users.filter((u) => u.active).length,
-      suspended: users.filter((u) => !u.active).length,
-      owners: users.filter((u) => u.roles === 'COMPANY_OWNER').length,
-      staff: users.filter((u) => u.roles === 'STAFF').length,
-      verified: users.filter((u) => isKycVerified(u.kycStatus)).length,
+      total: filtered.length,
+      active: filtered.filter((u) => u.active).length,
+      suspended: filtered.filter((u) => !u.active).length,
+      owners: filtered.filter((u) => u.roles === 'COMPANY_OWNER').length,
+      staff: filtered.filter((u) => u.roles === 'STAFF').length,
+      verified: filtered.filter((u) => isKycVerified(u.kycStatus)).length,
     }),
-    [users]
+    [filtered]
   );
 
   const company = companies.find((c) => String(c.id) === companyId);
@@ -285,7 +288,7 @@ export default function UsersPage() {
           aria-label="Company"
         >
           <option value="">
-            {companiesLoading ? 'Loading companies…' : 'Select a company'}
+            {companiesLoading ? 'Loading companies…' : 'All companies'}
           </option>
           {companies.map((c) => (
             <option key={c.id} value={String(c.id)}>
@@ -297,7 +300,7 @@ export default function UsersPage() {
         <div className="flex-1" />
 
         <button
-          onClick={() => fetchUsers(companyId, { silent: true })}
+          onClick={() => fetchUsers({ silent: true })}
           disabled={!companyId || isRefreshing}
           className="flex items-center gap-1.5 flex-none disabled:opacity-50"
           style={{
@@ -337,301 +340,292 @@ export default function UsersPage() {
       </Card>
 
       {success && <SuccessNote message={success} />}
-      {error && <ErrorNote message={error} onRetry={() => fetchUsers(companyId)} />}
+      {error && <ErrorNote message={error} onRetry={() => fetchUsers()} />}
 
-      {!companyId ? (
-        <EmptyState
-          icon={Building2}
-          title="Choose a company"
-          hint="Users are listed per company — pick one above to see its people."
-        />
-      ) : (
-        <>
-          <div
-            className="grid gap-2.5"
-            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))' }}
-          >
-            <StatTile
-              label="Total users"
-              value={num(stats.total)}
-              icon={UsersIcon}
-              bg="var(--tint-stone-bg)"
-              fg="var(--tint-stone-fg)"
+        <div
+          className="grid gap-2.5"
+          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))' }}
+        >
+          <StatTile
+            label="Total users"
+            value={num(stats.total)}
+            icon={UsersIcon}
+            bg="var(--tint-stone-bg)"
+            fg="var(--tint-stone-fg)"
+          />
+          <StatTile label="Active" value={num(stats.active)} icon={Activity} />
+          <StatTile
+            label="Suspended"
+            value={num(stats.suspended)}
+            icon={XCircle}
+            bg="var(--tint-danger-bg)"
+            fg="var(--tint-danger-fg)"
+          />
+          <StatTile
+            label="Owners"
+            value={num(stats.owners)}
+            icon={ShieldCheck}
+            bg="var(--tint-clay-bg)"
+            fg="var(--tint-clay-strong)"
+          />
+          <StatTile label="Staff" value={num(stats.staff)} icon={UsersIcon} />
+          <StatTile
+            label="KYC verified"
+            value={num(stats.verified)}
+            icon={BadgeCheck}
+            bg="var(--tint-sand-bg)"
+            fg="var(--tint-sand-fg)"
+          />
+        </div>
+
+        {/* Filter bar */}
+        <Card
+          padded={false}
+          className="flex-row flex-wrap items-center gap-2.5"
+          style={{ padding: '13px 15px' }}
+        >
+          <div className="relative flex-1 min-w-[200px]">
+            <Search
+              className="ic absolute w-4 h-4 pointer-events-none"
+              style={{
+                left: 14,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'color-mix(in srgb, var(--color-text) 42%, transparent)',
+              }}
             />
-            <StatTile label="Active" value={num(stats.active)} icon={Activity} />
-            <StatTile
-              label="Suspended"
-              value={num(stats.suspended)}
-              icon={XCircle}
-              bg="var(--tint-danger-bg)"
-              fg="var(--tint-danger-fg)"
-            />
-            <StatTile
-              label="Owners"
-              value={num(stats.owners)}
-              icon={ShieldCheck}
-              bg="var(--tint-clay-bg)"
-              fg="var(--tint-clay-strong)"
-            />
-            <StatTile label="Staff" value={num(stats.staff)} icon={UsersIcon} />
-            <StatTile
-              label="KYC verified"
-              value={num(stats.verified)}
-              icon={BadgeCheck}
-              bg="var(--tint-sand-bg)"
-              fg="var(--tint-sand-fg)"
+            <input
+              className="soa-input"
+              style={{ paddingLeft: 40 }}
+              placeholder="Search name, email, phone or ID…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-
-          {/* Filter bar */}
-          <Card
-            padded={false}
-            className="flex-row flex-wrap items-center gap-2.5"
-            style={{ padding: '13px 15px' }}
+          <select
+            className="soa-input"
+            style={selectStyle}
+            value={role}
+            onChange={(e) => setRole(e.target.value as typeof role)}
+            aria-label="Filter by role"
           >
-            <div className="relative flex-1 min-w-[200px]">
-              <Search
-                className="ic absolute w-4 h-4 pointer-events-none"
-                style={{
-                  left: 14,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'color-mix(in srgb, var(--color-text) 42%, transparent)',
-                }}
-              />
-              <input
-                className="soa-input"
-                style={{ paddingLeft: 40 }}
-                placeholder="Search name, email, phone or ID…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+            <option value="all">All roles</option>
+            {ROLES.map((r) => (
+              <option key={r} value={r}>
+                {ROLE_LABEL[r]}
+              </option>
+            ))}
+          </select>
+          <select
+            className="soa-input"
+            style={selectStyle}
+            value={status}
+            onChange={(e) => setStatus(e.target.value as typeof status)}
+            aria-label="Filter by status"
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+          </select>
+          <select
+            className="soa-input"
+            style={selectStyle}
+            value={kyc}
+            onChange={(e) => setKyc(e.target.value as typeof kyc)}
+            aria-label="Filter by KYC"
+          >
+            <option value="all">Any KYC</option>
+            <option value="verified">KYC verified</option>
+            <option value="unverified">KYC pending</option>
+          </select>
+        </Card>
+
+        <div className="relative flex flex-col gap-2.5">
+          {isRefreshing && (
+            <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl backdrop-blur-[1px] bg-[color-mix(in_srgb,var(--color-bg)_50%,transparent)]">
+              <RotateCcw className="ic w-5 h-5 animate-spin text-muted-foreground" />
             </div>
-            <select
-              className="soa-input"
-              style={selectStyle}
-              value={role}
-              onChange={(e) => setRole(e.target.value as typeof role)}
-              aria-label="Filter by role"
-            >
-              <option value="all">All roles</option>
-              {ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {ROLE_LABEL[r]}
-                </option>
-              ))}
-            </select>
-            <select
-              className="soa-input"
-              style={selectStyle}
-              value={status}
-              onChange={(e) => setStatus(e.target.value as typeof status)}
-              aria-label="Filter by status"
-            >
-              <option value="all">All statuses</option>
-              <option value="active">Active</option>
-              <option value="suspended">Suspended</option>
-            </select>
-            <select
-              className="soa-input"
-              style={selectStyle}
-              value={kyc}
-              onChange={(e) => setKyc(e.target.value as typeof kyc)}
-              aria-label="Filter by KYC"
-            >
-              <option value="all">Any KYC</option>
-              <option value="verified">KYC verified</option>
-              <option value="unverified">KYC pending</option>
-            </select>
-          </Card>
+          )}
 
-          <div className="relative flex flex-col gap-2.5">
-            {isRefreshing && (
-              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl backdrop-blur-[1px] bg-[color-mix(in_srgb,var(--color-bg)_50%,transparent)]">
-                <RotateCcw className="ic w-5 h-5 animate-spin text-muted-foreground" />
-              </div>
-            )}
-
-            {isLoading ? (
-              Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} height={120} />)
-            ) : filtered.length === 0 ? (
-              <EmptyState
-                icon={UsersIcon}
-                title={users.length === 0 ? 'No users yet' : 'No users match'}
-                hint={
-                  users.length === 0
-                    ? `${company?.companyName ?? 'This company'} has nobody on it yet.`
-                    : 'Adjust your search or filters'
-                }
-              />
-            ) : (
-              <>
-                {/* Desktop table */}
-                <Card padded={false} className="overflow-hidden hidden md:flex">
-                  <div className="overflow-x-auto">
-                    <table className="soa-table" style={{ minWidth: 720 }}>
-                      <thead>
-                        <tr>
-                          <th>User</th>
-                          <th>Contact</th>
-                          <th>Role</th>
-                          <th>KYC</th>
-                          <th>Status</th>
-                          <th />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filtered.map((u, i) => (
-                          <tr key={u.id}>
-                            <td>
-                              <div className="flex items-center gap-2.5">
-                                <Avatar name={u.fullName} seed={i} />
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <span style={{ fontWeight: 600, fontSize: 13 }}>
-                                      {u.fullName}
-                                    </span>
-                                    {isKycVerified(u.kycStatus) && (
-                                      <BadgeCheck
-                                        className="ic w-[13px] h-[13px]"
-                                        style={{ color: 'var(--color-accent-2)' }}
-                                      />
-                                    )}
-                                  </div>
-                                  <div
-                                    style={{
-                                      fontSize: 11,
-                                      color: 'color-mix(in srgb, var(--color-text) 52%, transparent)',
-                                    }}
-                                  >
-                                    {u.emailAddress}
-                                  </div>
-                                  {u.role && (
-                                    <div style={{ fontSize: 11, color: 'var(--color-accent-700)' }}>
-                                      {u.role}
-                                    </div>
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} height={120} />)
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              icon={UsersIcon}
+              title={users.length === 0 ? 'No users yet' : 'No users match'}
+              hint={
+                users.length === 0
+                  ? `${company?.companyName ?? 'This company'} has nobody on it yet.`
+                  : 'Adjust your search or filters'
+              }
+            />
+          ) : (
+            <>
+              {/* Desktop table */}
+              <Card padded={false} className="overflow-hidden hidden md:flex">
+                <div className="overflow-x-auto">
+                  <table className="soa-table" style={{ minWidth: 720 }}>
+                    <thead>
+                      <tr>
+                        <th>User</th>
+                        <th>Contact</th>
+                        <th>Role</th>
+                        <th>KYC</th>
+                        <th>Status</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((u, i) => (
+                        <tr key={u.id}>
+                          <td>
+                            <div className="flex items-center gap-2.5">
+                              <Avatar name={u.fullName} seed={i} />
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span style={{ fontWeight: 600, fontSize: 13 }}>
+                                    {u.fullName}
+                                  </span>
+                                  {isKycVerified(u.kycStatus) && (
+                                    <BadgeCheck
+                                      className="ic w-[13px] h-[13px]"
+                                      style={{ color: 'var(--color-accent-2)' }}
+                                    />
                                   )}
                                 </div>
-                              </div>
-                            </td>
-                            <td>
-                              <div className="tnum" style={{ fontSize: 12.5 }}>
-                                {formatKenyanPhone(u.mobileNumber)}
-                              </div>
-                              {u.idNumber && u.idNumber !== '00000000' && (
                                 <div
-                                  className="tnum"
                                   style={{
                                     fontSize: 11,
-                                    color: 'color-mix(in srgb, var(--color-text) 48%, transparent)',
+                                    color: 'color-mix(in srgb, var(--color-text) 52%, transparent)',
                                   }}
                                 >
-                                  ID {u.idNumber}
+                                  {u.emailAddress}
                                 </div>
-                              )}
-                            </td>
-                            <td>
-                              <Pill bg={roleTint(u.roles).bg} fg={roleTint(u.roles).fg}>
-                                {roleLabel(u.roles)}
-                              </Pill>
-                            </td>
-                            <td>
-                              <span
+                                {u.role && (
+                                  <div style={{ fontSize: 11, color: 'var(--color-accent-700)' }}>
+                                    {u.role}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="tnum" style={{ fontSize: 12.5 }}>
+                              {formatKenyanPhone(u.mobileNumber)}
+                            </div>
+                            {u.idNumber && u.idNumber !== '00000000' && (
+                              <div
+                                className="tnum"
                                 style={{
-                                  fontSize: 11.5,
-                                  color: isKycVerified(u.kycStatus)
-                                    ? 'var(--tint-olive-strong)'
-                                    : 'color-mix(in srgb, var(--color-text) 50%, transparent)',
+                                  fontSize: 11,
+                                  color: 'color-mix(in srgb, var(--color-text) 48%, transparent)',
                                 }}
                               >
-                                {u.kycStatus || '—'}
-                              </span>
-                            </td>
-                            <td>
-                              <StatusChip active={u.active} />
-                            </td>
-                            <td>{rowActions(u)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </Card>
-
-                {/* Mobile cards */}
-                <div className="flex flex-col gap-2.5 md:hidden">
-                  {filtered.map((u, i) => (
-                    <Card key={u.id} padded={false} style={{ padding: '13px 15px', gap: 10 }}>
-                      <div className="flex items-center gap-3">
-                        <Avatar name={u.fullName} seed={i} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span style={{ fontWeight: 600, fontSize: 14 }}>{u.fullName}</span>
-                            {isKycVerified(u.kycStatus) && (
-                              <BadgeCheck
-                                className="ic w-[13px] h-[13px]"
-                                style={{ color: 'var(--color-accent-2)' }}
-                              />
+                                ID {u.idNumber}
+                              </div>
                             )}
-                          </div>
-                          <div
-                            className="truncate"
-                            style={{
-                              fontSize: 11.5,
-                              color: 'color-mix(in srgb, var(--color-text) 52%, transparent)',
-                            }}
-                          >
-                            {u.emailAddress}
-                          </div>
+                          </td>
+                          <td>
+                            <Pill bg={roleTint(u.roles).bg} fg={roleTint(u.roles).fg}>
+                              {roleLabel(u.roles)}
+                            </Pill>
+                          </td>
+                          <td>
+                            <span
+                              style={{
+                                fontSize: 11.5,
+                                color: isKycVerified(u.kycStatus)
+                                  ? 'var(--tint-olive-strong)'
+                                  : 'color-mix(in srgb, var(--color-text) 50%, transparent)',
+                              }}
+                            >
+                              {u.kycStatus || '—'}
+                            </span>
+                          </td>
+                          <td>
+                            <StatusChip active={u.active} />
+                          </td>
+                          <td>{rowActions(u)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+
+              {/* Mobile cards */}
+              <div className="flex flex-col gap-2.5 md:hidden">
+                {filtered.map((u, i) => (
+                  <Card key={u.id} padded={false} style={{ padding: '13px 15px', gap: 10 }}>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={u.fullName} seed={i} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span style={{ fontWeight: 600, fontSize: 14 }}>{u.fullName}</span>
+                          {isKycVerified(u.kycStatus) && (
+                            <BadgeCheck
+                              className="ic w-[13px] h-[13px]"
+                              style={{ color: 'var(--color-accent-2)' }}
+                            />
+                          )}
                         </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <Pill bg={roleTint(u.roles).bg} fg={roleTint(u.roles).fg}>
-                          {roleLabel(u.roles)}
-                        </Pill>
-                        <StatusChip active={u.active} />
-                        <div className="ml-auto">{rowActions(u)}</div>
-                      </div>
-                      <div
-                        className="flex justify-between pt-2.5"
-                        style={{ fontSize: 12, borderTop: '1px solid var(--color-divider)' }}
-                      >
-                        <span className="tnum">{formatKenyanPhone(u.mobileNumber)}</span>
-                        <span
+                        <div
+                          className="truncate"
                           style={{
-                            color: 'color-mix(in srgb, var(--color-text) 55%, transparent)',
+                            fontSize: 11.5,
+                            color: 'color-mix(in srgb, var(--color-text) 52%, transparent)',
                           }}
                         >
-                          {u.kycStatus || '—'}
-                        </span>
+                          {u.emailAddress}
+                        </div>
                       </div>
-                    </Card>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-
-          {!isLoading && users.length > 0 && (
-            <p
-              className="m-0"
-              style={{
-                fontSize: 11.5,
-                color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
-              }}
-            >
-              Showing {filtered.length} of {users.length} at {company?.companyName ?? 'this company'}
-            </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Pill bg={roleTint(u.roles).bg} fg={roleTint(u.roles).fg}>
+                        {roleLabel(u.roles)}
+                      </Pill>
+                      <StatusChip active={u.active} />
+                      <div className="ml-auto">{rowActions(u)}</div>
+                    </div>
+                    <div
+                      className="flex justify-between pt-2.5"
+                      style={{ fontSize: 12, borderTop: '1px solid var(--color-divider)' }}
+                    >
+                      <span className="tnum">{formatKenyanPhone(u.mobileNumber)}</span>
+                      <span
+                        style={{
+                          color: 'color-mix(in srgb, var(--color-text) 55%, transparent)',
+                        }}
+                      >
+                        {u.kycStatus || '—'}
+                      </span>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </>
           )}
-        </>
-      )}
+        </div>
+
+        {!isLoading && users.length > 0 && (
+          <p
+            className="m-0"
+            style={{
+              fontSize: 11.5,
+              color: 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+            }}
+          >
+            Showing {filtered.length} of {users.length}{' '}
+            {company ? `at ${company.companyName}` : 'across all companies'}
+          </p>
+        )}
 
       {addingUser && (
         <UserFormModal
           onClose={() => setAddingUser(false)}
           onSaved={(m) => {
             showSuccess(m);
-            fetchUsers(companyId, { silent: true });
+            fetchUsers({ silent: true });
           }}
         />
       )}
@@ -642,7 +636,7 @@ export default function UsersPage() {
           onClose={() => setEditingUser(null)}
           onSaved={(m) => {
             showSuccess(m);
-            fetchUsers(companyId, { silent: true });
+            fetchUsers({ silent: true });
           }}
         />
       )}
