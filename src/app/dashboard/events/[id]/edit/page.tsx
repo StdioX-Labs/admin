@@ -92,6 +92,8 @@ interface ApiEvent {
 
 interface TicketFigureRow {
   ticketId: number;
+  ticketsPerSale: number;
+  salesPaid: number;
   ticketsPaid: number;
   ticketsComplimentary: number;
   revenue: number;
@@ -1253,6 +1255,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                   isFree: t.isFree,
                   status: t.ticketStatus,
                   allocation: f?.allocated || t.quantityAvailable,
+                  ticketsPerSale: f?.ticketsPerSale ?? t.ticketsToIssue ?? 1,
                   paid: f?.ticketsPaid ?? 0,
                   complimentary: f?.ticketsComplimentary ?? 0,
                   revenue: f?.revenue ?? 0,

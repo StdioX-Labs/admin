@@ -104,6 +104,11 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       ticketId: t.ticketId,
       ticketName: t.ticketName,
       unitPrice: t.ticketPrice,
+      // A group type issues several tickets per sale, so the ticket counts are
+      // admissions and only `salesPaid` multiplies by price to give revenue.
+      // Stating both is what stops a reader reconciling the wrong pair.
+      ticketsPerSale: t.ticketsPerSale,
+      salesPaid: t.salesPaid,
       ticketsIssued: t.ticketsIssued,
       ticketsPaid: t.ticketsPaid,
       ticketsComplimentary: t.ticketsComplimentary,
@@ -112,6 +117,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       remaining: t.remaining,
     }));
 
+    const salesPaid = lines.reduce((s, l) => s + l.salesPaid, 0);
+    const hasGroupTickets = lines.some((l) => l.ticketsPerSale > 1);
     const ticketsIssued = lines.reduce((s, l) => s + l.ticketsIssued, 0);
     const ticketsPaid = lines.reduce((s, l) => s + l.ticketsPaid, 0);
     const ticketsComplimentary = lines.reduce((s, l) => s + l.ticketsComplimentary, 0);
@@ -144,6 +151,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       },
       performance: {
         ticketTypes: lines.length,
+        hasGroupTickets,
+        salesPaid,
         ticketsIssued,
         ticketsPaid,
         ticketsComplimentary,

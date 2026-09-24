@@ -22,10 +22,18 @@ export interface TicketFigures {
   ticketId: number;
   ticketName: string;
   ticketPrice: number;
-  /** Everything issued, paid and free together. */
+  /**
+   * How many tickets one purchase of this type issues. 1 for an ordinary
+   * ticket, 5 for a "group of 5". Everything below counted in *tickets* has to
+   * be divided by this to get purchases.
+   */
+  ticketsPerSale: number;
+  /** Everything issued, paid and free together — in tickets, not purchases. */
   ticketsIssued: number;
   ticketsPaid: number;
   ticketsComplimentary: number;
+  /** Paid purchases. This is the figure that multiplies by price to give revenue. */
+  salesPaid: number;
   revenue: number;
   allocated: number;
   remaining: number;
@@ -41,6 +49,7 @@ interface AdminTicketSummary {
   totalTicketSaleBalance?: number;
   originalTicketCount?: number;
   ticketCount?: number;
+  ticketsToIssue?: number;
 }
 
 const num = (...v: Array<number | undefined>) => v.find((x) => typeof x === 'number') ?? 0;
@@ -94,13 +103,19 @@ export async function fetchTicketFigures(
         typeof t.paidTicketsSold === 'number'
           ? t.paidTicketsSold
           : Math.max(0, issued - complimentary);
+      // A group ticket issues several tickets per sale, so the row counts above
+      // are admissions. Treat a missing or nonsensical value as 1 rather than
+      // dividing by it.
+      const perSale = Math.max(1, num(t.ticketsToIssue) || 1);
       return {
         ticketId: num(t.ticketId),
         ticketName: t.ticketName ?? 'Unnamed tier',
         ticketPrice: num(t.ticketPrice),
+        ticketsPerSale: perSale,
         ticketsIssued: issued,
         ticketsPaid: paid,
         ticketsComplimentary: complimentary,
+        salesPaid: Math.floor(paid / perSale),
         revenue: num(t.totalTicketSaleBalance),
         allocated: num(t.originalTicketCount),
         remaining: num(t.ticketCount),

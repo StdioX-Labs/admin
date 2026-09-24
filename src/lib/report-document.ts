@@ -19,6 +19,8 @@ export interface CertifiedReport {
   };
   performance: {
     ticketTypes: number;
+    hasGroupTickets: boolean;
+    salesPaid: number;
     ticketsIssued: number;
     ticketsPaid: number;
     ticketsComplimentary: number;
@@ -31,6 +33,8 @@ export interface CertifiedReport {
     ticketId: number;
     ticketName: string;
     unitPrice: number;
+    ticketsPerSale: number;
+    salesPaid: number;
     ticketsIssued: number;
     ticketsPaid: number;
     ticketsComplimentary: number;
@@ -129,11 +133,21 @@ export function buildReportPdf(
   const ccy = report.event.currency || 'KES';
   autoTable(doc, {
     startY: y,
-    head: [['Ticket tier', 'Unit price', 'Allocated', 'Paid', 'Comp', 'Issued', 'Revenue']],
+    head: [[
+      'Ticket tier',
+      'Unit price',
+      'Allocated',
+      'Sales',
+      'Paid',
+      'Comp',
+      'Issued',
+      'Revenue',
+    ]],
     body: report.lines.map((l) => [
-      l.ticketName,
+      l.ticketsPerSale > 1 ? `${l.ticketName}  (group of ${l.ticketsPerSale})` : l.ticketName,
       money(l.unitPrice, ccy),
       String(l.allocated),
+      String(l.salesPaid),
       String(l.ticketsPaid),
       String(l.ticketsComplimentary),
       String(l.ticketsIssued),
@@ -143,6 +157,7 @@ export function buildReportPdf(
       'Total',
       '',
       '',
+      String(report.performance.salesPaid),
       String(report.performance.ticketsPaid),
       String(report.performance.ticketsComplimentary),
       String(report.performance.ticketsIssued),
@@ -155,6 +170,7 @@ export function buildReportPdf(
     columnStyles: {
       1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' },
       4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' },
+      7: { halign: 'right' },
     },
     margin: { left: M, right: M },
   });
@@ -163,6 +179,12 @@ export function buildReportPdf(
   y = (doc.lastAutoTable?.finalY ?? y) + 26;
 
   const settle: Array<[string, string]> = [
+    [
+      'Paid sales',
+      `${report.performance.salesPaid}${
+        report.performance.hasGroupTickets ? ' (group tickets count once)' : ''
+      }`,
+    ],
     [
       'Tickets issued',
       `${report.performance.ticketsIssued} (${report.performance.ticketsPaid} paid, ` +
@@ -263,14 +285,17 @@ export function buildReportCsv(report: CertifiedReport, certificate: ReportCerti
     row('Issued by', report.issuedBy),
     row('Currency', ccy),
     row(),
-    row('Ticket tier', 'Unit price', 'Allocated', 'Paid', 'Complimentary', 'Issued', 'Remaining', 'Revenue'),
+    row('Ticket tier', 'Tickets per sale', 'Unit price', 'Allocated', 'Paid sales',
+        'Paid tickets', 'Complimentary', 'Issued', 'Remaining', 'Revenue'),
     ...report.lines.map((l) =>
-      row(l.ticketName, l.unitPrice, l.allocated, l.ticketsPaid, l.ticketsComplimentary,
-          l.ticketsIssued, l.remaining, l.revenue)
+      row(l.ticketName, l.ticketsPerSale, l.unitPrice, l.allocated, l.salesPaid,
+          l.ticketsPaid, l.ticketsComplimentary, l.ticketsIssued, l.remaining, l.revenue)
     ),
-    row('Total', '', '', report.performance.ticketsPaid, report.performance.ticketsComplimentary,
-        report.performance.ticketsIssued, '', report.performance.grossRevenue),
+    row('Total', '', '', '', report.performance.salesPaid, report.performance.ticketsPaid,
+        report.performance.ticketsComplimentary, report.performance.ticketsIssued, '',
+        report.performance.grossRevenue),
     row(),
+    row('Paid sales', report.performance.salesPaid),
     row('Tickets issued', report.performance.ticketsIssued),
     row('  of which paid', report.performance.ticketsPaid),
     row('  of which complimentary', report.performance.ticketsComplimentary),

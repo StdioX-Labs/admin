@@ -59,6 +59,8 @@ interface TicketSummary {
   totalTicketSaleBalance?: number;
   ticketCount?: number;
   originalTicketCount?: number;
+  /** Tickets issued per sale; 5 for a "group of 5". */
+  ticketsToIssue?: number;
 }
 
 interface EventRow {
@@ -299,6 +301,7 @@ function EventCard({
               price: t.ticketPrice,
               status: t.ticketStatus,
               allocation: t.originalTicketCount ?? t.ticketCount,
+              ticketsPerSale: t.ticketsToIssue ?? 1,
               paid: t.paidTicketsSold ?? 0,
               complimentary: t.complementaryTicketsSold ?? 0,
               revenue: t.totalTicketSaleBalance ?? 0,

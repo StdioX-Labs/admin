@@ -245,6 +245,9 @@ export interface AdminEventTicketSummary {
   totalTicketSaleBalance?: number;
   originalTicketCount?: number;
   ticketCount?: number; // remaining available
+  /** Tickets issued per sale — 5 for a "group of 5", 1 otherwise. The counts
+   *  above are tickets, so only (paid / ticketsToIssue) reconciles with revenue. */
+  ticketsToIssue?: number;
 }
 
 export interface AdminEvent {

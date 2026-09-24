@@ -26,6 +26,9 @@ export interface TicketSalesRow {
   /** Tickets people paid for. Sell-through is measured against these, because
    *  complimentary issues never draw down paid stock on the platform. */
   paid: number;
+  /** How many tickets one sale of this type issues — 5 for a "group of 5".
+   *  The counts here are tickets, so revenue divides by this, not by `paid`. */
+  ticketsPerSale?: number;
   /** Free tickets issued. They admit someone but earn nothing, so they are
    *  counted apart from paid rather than folded into a single "sold". */
   complimentary?: number;
@@ -74,6 +77,12 @@ export function TicketSalesTable({
   const showFill = !compact && hasAllocation;
 
   const sumPaid = rows.reduce((s, r) => s + r.paid, 0);
+  // Group types issue several tickets per sale, so paid tickets and paid sales
+  // are different numbers; only the latter reconciles against revenue.
+  const sumSales = rows.reduce(
+    (s, r) => s + Math.floor(r.paid / Math.max(1, r.ticketsPerSale ?? 1)),
+    0
+  );
   const sumComp = rows.reduce((s, r) => s + (r.complimentary ?? 0), 0);
   const sumIssued = sumPaid + sumComp;
   // A totals row has to total the column above it. Preferring an event-level
@@ -101,6 +110,7 @@ export function TicketSalesTable({
               <th>Ticket type</th>
               <th className="num">Price</th>
               {showFill && <th className="num">Allocation</th>}
+              <th className="num">Sales</th>
               <th className="num">Paid</th>
               <th className="num">Comp</th>
               <th className="num">Issued</th>
@@ -115,6 +125,8 @@ export function TicketSalesTable({
               const allocation = r.allocation ?? 0;
               const comp = r.complimentary ?? 0;
               const issued = r.paid + comp;
+              const perSale = Math.max(1, r.ticketsPerSale ?? 1);
+              const sales = Math.floor(r.paid / perSale);
               const remaining = Math.max(0, allocation - r.paid);
               const fill = allocation > 0 ? Math.min(100, Math.round((r.paid / allocation) * 100)) : 0;
               const tint = statusTint(r.status);
@@ -133,8 +145,23 @@ export function TicketSalesTable({
                           free
                         </Pill>
                       )}
+                      {perSale > 1 && (
+                        <span
+                          className="inline-flex items-center"
+                          style={{
+                            fontSize: 10.5,
+                            fontWeight: 700,
+                            padding: '1px 7px',
+                            borderRadius: 999,
+                            background: 'var(--tint-sand-bg)',
+                            color: 'var(--tint-sand-fg)',
+                          }}
+                        >
+                          group of {perSale}
+                        </span>
+                      )}
                     </div>
-                    {(r.limitPerPerson != null || (r.complimentary ?? 0) > 0) && (
+                    {(r.limitPerPerson != null || (r.complimentary ?? 0) > 0 || perSale > 1) && (
                       <div style={{ fontSize: 11, color: MUTED, marginTop: 3 }}>
                         {r.limitPerPerson != null && r.limitPerPerson > 0 && (
                           <>max {r.limitPerPerson}/person</>
@@ -144,6 +171,15 @@ export function TicketSalesTable({
                           (r.complimentary ?? 0) > 0 &&
                           ' · '}
                         {(r.complimentary ?? 0) > 0 && <>{num(r.complimentary)} comp</>}
+                        {perSale > 1 && (
+                          <>
+                            {(r.limitPerPerson != null && r.limitPerPerson > 0) ||
+                            (r.complimentary ?? 0) > 0
+                              ? ' · '
+                              : ''}
+                            {num(sales)} sale{sales === 1 ? '' : 's'} × {perSale} tickets
+                          </>
+                        )}
                       </div>
                     )}
                   </td>
@@ -154,8 +190,9 @@ export function TicketSalesTable({
                     </td>
                   )}
                   <td className="num" style={{ fontWeight: 600 }}>
-                    {num(r.paid)}
+                    {num(sales)}
                   </td>
+                  <td className="num">{num(r.paid)}</td>
                   <td className="num" style={{ color: comp ? 'var(--color-accent-700)' : MUTED }}>
                     {comp ? num(comp) : '—'}
                   </td>
@@ -223,6 +260,7 @@ export function TicketSalesTable({
               {showFill && (
                 <td className="num">{sumAllocation > 0 ? num(sumAllocation) : '—'}</td>
               )}
+              <td className="num">{num(sumSales)}</td>
               <td className="num">{num(sumPaid)}</td>
               <td className="num" style={{ color: sumComp ? 'var(--color-accent-700)' : MUTED }}>
                 {sumComp ? num(sumComp) : '—'}
@@ -267,6 +305,8 @@ export function TicketSalesTable({
           const allocation = r.allocation ?? 0;
           const comp = r.complimentary ?? 0;
           const issued = r.paid + comp;
+          const perSale = Math.max(1, r.ticketsPerSale ?? 1);
+          const sales = Math.floor(r.paid / perSale);
           const remaining = Math.max(0, allocation - r.paid);
           const fill = allocation > 0 ? Math.min(100, Math.round((r.paid / allocation) * 100)) : 0;
           const tint = statusTint(r.status);
@@ -316,7 +356,8 @@ export function TicketSalesTable({
                       <span className="tnum" style={{ fontWeight: 600, color: 'var(--color-text)' }}>
                         {num(r.paid)}
                       </span>{' '}
-                      paid{comp ? ` · ${num(comp)} comp` : ''} · {num(remaining)} left
+                      {perSale > 1 ? `paid (${num(sales)} × ${perSale})` : 'paid'}
+                      {comp ? ` · ${num(comp)} comp` : ''} · {num(remaining)} left
                     </span>
                     <span className="tnum" style={{ fontWeight: 700 }}>
                       {fill}%
