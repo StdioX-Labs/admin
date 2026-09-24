@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const authString = Buffer.from(`${API_USERNAME}:${API_PASSWORD}`).toString('base64');
 
-    const response = await fetch(`${API_BASE_URL}/transactions/fetch/detailed`, {
+    const response = await fetch(`${API_BASE_URL}/gl/transactions/fetch/detailed`, {
       method: 'POST',
       headers: {
         'Authorization': `Basic ${authString}`,

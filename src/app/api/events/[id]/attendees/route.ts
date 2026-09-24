@@ -9,9 +9,14 @@ const API_PASSWORD = process.env.NEXT_PUBLIC_API_PASSWORD;
 /**
  * Everyone holding a ticket to an event.
  *
- * Upstream is /event/attendees/list, which takes only the event — the sibling
- * /event/attendees/get additionally wants a userId to attribute the request
- * to, which this console has no use for.
+ * Upstream is /gl/event/attendees/list, which takes only the event — the
+ * sibling /event/attendees/get additionally wants a userId to attribute the
+ * request to, which this console has no use for.
+ *
+ * The gl prefix is not decoration: GLManagerController is mapped at
+ * "api/v1/gl", so its routes do not sit beside the others under api/v1. Reading
+ * a method's @GetMapping without its class's @RequestMapping is what put this
+ * one, and the transactions proxy, at an address that does not exist.
  */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -43,7 +48,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     }
 
     const authString = Buffer.from(`${API_USERNAME}:${API_PASSWORD}`).toString('base64');
-    const response = await fetch(`${API_BASE_URL}/event/attendees/list?eventId=${eventId}`, {
+    const response = await fetch(`${API_BASE_URL}/gl/event/attendees/list?eventId=${eventId}`, {
       headers: {
         Authorization: `Basic ${authString}`,
         'Content-Type': 'application/json',
