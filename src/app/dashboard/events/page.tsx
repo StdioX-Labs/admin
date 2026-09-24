@@ -3,9 +3,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  AttendeesButton,
   ComplimentaryButton,
   ComplimentaryTicketsModal,
   ReportButton,
+  useAttendeeExport,
   useCertifiedReport,
   useFlashMessage,
 } from '@/components/events/event-actions';
@@ -95,6 +97,8 @@ function EventCard({
   onReport,
   reporting,
   onComp,
+  onAttendees,
+  attendeesBusy,
   toggling,
 }: {
   event: EventRow;
@@ -103,6 +107,8 @@ function EventCard({
   onReport: (e: EventRow) => void;
   reporting: boolean;
   onComp: (e: EventRow) => void;
+  onAttendees: (e: EventRow) => void;
+  attendeesBusy: boolean;
   toggling: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -185,6 +191,7 @@ function EventCard({
                   'Activate'
                 )}
               </button>
+              <AttendeesButton busy={attendeesBusy} onClick={() => onAttendees(event)} />
               <ComplimentaryButton onClick={() => onComp(event)} />
               <ReportButton busy={reporting} onClick={() => onReport(event)} />
               <button
@@ -333,6 +340,10 @@ export default function EventsPage() {
 
   const [compFor, setCompFor] = useState<EventRow | null>(null);
   const { download: downloadReport, busyEventId: reportingEventId } = useCertifiedReport({
+    onSuccess: showSuccess,
+    onError: setError,
+  });
+  const { download: downloadAttendees, busyEventId: attendeesEventId } = useAttendeeExport({
     onSuccess: showSuccess,
     onError: setError,
   });
@@ -580,6 +591,8 @@ export default function EventsPage() {
               onReport={downloadReport}
               reporting={reportingEventId === event.eventId}
               onComp={setCompFor}
+              onAttendees={downloadAttendees}
+              attendeesBusy={attendeesEventId === event.eventId}
               toggling={togglingEventId === event.eventId}
             />
           ))

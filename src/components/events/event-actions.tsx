@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FileDown, Gift, Loader2 } from 'lucide-react';
+import { FileDown, Gift, Loader2, Users } from 'lucide-react';
 import { eventsApi } from '@/lib/api';
 import { money } from '@/components/ui/soa';
 import {
@@ -104,6 +104,87 @@ export function useCertifiedReport(handlers: {
   };
 
   return { download, busyEventId };
+}
+
+/**
+ * Downloads the event's attendees as a CSV.
+ *
+ * Name, email and phone only — the list is for contacting people, so ticket
+ * mechanics would just be columns to scroll past. Rows with no contact detail
+ * at all are dropped rather than exported as blanks, since a line with nothing
+ * on it cannot be acted on and only inflates the count.
+ */
+export function useAttendeeExport(handlers: {
+  onSuccess: (message: string) => void;
+  onError: (message: string) => void;
+}) {
+  const [busyEventId, setBusyEventId] = useState<number | null>(null);
+
+  const download = async (event: EventActionTarget) => {
+    setBusyEventId(event.eventId);
+    try {
+      const [{ saveBlob }, resp] = await Promise.all([
+        import('@/lib/report-document'),
+        eventsApi.getAttendees(event.eventId),
+      ]);
+      if (resp.status === false) throw new Error(resp.message || 'Could not load attendees');
+
+      const rows = (resp.attendees ?? [])
+        .map((a) => ({
+          name: [a.firstName, a.lastName].filter(Boolean).join(' ').trim(),
+          email: (a.email ?? '').trim(),
+          phone: (a.mobileNumber ?? '').trim(),
+        }))
+        .filter((r) => r.name || r.email || r.phone);
+
+      if (!rows.length) {
+        handlers.onError(`No attendees to export for ${event.eventName}.`);
+        return;
+      }
+
+      const esc = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+      const csv = [
+        ['Full name', 'Email', 'Phone'].join(','),
+        ...rows.map((r) => [r.name, r.email, r.phone].map(esc).join(',')),
+      ].join('\r\n');
+
+      const slug = event.eventName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 48);
+      // The BOM keeps Excel from mangling non-ASCII names on open.
+      saveBlob(
+        new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }),
+        `attendees-${slug || event.eventId}.csv`
+      );
+      handlers.onSuccess(`${rows.length} attendee${rows.length === 1 ? '' : 's'} exported for ${event.eventName}`);
+    } catch (err) {
+      handlers.onError(err instanceof Error ? err.message : 'Could not load attendees');
+    } finally {
+      setBusyEventId(null);
+    }
+  };
+
+  return { download, busyEventId };
+}
+
+export function AttendeesButton({ busy, onClick }: { busy: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={busy}
+      title="Download attendees (CSV)"
+      className="grid place-items-center disabled:opacity-50"
+      style={ICON_BUTTON}
+    >
+      {busy ? (
+        <Loader2 className="ic w-[15px] h-[15px] animate-spin" />
+      ) : (
+        <Users className="ic w-[15px] h-[15px]" />
+      )}
+    </button>
+  );
 }
 
 export function ReportButton({ busy, onClick }: { busy: boolean; onClick: () => void }) {

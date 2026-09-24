@@ -3,9 +3,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  AttendeesButton,
   ComplimentaryButton,
   ComplimentaryTicketsModal,
   ReportButton,
+  useAttendeeExport,
   useCertifiedReport,
   useFlashMessage,
 } from '@/components/events/event-actions';
@@ -140,6 +142,10 @@ export default function EventSalesPage() {
   const [compFor, setCompFor] = useState<AdminEvent | null>(null);
   const { message: success, show: showSuccess } = useFlashMessage();
   const { download: downloadReport, busyEventId: reportingEventId } = useCertifiedReport({
+    onSuccess: showSuccess,
+    onError: setError,
+  });
+  const { download: downloadAttendees, busyEventId: attendeesEventId } = useAttendeeExport({
     onSuccess: showSuccess,
     onError: setError,
   });
@@ -491,6 +497,10 @@ export default function EventSalesPage() {
                       </div>
 
                       <div className="flex items-center gap-1.5 flex-none">
+                        <AttendeesButton
+                          busy={attendeesEventId === e.eventId}
+                          onClick={() => downloadAttendees(e)}
+                        />
                         <ComplimentaryButton onClick={() => setCompFor(e)} />
                         <ReportButton
                           busy={reportingEventId === e.eventId}
