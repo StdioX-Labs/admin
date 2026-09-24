@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { upstreamStatus, SESSION_MAX_AGE_MS } from '@/lib/auth';
 import { signPayload, SigningKeyMissingError } from '@/lib/report-signing';
-import { fetchTicketFigures } from '@/lib/event-figures';
+import { fetchEventFigures } from '@/lib/event-figures';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME;
@@ -84,7 +84,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     // it has no revenue field at all. Reading counts from there produced a
     // signed document stating zero tickets and zero revenue for every event.
     const numericId = num(event.id, event.eventId, Number(id));
-    const summaries = await fetchTicketFigures(numericId, String(event.eventName));
+    const figures = await fetchEventFigures(numericId, String(event.eventName));
+    const summaries = figures?.tickets ?? null;
 
     // A certified document that quietly reports zeros is worse than no
     // document, because the signature makes the zeros look authoritative.
@@ -123,7 +124,10 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     const ticketsPaid = lines.reduce((s, l) => s + l.ticketsPaid, 0);
     const ticketsComplimentary = lines.reduce((s, l) => s + l.ticketsComplimentary, 0);
     const grossRevenue = lines.reduce((s, l) => s + l.revenue, 0);
-    const commissionRate = num(event.percentageCommission, event.percentageComission);
+    // The event detail DTO has no commission field at all, so reading it there
+    // produced a confident 0% and a zero platform fee on a signed document.
+    // The admin listing is the only payload that carries it.
+    const commissionRate = figures?.commissionRate ?? 0;
     const platformFee = Math.round(grossRevenue * (commissionRate / 100) * 100) / 100;
 
     const issuedAt = new Date();

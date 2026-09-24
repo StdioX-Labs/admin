@@ -68,10 +68,22 @@ export function authHeader() {
  * Returns null when the figures cannot be established. Callers must treat that
  * as "unknown", never as zero.
  */
-export async function fetchTicketFigures(
+export interface EventFigures {
+  tickets: TicketFigures[];
+  /**
+   * Platform commission for this event.
+   *
+   * Only the admin listing reports it: the event detail DTO carries no
+   * commission field at all, so reading it from there yielded undefined and,
+   * once floored to a number, a confident 0% on a signed document.
+   */
+  commissionRate: number;
+}
+
+export async function fetchEventFigures(
   eventId: number,
   eventName: string
-): Promise<TicketFigures[] | null> {
+): Promise<EventFigures | null> {
   try {
     const resp = await fetch(
       `${API_BASE_URL}/admin/events/get/all?page=0&size=50&searchName=${encodeURIComponent(eventName)}`,
@@ -94,7 +106,13 @@ export async function fetchTicketFigures(
     );
     if (!match || !Array.isArray(match.ticketSummaries)) return null;
 
-    return (match.ticketSummaries as AdminTicketSummary[]).map((t) => {
+    const commissionRate = num(
+      (match as { percentageCommission?: number; percentageComission?: number })
+        .percentageCommission,
+      (match as { percentageComission?: number }).percentageComission
+    );
+
+    const tickets = (match.ticketSummaries as AdminTicketSummary[]).map((t) => {
       const issued = num(t.uniqueTicketCount);
       const complimentary = num(t.complementaryTicketsSold);
       // Trust the platform's own split; derive the remainder only when the paid
@@ -128,9 +146,20 @@ export async function fetchTicketFigures(
         remaining: num(t.ticketCount),
       };
     });
+
+    return { tickets, commissionRate };
   } catch {
     return null;
   }
+}
+
+/** Ticket figures alone, for callers with no use for the commission. */
+export async function fetchTicketFigures(
+  eventId: number,
+  eventName: string
+): Promise<TicketFigures[] | null> {
+  const figures = await fetchEventFigures(eventId, eventName);
+  return figures ? figures.tickets : null;
 }
 
 export { upstreamStatus };

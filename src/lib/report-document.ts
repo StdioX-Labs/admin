@@ -67,6 +67,27 @@ const when = (iso: string) => {
     : d.toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' });
 };
 
+/**
+ * What a sale of this tier actually fetched, on average.
+ *
+ * The tier's price is whatever it is configured at now. Change it mid-sale and
+ * it stops describing what earlier buyers paid, so `price x sales` no longer
+ * equals the revenue and the document appears to contradict itself. The ledger
+ * is the authority on money; this divides it back out so the two columns can be
+ * read together.
+ */
+function averagePaid(line: CertifiedReport['lines'][number]): number | null {
+  return line.salesPaid > 0 ? line.revenue / line.salesPaid : null;
+}
+
+/** True when the configured price no longer explains what was collected. */
+function priceMoved(line: CertifiedReport['lines'][number]): boolean {
+  const avg = averagePaid(line);
+  if (avg === null) return false;
+  // A shilling of rounding is not a price change.
+  return Math.abs(avg - line.unitPrice) > 1;
+}
+
 export function reportFileStem(report: CertifiedReport) {
   const slug = report.event.eventName
     .toLowerCase()
@@ -135,7 +156,7 @@ export function buildReportPdf(
     startY: y,
     head: [[
       'Ticket tier',
-      'Unit price',
+      'Price',
       'Allocated',
       'Sales',
       'Paid',
@@ -145,7 +166,9 @@ export function buildReportPdf(
     ]],
     body: report.lines.map((l) => [
       l.ticketsPerSale > 1 ? `${l.ticketName}  (group of ${l.ticketsPerSale})` : l.ticketName,
-      money(l.unitPrice, ccy),
+      priceMoved(l)
+        ? `${money(l.unitPrice, ccy)}\nnow; avg paid ${money(averagePaid(l) as number, ccy)}`
+        : money(l.unitPrice, ccy),
       String(l.allocated),
       String(l.salesPaid),
       String(l.ticketsPaid),
@@ -176,7 +199,37 @@ export function buildReportPdf(
   });
 
   // @ts-expect-error autoTable records its finishing position on the document
-  y = (doc.lastAutoTable?.finalY ?? y) + 26;
+  y = (doc.lastAutoTable?.finalY ?? y) + 14;
+
+  const moved = report.lines.filter(priceMoved);
+  const unpaid = report.lines.filter((l) => l.salesPaid > 0 && l.revenue === 0);
+  if (moved.length || unpaid.length) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    const notes: string[] = [];
+    if (moved.length) {
+      notes.push(
+        'Price shown is the tier\u2019s current setting. Where it differs from the average paid, ' +
+          'the price changed during the sale; revenue is what was actually collected, ' +
+          'so it will not equal price \u00d7 sales.'
+      );
+    }
+    if (unpaid.length) {
+      notes.push(
+        `${unpaid.map((l) => l.ticketName).join(', ')}: tickets issued against this tier carry no ` +
+          'recorded payment. They are counted as issued and contribute nothing to revenue.'
+      );
+    }
+    for (const n of notes) {
+      const wrapped = doc.splitTextToSize(n, page.getWidth() - M * 2);
+      doc.text(wrapped, M, y);
+      y += 10 * wrapped.length + 4;
+    }
+    y += 8;
+  } else {
+    y += 12;
+  }
 
   const settle: Array<[string, string]> = [
     [
@@ -285,13 +338,15 @@ export function buildReportCsv(report: CertifiedReport, certificate: ReportCerti
     row('Issued by', report.issuedBy),
     row('Currency', ccy),
     row(),
-    row('Ticket tier', 'Tickets per sale', 'Unit price', 'Allocated', 'Paid sales',
-        'Paid tickets', 'Complimentary', 'Issued', 'Remaining', 'Revenue'),
+    row('Ticket tier', 'Tickets per sale', 'Current price', 'Average paid', 'Allocated',
+        'Paid sales', 'Paid tickets', 'Complimentary', 'Issued', 'Remaining', 'Revenue'),
     ...report.lines.map((l) =>
-      row(l.ticketName, l.ticketsPerSale, l.unitPrice, l.allocated, l.salesPaid,
-          l.ticketsPaid, l.ticketsComplimentary, l.ticketsIssued, l.remaining, l.revenue)
+      row(l.ticketName, l.ticketsPerSale, l.unitPrice,
+          averagePaid(l) === null ? '' : Math.round((averagePaid(l) as number) * 100) / 100,
+          l.allocated, l.salesPaid, l.ticketsPaid, l.ticketsComplimentary,
+          l.ticketsIssued, l.remaining, l.revenue)
     ),
-    row('Total', '', '', '', report.performance.salesPaid, report.performance.ticketsPaid,
+    row('Total', '', '', '', '', report.performance.salesPaid, report.performance.ticketsPaid,
         report.performance.ticketsComplimentary, report.performance.ticketsIssued, '',
         report.performance.grossRevenue),
     row(),
