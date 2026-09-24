@@ -43,6 +43,7 @@ import {
   MetricTile,
   Toggle,
   money,
+  compactMoney,
   num,
   dateShort,
   timeShort,
@@ -127,12 +128,12 @@ function EventCard({
           url={event.eventPosterUrl}
           name={event.eventName}
           seed={event.eventId}
-          className="w-[100px] sm:w-[130px] self-stretch"
+          className="w-[68px] sm:w-[130px] self-stretch flex-none"
           style={{ minHeight: 196 }}
         />
 
-        <div className="flex-1 min-w-0 px-4 py-3.5">
-          <div className="flex justify-between gap-2.5 items-start">
+        <div className="flex-1 min-w-0 px-3 sm:px-4 py-3.5">
+          <div className="flex flex-wrap justify-between gap-2.5 items-start">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span
@@ -546,7 +547,7 @@ export default function EventsPage() {
           )}
         </div>
         <div className="grid grid-cols-2 gap-2.5">
-          <StatTile label="Page revenue" value={money(pageRevenue)} icon={DollarSign} />
+          <StatTile label="Page revenue" value={compactMoney(pageRevenue)} icon={DollarSign} />
           <StatTile
             label="Tickets sold"
             value={num(pageSold)}

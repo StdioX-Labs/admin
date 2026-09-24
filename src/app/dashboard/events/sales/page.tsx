@@ -44,6 +44,7 @@ import {
   MetricTile,
   Meta,
   money,
+  compactMoney,
   num,
   dateShort,
   timeShort,
@@ -214,7 +215,7 @@ export default function EventSalesPage() {
           className="grid gap-2.5 flex-1 min-w-[260px]"
           style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))' }}
         >
-          <StatTile label="Sales revenue" value={money(totRev)} icon={DollarSign} />
+          <StatTile label="Sales revenue" value={compactMoney(totRev)} icon={DollarSign} />
           <StatTile
             label="Tickets sold"
             value={num(totSold)}
@@ -418,7 +419,7 @@ export default function EventSalesPage() {
                       url={e.eventPosterUrl}
                       name={e.eventName}
                       seed={e.eventId}
-                      className="w-[100px] sm:w-[130px] h-full"
+                      className="w-[68px] sm:w-[130px] h-full flex-none"
                       style={{ minHeight: 196 }}
                     />
                     {/* Rank badge — this list is ordered, the Events list is not. */}
@@ -443,8 +444,8 @@ export default function EventSalesPage() {
                     </span>
                   </div>
 
-                  <div className="flex-1 min-w-0 px-4 py-3.5">
-                    <div className="flex justify-between gap-2.5 items-start">
+                  <div className="flex-1 min-w-0 px-3 sm:px-4 py-3.5">
+                    <div className="flex flex-wrap justify-between gap-2.5 items-start">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span
