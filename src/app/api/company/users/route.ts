@@ -6,7 +6,14 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME;
 const API_PASSWORD = process.env.NEXT_PUBLIC_API_PASSWORD;
 
-/** The people already attached to a company — context when adding another. */
+/**
+ * The people already attached to a company — context when adding another.
+ *
+ * Upstream is /company/fetch/users. The organiser dashboard's client calls
+ * "/company/users", but that is the path of its own proxy route, which then
+ * forwards to /company/fetch/users; reading the client as if it named the
+ * platform endpoint is how this came to request a path that does not exist.
+ */
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies();
@@ -36,7 +43,7 @@ export async function GET(request: NextRequest) {
     }
 
     const authString = Buffer.from(`${API_USERNAME}:${API_PASSWORD}`).toString('base64');
-    const response = await fetch(`${API_BASE_URL}/company/users?companyId=${companyId}`, {
+    const response = await fetch(`${API_BASE_URL}/company/fetch/users?companyId=${companyId}`, {
       headers: {
         Authorization: `Basic ${authString}`,
         'Content-Type': 'application/json',
