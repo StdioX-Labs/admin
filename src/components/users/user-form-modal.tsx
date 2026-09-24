@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Loader2, Save, UserPlus } from 'lucide-react';
 import { companyApi, usersApi, type Company, type CompanyUser } from '@/lib/api';
 import { formatKenyanPhone, isValidEmail, normalizeKenyanPhone } from '@/lib/phone';
+import { CompanyPicker } from './company-picker';
 
 const ROLES = [
   { value: 'STAFF', label: 'Staff', hint: 'Scans tickets and works events' },
@@ -56,7 +57,9 @@ export function UserFormModal({
     let cancelled = false;
     (async () => {
       try {
-        const resp = await companyApi.getAll(0, 200);
+        // Searching filters this list in the browser, so it has to hold every
+        // company — a page of 200 would silently hide the rest from search.
+        const resp = await companyApi.getAll(0, 1000);
         if (cancelled) return;
         const list = resp.data?.companies ?? [];
         setCompanies(list);
@@ -210,20 +213,13 @@ export function UserFormModal({
 
         <div className="field">
           <label htmlFor="user-company">Company</label>
-          <select
-            id="user-company"
-            className="soa-input"
+          <CompanyPicker
+            inputId="user-company"
+            companies={companies}
+            loading={companiesLoading}
             value={companyId}
-            onChange={(e) => setCompanyId(e.target.value)}
-            disabled={companiesLoading}
-          >
-            <option value="">{companiesLoading ? 'Loading companies…' : 'Select a company'}</option>
-            {companies.map((c) => (
-              <option key={c.id} value={String(c.id)}>
-                {c.companyName}
-              </option>
-            ))}
-          </select>
+            onChange={setCompanyId}
+          />
           {companyId && <div style={hintStyle}>{rosterLine}</div>}
           {editing && user && company?.companyName && company.companyName !== user.companyName && (
             <div style={{ ...hintStyle, color: 'var(--color-accent-700)', fontWeight: 600 }}>

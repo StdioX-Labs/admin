@@ -118,6 +118,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [truncated, setTruncated] = useState(false);
   const [error, setError] = useState('');
 
   const [search, setSearch] = useState('');
@@ -159,6 +160,8 @@ export default function UsersPage() {
       const resp = await usersApi.listAll();
       if (resp.status === false) throw new Error(resp.message || 'Failed to load users');
       setUsers(resp.users ?? []);
+      // The table has no pager, so a partial roster would look complete.
+      setTruncated(Boolean(resp.truncated));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load users');
       setUsers([]);
@@ -617,6 +620,7 @@ export default function UsersPage() {
           >
             Showing {filtered.length} of {users.length}{' '}
             {company ? `at ${company.companyName}` : 'across all companies'}
+            {truncated && ' — more exist than this screen will load; narrow with search'}
           </p>
         )}
 

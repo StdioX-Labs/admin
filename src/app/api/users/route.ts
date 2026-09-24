@@ -118,24 +118,50 @@ export async function GET(request: NextRequest) {
     }
 
     const sp = request.nextUrl.searchParams;
-    const page = Number(sp.get('page') ?? 0) || 0;
-    const size = Number(sp.get('size') ?? 200) || 200;
     const search = sp.get('search') ?? '';
 
-    let url = `${API_BASE_URL}/admin/users?page=${page}&size=${size}`;
-    if (search) url += `&search=${encodeURIComponent(search)}`;
-    const resp = await fetch(url, { headers: headers() });
+    // The page filters and searches the whole roster in the browser and shows
+    // no pager, so a partial answer here is invisible: it simply looks as
+    // though those people do not exist. Walk every page rather than returning
+    // the first one.
+    const PAGE = 200;
+    const MAX_PAGES = 25; // 5,000 users; a stop, not an expectation
+    const collected: PlatformUser[] = [];
+    let total = 0;
+    let truncated = false;
+    let firstResp: Response | null = null;
 
-    if (resp.ok && resp.headers.get('content-type')?.includes('application/json')) {
+    for (let page = 0; page < MAX_PAGES; page++) {
+      let url = `${API_BASE_URL}/admin/users?page=${page}&size=${PAGE}`;
+      if (search) url += `&search=${encodeURIComponent(search)}`;
+      const resp = await fetch(url, { headers: headers() });
+      if (page === 0) firstResp = resp;
+
+      if (!resp.ok || !resp.headers.get('content-type')?.includes('application/json')) break;
       const data = await resp.json();
-      if (data?.status && data?.data) {
-        return NextResponse.json({
-          status: true,
-          users: data.data.users ?? [],
-          totalElements: data.data.totalElements ?? 0,
-          source: 'platform',
-        });
-      }
+      if (!data?.status || !data?.data) break;
+
+      collected.push(...(data.data.users ?? []));
+      total = data.data.totalElements ?? collected.length;
+      if (!data.data.hasNext) break;
+      if (page === MAX_PAGES - 1) truncated = true;
+    }
+
+    if (collected.length) {
+      return NextResponse.json({
+        status: true,
+        users: collected,
+        totalElements: total || collected.length,
+        truncated,
+        source: 'platform',
+      });
+    }
+
+    const resp = firstResp ?? (await fetch(`${API_BASE_URL}/admin/users?page=0&size=1`, { headers: headers() }));
+
+    // A working endpoint with nobody to report is not a failure.
+    if (resp.ok && resp.headers.get('content-type')?.includes('application/json')) {
+      return NextResponse.json({ status: true, users: [], totalElements: 0, source: 'platform' });
     }
 
     if (resp.status !== 404) {

@@ -412,6 +412,20 @@ export const eventsApi = {
   },
 
   // Fetch all active events from /events/get/all
+  /** Everyone holding a ticket to an event. */
+  getAttendees: async (eventId: number) => {
+    return fetchApi<{
+      status: boolean;
+      message?: string;
+      attendees?: Array<{
+        firstName: string | null;
+        lastName: string | null;
+        email: string | null;
+        mobileNumber: string | null;
+      }>;
+    }>(`/events/${eventId}/attendees`, { method: 'GET' });
+  },
+
   getActiveEvents: async () => {
     return fetchApi<{
       events: ActiveEvent[];
@@ -633,6 +647,8 @@ export const usersApi = {
       message?: string;
       users?: CompanyUser[];
       totalElements?: number;
+      /** Set when the roster exceeded the ceiling the route will walk to. */
+      truncated?: boolean;
       source?: 'platform' | 'per-company';
     }>(`/users${q}`, { method: 'GET' });
   },
