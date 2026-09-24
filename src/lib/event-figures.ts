@@ -117,7 +117,14 @@ export async function fetchTicketFigures(
         ticketsComplimentary: complimentary,
         salesPaid: Math.floor(paid / perSale),
         revenue: num(t.totalTicketSaleBalance),
-        allocated: num(t.originalTicketCount),
+        // Allocation is stored, not derived, and only the platform's own edit
+        // paths keep it in step with stock — a direct database change to
+        // quantity_available leaves it behind. It can never be less than what
+        // is still on sale plus what has already sold, so when the stored
+        // figure falls below that it is provably stale and the floor is used
+        // instead. This keeps sell-through under 100% and remaining
+        // non-negative rather than printing an impossible allocation.
+        allocated: Math.max(num(t.originalTicketCount), num(t.ticketCount) + paid),
         remaining: num(t.ticketCount),
       };
     });
