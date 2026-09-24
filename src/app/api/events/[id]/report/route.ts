@@ -2,24 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { upstreamStatus, SESSION_MAX_AGE_MS } from '@/lib/auth';
 import { signPayload, SigningKeyMissingError } from '@/lib/report-signing';
+import { fetchTicketFigures } from '@/lib/event-figures';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const API_USERNAME = process.env.NEXT_PUBLIC_API_USERNAME;
 const API_PASSWORD = process.env.NEXT_PUBLIC_API_PASSWORD;
-
-interface UpstreamTicket {
-  ticketId?: number;
-  id?: number;
-  ticketName?: string;
-  ticketPrice?: number;
-  ticketsSold?: number;
-  soldQuantity?: number;
-  revenue?: number;
-  totalTicketSaleBalance?: number;
-  originalTicketCount?: number;
-  ticketCount?: number;
-  quantityAvailable?: number;
-}
 
 const num = (...v: Array<number | undefined>) => v.find((x) => typeof x === 'number') ?? 0;
 
@@ -92,29 +79,42 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ status: false, message: 'Event not found' }, { status: 404 });
     }
 
-    const tickets: UpstreamTicket[] = Array.isArray(event.tickets)
-      ? event.tickets
-      : Array.isArray(event.ticketSummaries)
-        ? event.ticketSummaries
-        : [];
+    // The event detail endpoint carries identity but not sales: its
+    // `soldQuantity` is a column nothing on the platform ever increments, and
+    // it has no revenue field at all. Reading counts from there produced a
+    // signed document stating zero tickets and zero revenue for every event.
+    const numericId = num(event.id, event.eventId, Number(id));
+    const summaries = await fetchTicketFigures(numericId, String(event.eventName));
 
-    const lines = tickets.map((t) => {
-      const sold = num(t.ticketsSold, t.soldQuantity);
-      const price = num(t.ticketPrice);
-      return {
-        ticketId: num(t.ticketId, t.id),
-        ticketName: t.ticketName ?? 'Unnamed tier',
-        unitPrice: price,
-        ticketsSold: sold,
-        // Prefer the platform's own revenue figure; fall back to price x sold
-        // only when it is absent, and never silently mix the two.
-        revenue: num(t.revenue, t.totalTicketSaleBalance) || price * sold,
-        allocated: num(t.originalTicketCount, t.quantityAvailable),
-        remaining: num(t.ticketCount, t.quantityAvailable),
-      };
-    });
+    // A certified document that quietly reports zeros is worse than no
+    // document, because the signature makes the zeros look authoritative.
+    if (!summaries) {
+      console.error(`[Event Report API] No admin ticket summaries for event ${numericId}`);
+      return NextResponse.json(
+        {
+          status: false,
+          message:
+            'Sales figures for this event are unavailable, so a certified report cannot be issued.',
+        },
+        { status: 502 }
+      );
+    }
 
-    const ticketsSold = lines.reduce((s, l) => s + l.ticketsSold, 0);
+    const lines = summaries.map((t) => ({
+      ticketId: t.ticketId,
+      ticketName: t.ticketName,
+      unitPrice: t.ticketPrice,
+      ticketsIssued: t.ticketsIssued,
+      ticketsPaid: t.ticketsPaid,
+      ticketsComplimentary: t.ticketsComplimentary,
+      revenue: t.revenue,
+      allocated: t.allocated,
+      remaining: t.remaining,
+    }));
+
+    const ticketsIssued = lines.reduce((s, l) => s + l.ticketsIssued, 0);
+    const ticketsPaid = lines.reduce((s, l) => s + l.ticketsPaid, 0);
+    const ticketsComplimentary = lines.reduce((s, l) => s + l.ticketsComplimentary, 0);
     const grossRevenue = lines.reduce((s, l) => s + l.revenue, 0);
     const commissionRate = num(event.percentageCommission, event.percentageComission);
     const platformFee = Math.round(grossRevenue * (commissionRate / 100) * 100) / 100;
@@ -144,7 +144,9 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       },
       performance: {
         ticketTypes: lines.length,
-        ticketsSold,
+        ticketsIssued,
+        ticketsPaid,
+        ticketsComplimentary,
         grossRevenue,
         commissionRate,
         platformFee,

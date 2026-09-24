@@ -95,13 +95,20 @@ function downloadCSV(events: AdminEvent[]) {
 
   rows.push([]);
   rows.push(['── PER-TICKET BREAKDOWN ──']);
-  rows.push(['Event Name', 'Company', 'Ticket Type', 'Price (KES)', 'Sold', 'Revenue (KES)']);
+  rows.push([
+    'Event Name', 'Company', 'Ticket Type', 'Price (KES)',
+    'Paid', 'Complimentary', 'Issued', 'Revenue (KES)',
+  ]);
 
   for (const e of events) {
     for (const t of e.ticketSummaries) {
       rows.push([
         e.eventName, e.companyName, t.ticketName,
-        t.ticketPrice.toString(), (t.ticketsSold ?? 0).toString(), (t.revenue ?? 0).toFixed(2),
+        t.ticketPrice.toString(),
+        (t.paidTicketsSold ?? 0).toString(),
+        (t.complementaryTicketsSold ?? 0).toString(),
+        (t.uniqueTicketCount ?? 0).toString(),
+        (t.totalTicketSaleBalance ?? 0).toFixed(2),
       ]);
     }
   }
@@ -642,8 +649,9 @@ export default function EventSalesPage() {
                         price: t.ticketPrice,
                         status: t.ticketStatus,
                         allocation: t.originalTicketCount ?? t.ticketCount,
-                        sold: t.ticketsSold ?? 0,
-                        revenue: t.revenue ?? 0,
+                        paid: t.paidTicketsSold ?? 0,
+                        complimentary: t.complementaryTicketsSold ?? 0,
+                        revenue: t.totalTicketSaleBalance ?? 0,
                       }))}
                       commission={e.percentageCommission}
                       totalRevenue={e.totalRevenue}

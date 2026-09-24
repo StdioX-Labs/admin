@@ -19,7 +19,9 @@ export interface CertifiedReport {
   };
   performance: {
     ticketTypes: number;
-    ticketsSold: number;
+    ticketsIssued: number;
+    ticketsPaid: number;
+    ticketsComplimentary: number;
     grossRevenue: number;
     commissionRate: number;
     platformFee: number;
@@ -29,7 +31,9 @@ export interface CertifiedReport {
     ticketId: number;
     ticketName: string;
     unitPrice: number;
-    ticketsSold: number;
+    ticketsIssued: number;
+    ticketsPaid: number;
+    ticketsComplimentary: number;
     revenue: number;
     allocated: number;
     remaining: number;
@@ -125,21 +129,23 @@ export function buildReportPdf(
   const ccy = report.event.currency || 'KES';
   autoTable(doc, {
     startY: y,
-    head: [['Ticket tier', 'Unit price', 'Allocated', 'Sold', 'Remaining', 'Revenue']],
+    head: [['Ticket tier', 'Unit price', 'Allocated', 'Paid', 'Comp', 'Issued', 'Revenue']],
     body: report.lines.map((l) => [
       l.ticketName,
       money(l.unitPrice, ccy),
       String(l.allocated),
-      String(l.ticketsSold),
-      String(l.remaining),
+      String(l.ticketsPaid),
+      String(l.ticketsComplimentary),
+      String(l.ticketsIssued),
       money(l.revenue, ccy),
     ]),
     foot: [[
       'Total',
       '',
       '',
-      String(report.performance.ticketsSold),
-      '',
+      String(report.performance.ticketsPaid),
+      String(report.performance.ticketsComplimentary),
+      String(report.performance.ticketsIssued),
       money(report.performance.grossRevenue, ccy),
     ]],
     theme: 'grid',
@@ -147,8 +153,8 @@ export function buildReportPdf(
     headStyles: { fillColor: [235, 221, 197], textColor: [...INK], fontStyle: 'bold' },
     footStyles: { fillColor: [245, 234, 216], textColor: [...INK], fontStyle: 'bold' },
     columnStyles: {
-      1: { halign: 'right' }, 2: { halign: 'right' },
-      3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' },
+      1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' },
+      4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' },
     },
     margin: { left: M, right: M },
   });
@@ -157,6 +163,11 @@ export function buildReportPdf(
   y = (doc.lastAutoTable?.finalY ?? y) + 26;
 
   const settle: Array<[string, string]> = [
+    [
+      'Tickets issued',
+      `${report.performance.ticketsIssued} (${report.performance.ticketsPaid} paid, ` +
+        `${report.performance.ticketsComplimentary} complimentary)`,
+    ],
     ['Gross revenue', money(report.performance.grossRevenue, ccy)],
     [`Platform commission (${report.performance.commissionRate}%)`, `- ${money(report.performance.platformFee, ccy)}`],
     ['Net to organiser', money(report.performance.netToOrganiser, ccy)],
@@ -167,7 +178,7 @@ export function buildReportPdf(
     doc.setFont('helvetica', last ? 'bold' : 'normal');
     const tone = last ? INK : MUTED;
     doc.setTextColor(tone[0], tone[1], tone[2]);
-    doc.text(label, page.getWidth() - M - 250, y);
+    doc.text(label, page.getWidth() - M - 300, y);
     doc.setTextColor(...INK);
     doc.text(value, page.getWidth() - M, y, { align: 'right' });
     y += 17;
@@ -252,12 +263,17 @@ export function buildReportCsv(report: CertifiedReport, certificate: ReportCerti
     row('Issued by', report.issuedBy),
     row('Currency', ccy),
     row(),
-    row('Ticket tier', 'Unit price', 'Allocated', 'Sold', 'Remaining', 'Revenue'),
+    row('Ticket tier', 'Unit price', 'Allocated', 'Paid', 'Complimentary', 'Issued', 'Remaining', 'Revenue'),
     ...report.lines.map((l) =>
-      row(l.ticketName, l.unitPrice, l.allocated, l.ticketsSold, l.remaining, l.revenue)
+      row(l.ticketName, l.unitPrice, l.allocated, l.ticketsPaid, l.ticketsComplimentary,
+          l.ticketsIssued, l.remaining, l.revenue)
     ),
-    row('Total', '', '', report.performance.ticketsSold, '', report.performance.grossRevenue),
+    row('Total', '', '', report.performance.ticketsPaid, report.performance.ticketsComplimentary,
+        report.performance.ticketsIssued, '', report.performance.grossRevenue),
     row(),
+    row('Tickets issued', report.performance.ticketsIssued),
+    row('  of which paid', report.performance.ticketsPaid),
+    row('  of which complimentary', report.performance.ticketsComplimentary),
     row('Gross revenue', report.performance.grossRevenue),
     row('Commission rate (%)', report.performance.commissionRate),
     row('Platform fee', report.performance.platformFee),

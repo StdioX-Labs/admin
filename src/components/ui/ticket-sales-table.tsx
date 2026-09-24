@@ -23,10 +23,13 @@ export interface TicketSalesRow {
   status?: string;
   /** Total allocation for this type. Undefined when the API doesn't report it. */
   allocation?: number;
-  sold: number;
-  revenue: number;
-  /** Complementary tickets issued outside of sales. */
+  /** Tickets people paid for. Sell-through is measured against these, because
+   *  complimentary issues never draw down paid stock on the platform. */
+  paid: number;
+  /** Free tickets issued. They admit someone but earn nothing, so they are
+   *  counted apart from paid rather than folded into a single "sold". */
   complimentary?: number;
+  revenue: number;
   /** Per-buyer cap, when known. */
   limitPerPerson?: number;
 }
@@ -35,7 +38,7 @@ interface Props {
   rows: TicketSalesRow[];
   /** Commission %, used to derive the platform fee column. */
   commission?: number | null;
-  /** Falls back to the summed row revenue when the caller has no event total. */
+  /** Used only when there are no rows to total. */
   totalRevenue?: number;
   totalSold?: number;
   /** Hide the allocation / remaining / sell-through group. */
@@ -70,12 +73,21 @@ export function TicketSalesTable({
   const hasAllocation = rows.some((r) => r.allocation != null && r.allocation > 0);
   const showFill = !compact && hasAllocation;
 
-  const sumSold = totalSold ?? rows.reduce((s, r) => s + r.sold, 0);
-  const sumRevenue = totalRevenue ?? rows.reduce((s, r) => s + r.revenue, 0);
-  const sumAllocation = rows.reduce((s, r) => s + (r.allocation ?? 0), 0);
+  const sumPaid = rows.reduce((s, r) => s + r.paid, 0);
   const sumComp = rows.reduce((s, r) => s + (r.complimentary ?? 0), 0);
+  const sumIssued = sumPaid + sumComp;
+  // A totals row has to total the column above it. Preferring an event-level
+  // figure over the rows on display means the table can contradict itself when
+  // the two disagree — the caller's totals are a fallback for when there are no
+  // rows to add up, not an override of them.
+  const sumSold = rows.length ? sumPaid : (totalSold ?? 0);
+  const sumRevenue = rows.length
+    ? rows.reduce((s, r) => s + r.revenue, 0)
+    : (totalRevenue ?? 0);
+  const sumAllocation = rows.reduce((s, r) => s + (r.allocation ?? 0), 0);
+  // Fill measures paid stock; complimentary issues never drew it down.
   const overallFill =
-    sumAllocation > 0 ? Math.min(100, Math.round((sumSold / sumAllocation) * 100)) : 0;
+    sumAllocation > 0 ? Math.min(100, Math.round((sumPaid / sumAllocation) * 100)) : 0;
 
   const fee = (revenue: number) => (showFee ? (revenue * (commission as number)) / 100 : 0);
 
@@ -89,7 +101,9 @@ export function TicketSalesTable({
               <th>Ticket type</th>
               <th className="num">Price</th>
               {showFill && <th className="num">Allocation</th>}
-              <th className="num">Sold</th>
+              <th className="num">Paid</th>
+              <th className="num">Comp</th>
+              <th className="num">Issued</th>
               {showFill && <th className="num">Remaining</th>}
               {showFill && <th style={{ minWidth: 130 }}>Sell-through</th>}
               <th className="num">Revenue</th>
@@ -99,8 +113,10 @@ export function TicketSalesTable({
           <tbody>
             {rows.map((r) => {
               const allocation = r.allocation ?? 0;
-              const remaining = Math.max(0, allocation - r.sold);
-              const fill = allocation > 0 ? Math.min(100, Math.round((r.sold / allocation) * 100)) : 0;
+              const comp = r.complimentary ?? 0;
+              const issued = r.paid + comp;
+              const remaining = Math.max(0, allocation - r.paid);
+              const fill = allocation > 0 ? Math.min(100, Math.round((r.paid / allocation) * 100)) : 0;
               const tint = statusTint(r.status);
               return (
                 <tr key={r.id}>
@@ -138,7 +154,13 @@ export function TicketSalesTable({
                     </td>
                   )}
                   <td className="num" style={{ fontWeight: 600 }}>
-                    {num(r.sold)}
+                    {num(r.paid)}
+                  </td>
+                  <td className="num" style={{ color: comp ? 'var(--color-accent-700)' : MUTED }}>
+                    {comp ? num(comp) : '—'}
+                  </td>
+                  <td className="num" style={{ fontWeight: 600 }}>
+                    {num(issued)}
                   </td>
                   {showFill && (
                     <td
@@ -195,17 +217,20 @@ export function TicketSalesTable({
                 Total
                 <span style={{ fontWeight: 400, color: MUTED, marginLeft: 6, fontSize: 12 }}>
                   {rows.length} type{rows.length === 1 ? '' : 's'}
-                  {sumComp > 0 && ` · ${num(sumComp)} comp`}
                 </span>
               </td>
               <td />
               {showFill && (
                 <td className="num">{sumAllocation > 0 ? num(sumAllocation) : '—'}</td>
               )}
-              <td className="num">{num(sumSold)}</td>
+              <td className="num">{num(sumPaid)}</td>
+              <td className="num" style={{ color: sumComp ? 'var(--color-accent-700)' : MUTED }}>
+                {sumComp ? num(sumComp) : '—'}
+              </td>
+              <td className="num">{num(sumIssued)}</td>
               {showFill && (
                 <td className="num">
-                  {sumAllocation > 0 ? num(Math.max(0, sumAllocation - sumSold)) : '—'}
+                  {sumAllocation > 0 ? num(Math.max(0, sumAllocation - sumPaid)) : '—'}
                 </td>
               )}
               {showFill && (
@@ -240,8 +265,10 @@ export function TicketSalesTable({
       <div className="md:hidden flex flex-col">
         {rows.map((r) => {
           const allocation = r.allocation ?? 0;
-          const remaining = Math.max(0, allocation - r.sold);
-          const fill = allocation > 0 ? Math.min(100, Math.round((r.sold / allocation) * 100)) : 0;
+          const comp = r.complimentary ?? 0;
+          const issued = r.paid + comp;
+          const remaining = Math.max(0, allocation - r.paid);
+          const fill = allocation > 0 ? Math.min(100, Math.round((r.paid / allocation) * 100)) : 0;
           const tint = statusTint(r.status);
           return (
             <div
@@ -287,9 +314,9 @@ export function TicketSalesTable({
                   <div className="flex justify-between mb-1" style={{ fontSize: 11 }}>
                     <span style={{ color: MUTED }}>
                       <span className="tnum" style={{ fontWeight: 600, color: 'var(--color-text)' }}>
-                        {num(r.sold)}
+                        {num(r.paid)}
                       </span>{' '}
-                      sold · {num(remaining)} left
+                      paid{comp ? ` · ${num(comp)} comp` : ''} · {num(remaining)} left
                     </span>
                     <span className="tnum" style={{ fontWeight: 700 }}>
                       {fill}%
@@ -299,7 +326,7 @@ export function TicketSalesTable({
                 </div>
               ) : (
                 <div className="tnum" style={{ fontSize: 11, color: MUTED }}>
-                  {num(r.sold)} sold
+                  {num(issued)} issued{comp ? ` (${num(comp)} comp)` : ''}
                 </div>
               )}
             </div>

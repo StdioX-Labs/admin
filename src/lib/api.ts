@@ -235,11 +235,13 @@ export interface AdminEventTicketSummary {
   ticketName: string;
   ticketPrice: number;
   ticketStatus?: string;
-  // Fields returned by /admin/events/get/all
-  ticketsSold?: number;
-  revenue?: number;
-  // Fields returned by /admin/events/all (newer endpoint)
+  /** Everything issued for this tier, paid and complimentary together. */
   uniqueTicketCount?: number;
+  /** Tickets someone paid for. Sell-through is measured against these. */
+  paidTicketsSold?: number;
+  /** Free tickets issued. They admit a person but earn nothing, so they are
+   *  reported apart from paid rather than folded into one "sold" figure. */
+  complementaryTicketsSold?: number;
   totalTicketSaleBalance?: number;
   originalTicketCount?: number;
   ticketCount?: number; // remaining available

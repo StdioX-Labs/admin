@@ -90,6 +90,14 @@ interface ApiEvent {
   tickets: ApiTicket[];
 }
 
+interface TicketFigureRow {
+  ticketId: number;
+  ticketsPaid: number;
+  ticketsComplimentary: number;
+  revenue: number;
+  allocated: number;
+}
+
 interface TicketRow {
   ticketId: number;
   ticketName: string;
@@ -201,6 +209,10 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
   const [savingTicketId, setSavingTicketId] = useState<number | null>(null);
   const [isCreatingTicket, setIsCreatingTicket] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  // soldQuantity on the detail payload is never incremented and
+  // numberOfComplementary is a per-tier allowance rather than an issue count,
+  // so the sales table is fed from the endpoint that reports both honestly.
+  const [figures, setFigures] = useState<TicketFigureRow[] | null>(null);
   const [uploadError, setUploadError] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -311,6 +323,24 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
   useEffect(() => {
     fetchEvent();
   }, [fetchEvent]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await fetch(`/api/events/${eventId}/ticket-summary`, {
+          credentials: 'include',
+        });
+        const data = await resp.json();
+        if (!cancelled) setFigures(resp.ok && data.status ? data.figures : null);
+      } catch {
+        if (!cancelled) setFigures(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId]);
 
   const setF = (key: keyof EventForm, value: string | boolean | number) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -1208,22 +1238,27 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                   color: 'color-mix(in srgb, var(--color-text) 48%, transparent)',
                 }}
               >
-                Revenue derived from price x quantity sold
+                {figures
+                  ? 'Paid, complimentary and revenue as the platform reports them'
+                  : 'Sales figures unavailable — showing configuration only'}
               </span>
             </div>
             <TicketSalesTable
-              rows={tickets.map((t) => ({
-                id: t.ticketId,
-                name: t.ticketName,
-                price: t.ticketPrice,
-                isFree: t.isFree,
-                status: t.ticketStatus,
-                allocation: t.quantityAvailable,
-                sold: t.soldQuantity,
-                revenue: t.isFree ? 0 : t.ticketPrice * t.soldQuantity,
-                complimentary: t.numberOfComplementary,
-                limitPerPerson: t.ticketLimitPerPerson,
-              }))}
+              rows={tickets.map((t) => {
+                const f = figures?.find((x) => x.ticketId === t.ticketId);
+                return {
+                  id: t.ticketId,
+                  name: t.ticketName,
+                  price: t.ticketPrice,
+                  isFree: t.isFree,
+                  status: t.ticketStatus,
+                  allocation: f?.allocated || t.quantityAvailable,
+                  paid: f?.ticketsPaid ?? 0,
+                  complimentary: f?.ticketsComplimentary ?? 0,
+                  revenue: f?.revenue ?? 0,
+                  limitPerPerson: t.ticketLimitPerPerson,
+                };
+              })}
               commission={
                 form.percentageCommission !== ''
                   ? parseFloat(form.percentageCommission) || null

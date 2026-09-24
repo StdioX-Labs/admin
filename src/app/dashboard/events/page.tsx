@@ -52,8 +52,11 @@ interface TicketSummary {
   ticketName: string;
   ticketPrice: number;
   ticketStatus?: string;
-  ticketsSold?: number;
-  revenue?: number;
+  /** Everything issued for this tier, paid and complimentary together. */
+  uniqueTicketCount?: number;
+  paidTicketsSold?: number;
+  complementaryTicketsSold?: number;
+  totalTicketSaleBalance?: number;
   ticketCount?: number;
   originalTicketCount?: number;
 }
@@ -296,8 +299,9 @@ function EventCard({
               price: t.ticketPrice,
               status: t.ticketStatus,
               allocation: t.originalTicketCount ?? t.ticketCount,
-              sold: t.ticketsSold ?? 0,
-              revenue: t.revenue ?? 0,
+              paid: t.paidTicketsSold ?? 0,
+              complimentary: t.complementaryTicketsSold ?? 0,
+              revenue: t.totalTicketSaleBalance ?? 0,
             }))}
             commission={event.percentageCommission}
             totalRevenue={event.totalRevenue}
