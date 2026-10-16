@@ -743,3 +743,64 @@ export const createEventApi = {
     });
   },
 };
+
+// Scanner accounts: door staff who sign in to the gate app with a phone number and password,
+// attached to one event at a time.
+export interface Scanner {
+  id: number;
+  name: string;
+  phone: string;
+  companyId: number;
+  companyName: string | null;
+  eventId: number | null;
+  eventName: string | null;
+  active: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+  phones: number; // phones signed in as this scanner right now
+  admitted: number; // tickets they have let in
+}
+
+export interface ScannerEvent {
+  id: number;
+  eventName: string;
+  status: string;
+  startDate: string | null;
+}
+
+export interface Checkin {
+  ticketId: number;
+  barcode: string;
+  orderCode: string;
+  ticketName: string;
+  holderName: string | null;
+  holderPhone: string | null;
+  scannedAt: string;
+  gate: string | null;
+  channel: string | null; // H live, B synced after an outage, S by SMS, L found by search
+  scannedByName: string | null;
+  scannedByPhone: string | null;
+}
+
+type ScannerResult = Scanner & { status: boolean; message?: string };
+
+export const scannersApi = {
+  list: async (filter: { companyId?: number; eventId?: number }) => {
+    const qs = new URLSearchParams();
+    if (filter.companyId) qs.set('companyId', String(filter.companyId));
+    if (filter.eventId) qs.set('eventId', String(filter.eventId));
+    return fetchApi<{ status: boolean; message?: string; scanners: Scanner[] }>(`/scanners?${qs}`, { method: 'GET' });
+  },
+  create: async (data: { companyId: number; name: string; phone: string; password: string; eventId: number | null }) =>
+    fetchApi<ScannerResult>('/scanners', { method: 'POST', body: JSON.stringify(data) }),
+  attach: async (id: number, eventId: number | null) =>
+    fetchApi<ScannerResult>(`/scanners/${id}/attach`, { method: 'POST', body: JSON.stringify({ eventId }) }),
+  setPassword: async (id: number, password: string) =>
+    fetchApi<ScannerResult>(`/scanners/${id}/password`, { method: 'POST', body: JSON.stringify({ password }) }),
+  setActive: async (id: number, active: boolean) =>
+    fetchApi<ScannerResult>(`/scanners/${id}/active`, { method: 'POST', body: JSON.stringify({ active }) }),
+  events: async (companyId: number) =>
+    fetchApi<{ status: boolean; message?: string; events: ScannerEvent[] }>(`/scanners/events?companyId=${companyId}`, { method: 'GET' }),
+  checkins: async (eventId: number) =>
+    fetchApi<{ status: boolean; message?: string; checkins: Checkin[] }>(`/events/${eventId}/checkins`, { method: 'GET' }),
+};

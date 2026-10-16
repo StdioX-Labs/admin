@@ -8,6 +8,7 @@ import {
   Users,
   Wallet,
   Grid3x3,
+  ScanLine,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -21,7 +22,7 @@ export interface NavItem {
 }
 
 /**
- * The console's eight destinations, in the order the design lists them.
+ * The console's nine destinations, in the order the design lists them.
  * The desktop sidebar renders all of them; mobile splits them across the
  * bottom tab bar and the "More" sheet.
  */
@@ -34,13 +35,14 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'companies', href: '/dashboard/companies', label: 'Companies', icon: Building2 },
   { key: 'users', href: '/dashboard/users', label: 'Users', icon: Users },
   { key: 'finance', href: '/dashboard/finance', label: 'Finance', icon: Wallet },
+  { key: 'scanners', href: '/dashboard/scanners', label: 'Scanners', icon: ScanLine },
 ];
 
 /** Bottom tab bar: Dashboard, Events, Analytics, Users, then More. */
 export const BOTTOM_TAB_KEYS = ['dashboard', 'events', 'analytics', 'users'] as const;
 
 /** Everything the tab bar can't hold, surfaced through the More sheet. */
-export const MORE_KEYS = ['approvals', 'sales', 'companies', 'finance'] as const;
+export const MORE_KEYS = ['approvals', 'sales', 'companies', 'finance', 'scanners'] as const;
 
 export const MORE_ICON = Grid3x3;
 
@@ -55,6 +57,7 @@ export const PAGE_TITLES: Record<string, [string, string]> = {
   '/dashboard/companies': ['Companies', 'Organizers & ticketing partners'],
   '/dashboard/users': ['Users', 'Platform members and roles'],
   '/dashboard/finance': ['Finance', 'Transactions, payouts & fees'],
+  '/dashboard/scanners': ['Scanners', 'Door staff, their events, and who scanned whom'],
 };
 
 export function resolveTitle(pathname: string): [string, string] {
