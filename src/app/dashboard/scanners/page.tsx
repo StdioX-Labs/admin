@@ -1,13 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Building2, Download, KeyRound, Power, RotateCcw, ScanLine, Search, UserPlus } from 'lucide-react';
+import { Building2, CalendarDays, Download, KeyRound, Power, RotateCcw, ScanLine, Search, UserPlus, X } from 'lucide-react';
 import { Card, EmptyState, ErrorNote, Pill, SuccessNote, ago, dateShort, num, timeShort } from '@/components/ui/soa';
 import {
   companyApi,
+  eventsApi,
   scannersApi,
+  type AdminEvent,
   type Checkin,
-  type Company,
   type Scanner,
   type ScannerEvent,
 } from '@/lib/api';
@@ -50,6 +51,19 @@ const quietButton = {
 
 const CHANNEL: Record<string, string> = { H: 'Live', B: 'Synced after outage', S: 'By SMS', L: 'Found by search' };
 
+/** The company the page is working on: picked directly, or derived from a picked event. */
+interface PickedCompany {
+  id: number;
+  companyName: string;
+}
+
+/** An event's full name with its date, so two events with similar names can be told apart. */
+function eventLabel(e: { eventName: string; startDate?: string | null; status?: string }) {
+  const when = e.startDate ? ` · ${dateShort(e.startDate)}` : '';
+  const state = e.status && e.status !== 'ACTIVE' ? ` (${e.status.toLowerCase()})` : '';
+  return `${e.eventName}${when}${state}`;
+}
+
 /** Easy to read out and type on a phone: no 0/O, 1/l/I. */
 function newPassword(): string {
   const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
@@ -70,10 +84,12 @@ export default function ScannersPage() {
   const flash = useFlashMessage(20000);
   const [error, setError] = useState('');
 
-  // Company
+  // Company, found by its own name or by one of its events
   const [search, setSearch] = useState('');
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [company, setCompany] = useState<Company | null>(null);
+  const [companies, setCompanies] = useState<PickedCompany[]>([]);
+  const [foundEvents, setFoundEvents] = useState<AdminEvent[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [company, setCompany] = useState<PickedCompany | null>(null);
 
   // Scanners and events of the chosen company
   const [scanners, setScanners] = useState<Scanner[]>([]);
@@ -94,16 +110,37 @@ export default function ScannersPage() {
   const [loadingCheckins, setLoadingCheckins] = useState(false);
 
   useEffect(() => {
-    const id = setTimeout(() => {
-      companyApi
-        .getAll(0, 20, search.trim() || undefined)
-        .then((r) => setCompanies(r.data?.companies ?? []))
-        .catch(() => setCompanies([]));
+    const q = search.trim();
+    if (q.length < 2) {
+      setCompanies([]);
+      setFoundEvents([]);
+      return;
+    }
+    const id = setTimeout(async () => {
+      setSearching(true);
+      const [c, e] = await Promise.all([
+        companyApi.getAll(0, 8, q).then((r) => r.data?.companies ?? []).catch(() => []),
+        eventsApi.getAllEvents(0, 8, q).then((r) => r.data?.data ?? []).catch(() => []),
+      ]);
+      setCompanies(c.map((x) => ({ id: x.id, companyName: x.companyName })));
+      setFoundEvents(e);
+      setSearching(false);
     }, 300);
     return () => clearTimeout(id);
   }, [search]);
 
-  const load = useCallback(async (c: Company) => {
+  /** Switch to a company; when picked through an event, that event is preselected everywhere. */
+  function pick(next: PickedCompany, viaEventId?: number) {
+    setCompany(next);
+    setScanners([]);
+    setEvents([]);
+    setEventId(viaEventId ? String(viaEventId) : '');
+    setCheckinEvent(viaEventId ? String(viaEventId) : '');
+    setCheckins(null);
+    setSearch('');
+  }
+
+  const load = useCallback(async (c: PickedCompany) => {
     setLoading(true);
     setError('');
     try {
@@ -232,32 +269,56 @@ export default function ScannersPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Company */}
-      <Card padded={false} className="flex-row flex-wrap items-center gap-2.5" style={{ padding: '13px 15px' }}>
-        <div className="relative flex-1 min-w-[220px]">
-          <Search className="ic absolute w-4 h-4 pointer-events-none"
-            style={{ left: 14, top: '50%', transform: 'translateY(-50%)', color: 'color-mix(in srgb, var(--color-text) 42%, transparent)' }} />
-          <input className="soa-input" style={{ paddingLeft: 40 }} placeholder="Find the organiser company…"
-            value={search} onChange={(e) => setSearch(e.target.value)} />
+      {/* Company, by name or through one of its events */}
+      <Card padded={false} style={{ padding: '13px 15px' }}>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative flex-1 min-w-[240px]">
+            <Search className="ic absolute w-4 h-4 pointer-events-none"
+              style={{ left: 14, top: '50%', transform: 'translateY(-50%)', color: 'color-mix(in srgb, var(--color-text) 42%, transparent)' }} />
+            <input className="soa-input" style={{ paddingLeft: 40 }} placeholder="Find a company or an event…"
+              value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          {company && (
+            <span className="flex items-center gap-2" style={{ fontSize: 13.5 }}>
+              <Building2 className="ic w-4 h-4" />
+              <b>{company.companyName}</b>
+              <button onClick={() => { setCompany(null); setCheckins(null); }} title="Change company" style={{ ...quietButton, height: 26, padding: '0 6px' }}>
+                <X className="ic w-3.5 h-3.5" />
+              </button>
+            </span>
+          )}
+          {company && (
+            <button onClick={() => load(company)} className="flex items-center gap-1.5" style={quietButton}>
+              <RotateCcw className="ic w-3.5 h-3.5" /> Refresh
+            </button>
+          )}
         </div>
-        <select className="soa-input" style={{ maxWidth: 320 }} value={company?.id ?? ''} aria-label="Company"
-          onChange={(e) => {
-            const c = companies.find((x) => x.id === Number(e.target.value)) ?? null;
-            setCompany(c);
-            setScanners([]);
-            setEvents([]);
-            setEventId('');
-            setCheckinEvent('');
-            setCheckins(null);
-          }}>
-          <option value="">Choose a company</option>
-          {company && !companies.some((c) => c.id === company.id) && <option value={company.id}>{company.companyName}</option>}
-          {companies.map((c) => <option key={c.id} value={c.id}>{c.companyName}</option>)}
-        </select>
-        {company && (
-          <button onClick={() => load(company)} className="flex items-center gap-1.5" style={quietButton}>
-            <RotateCcw className="ic w-3.5 h-3.5" /> Refresh
-          </button>
+
+        {search.trim().length >= 2 && (
+          <div className="flex flex-col gap-1 mt-3" style={{ maxHeight: 320, overflowY: 'auto' }}>
+            {searching && <span style={{ fontSize: 12.5, opacity: 0.6 }}>Searching…</span>}
+            {!searching && companies.length === 0 && foundEvents.length === 0 && (
+              <span style={{ fontSize: 12.5, opacity: 0.6 }}>No company or event matches “{search.trim()}”.</span>
+            )}
+            {companies.map((c) => (
+              <button key={`c${c.id}`} onClick={() => pick(c)} className="flex items-center gap-2 text-left"
+                style={{ ...quietButton, height: 'auto', padding: '8px 10px', border: 'none', background: 'var(--color-neutral-200, transparent)' }}>
+                <Building2 className="ic w-4 h-4 flex-none" />
+                <span><b>{c.companyName}</b> <span style={{ opacity: 0.6 }}>· company</span></span>
+              </button>
+            ))}
+            {foundEvents.map((e) => (
+              <button key={`e${e.eventId}`} onClick={() => pick({ id: e.companyId, companyName: e.companyName }, e.eventId)}
+                className="flex items-center gap-2 text-left"
+                style={{ ...quietButton, height: 'auto', padding: '8px 10px', border: 'none', background: 'var(--color-neutral-200, transparent)' }}>
+                <CalendarDays className="ic w-4 h-4 flex-none" />
+                <span style={{ whiteSpace: 'normal' }}>
+                  <b>{e.eventName}</b>
+                  <span style={{ opacity: 0.6 }}> · {e.companyName}{e.eventStartDate ? ` · ${dateShort(e.eventStartDate)}` : ''}</span>
+                </span>
+              </button>
+            ))}
+          </div>
         )}
       </Card>
 
@@ -265,7 +326,7 @@ export default function ScannersPage() {
       {error && <ErrorNote message={error} />}
 
       {!company && (
-        <EmptyState icon={Building2} title="Choose a company" hint="Scanners belong to an organiser company and scan its events." />
+        <EmptyState icon={Building2} title="Find a company or an event" hint="Scanners belong to an organiser company and scan its events. Search either one; picking an event selects its company." />
       )}
 
       {company && (
@@ -283,9 +344,10 @@ export default function ScannersPage() {
                 <input className="soa-input flex-1" placeholder="Password (6+ characters)" value={password} onChange={(e) => setPassword(e.target.value)} />
                 <button onClick={() => setPassword(newPassword())} style={quietButton} title="Make a new password">New</button>
               </div>
-              <select className="soa-input" value={eventId} onChange={(e) => setEventId(e.target.value)} aria-label="Event">
+              <select className="soa-input" value={eventId} onChange={(e) => setEventId(e.target.value)} aria-label="Event"
+                title={eventName.get(Number(eventId)) ?? 'Not attached yet'} style={{ gridColumn: '1 / -1' }}>
                 <option value="">Not attached yet</option>
-                {events.map((e) => <option key={e.id} value={e.id}>{e.eventName}{e.status !== 'ACTIVE' ? ` (${e.status.toLowerCase()})` : ''}</option>)}
+                {events.map((e) => <option key={e.id} value={e.id}>{eventLabel(e)}</option>)}
               </select>
             </div>
             <div className="flex items-center gap-3 mt-3">
@@ -311,7 +373,7 @@ export default function ScannersPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="soa-table" style={{ minWidth: 820 }}>
+                <table className="soa-table" style={{ minWidth: 940 }}>
                   <thead>
                     <tr>
                       <th>Scanner</th>
@@ -326,16 +388,17 @@ export default function ScannersPage() {
                   <tbody>
                     {scanners.map((s) => (
                       <tr key={s.id} style={{ opacity: busyId === s.id ? 0.5 : 1 }}>
-                        <td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
                           <div style={{ fontWeight: 600 }}>{s.name}</div>
                           <div className="tnum" style={{ fontSize: 12, opacity: 0.65 }}>{formatKenyanPhone(s.phone)}</div>
                         </td>
                         <td>
-                          <select className="soa-input" style={{ height: 32, fontSize: 12.5, maxWidth: 260 }} value={s.eventId ?? ''}
-                            disabled={busyId === s.id} onChange={(e) => reattach(s, e.target.value)} aria-label={`Event for ${s.name}`}>
+                          <select className="soa-input" style={{ height: 32, fontSize: 12.5, width: '100%', minWidth: 300 }} value={s.eventId ?? ''}
+                            disabled={busyId === s.id} onChange={(e) => reattach(s, e.target.value)} aria-label={`Event for ${s.name}`}
+                            title={s.eventName ?? 'Not attached'}>
                             <option value="">Not attached</option>
                             {s.eventId && !eventName.has(s.eventId) && <option value={s.eventId}>{s.eventName ?? `Event ${s.eventId}`} (over)</option>}
-                            {events.map((e) => <option key={e.id} value={e.id}>{e.eventName}</option>)}
+                            {events.map((e) => <option key={e.id} value={e.id}>{eventLabel(e)}</option>)}
                           </select>
                         </td>
                         <td className="tnum">{num(s.phones)}</td>
@@ -367,21 +430,22 @@ export default function ScannersPage() {
           {/* Check-ins */}
           <Card>
             <div className="flex flex-wrap items-center gap-2.5">
-              <h2 style={{ fontSize: 15, fontWeight: 700 }}>Check-ins</h2>
-              <select className="soa-input" style={{ maxWidth: 320 }} value={checkinEvent}
-                onChange={(e) => { setCheckinEvent(e.target.value); setCheckins(null); }} aria-label="Event for check-ins">
+              <h2 style={{ fontSize: 15, fontWeight: 700, flex: 1 }}>Check-ins</h2>
+              <select className="soa-input" style={{ flexBasis: '100%', order: 1 }} value={checkinEvent}
+                onChange={(e) => { setCheckinEvent(e.target.value); setCheckins(null); }} aria-label="Event for check-ins"
+                title={eventName.get(Number(checkinEvent)) ?? 'Choose an event'}>
                 <option value="">Choose an event</option>
-                {events.map((e) => <option key={e.id} value={e.id}>{e.eventName}</option>)}
+                {events.map((e) => <option key={e.id} value={e.id}>{eventLabel(e)}</option>)}
               </select>
-              <button style={accentButton} disabled={!checkinEvent || loadingCheckins} onClick={loadCheckins}>
+              <button style={{ ...accentButton, order: 2 }} disabled={!checkinEvent || loadingCheckins} onClick={loadCheckins}>
                 {loadingCheckins ? 'Loading…' : 'Show who scanned'}
               </button>
               {checkins && checkins.length > 0 && (
-                <button style={quietButton} className="flex items-center gap-1.5" onClick={downloadCheckins}>
+                <button style={{ ...quietButton, order: 2 }} className="flex items-center gap-1.5" onClick={downloadCheckins}>
                   <Download className="ic w-3.5 h-3.5" /> CSV
                 </button>
               )}
-              {checkins && <span style={{ fontSize: 12.5, opacity: 0.6 }}>{num(checkins.length)} let in</span>}
+              {checkins && <span style={{ fontSize: 12.5, opacity: 0.6, order: 2 }}>{num(checkins.length)} let in</span>}
             </div>
             {checkins && checkins.length === 0 && (
               <p style={{ fontSize: 13, opacity: 0.7, marginTop: 12 }}>Nobody has been scanned in at this event yet.</p>
