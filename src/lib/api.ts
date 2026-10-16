@@ -780,6 +780,7 @@ export interface Checkin {
   channel: string | null; // H live, B synced after an outage, S by SMS, L found by search
   scannedByName: string | null;
   scannedByPhone: string | null;
+  photoId: number | null; // a photo the scanner took of the code, kept until shortly after the event
 }
 
 type ScannerResult = Scanner & { status: boolean; message?: string };

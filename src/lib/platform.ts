@@ -31,6 +31,28 @@ export async function sessionError(): Promise<NextResponse | null> {
   return null;
 }
 
+/** Relays an image (a scan photo) from the platform API as it is, for signed-in console users. */
+export async function relayImage(path: string): Promise<NextResponse> {
+  const denied = await sessionError();
+  if (denied) return denied;
+  try {
+    const authString = Buffer.from(`${API_USERNAME}:${API_PASSWORD}`).toString('base64');
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      headers: { Authorization: `Basic ${authString}`, Accept: 'image/jpeg' },
+      cache: 'no-store',
+    });
+    if (!response.ok || !response.headers.get('content-type')?.startsWith('image/')) {
+      return NextResponse.json({ status: false, message: 'Photo not found' }, { status: response.status === 404 ? 404 : 502 });
+    }
+    return new NextResponse(await response.arrayBuffer(), {
+      headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=86400' },
+    });
+  } catch (error) {
+    console.error(`[platform ${path}]`, error);
+    return NextResponse.json({ status: false, message: 'Could not load the photo' }, { status: 500 });
+  }
+}
+
 /**
  * Calls the platform API with the console's service login and relays its JSON. The platform
  * answers errors as {status: false, error}; the console reads `message`, so both are passed on.

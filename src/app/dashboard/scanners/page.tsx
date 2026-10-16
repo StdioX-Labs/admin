@@ -461,6 +461,7 @@ export default function ScannersPage() {
                       <th>Scanned by</th>
                       <th>Gate</th>
                       <th>How</th>
+                      <th>Photo</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -481,6 +482,15 @@ export default function ScannersPage() {
                         </td>
                         <td>{c.gate || '—'}</td>
                         <td style={{ fontSize: 12.5 }}>{CHANNEL[c.channel ?? ''] ?? 'Older scanner'}</td>
+                        <td style={{ fontSize: 12.5 }}>
+                          {c.photoId ? (
+                            <a href={`/api/scanners/photo/${c.photoId}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>
+                              View
+                            </a>
+                          ) : (
+                            <span style={{ opacity: 0.45 }}>—</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
